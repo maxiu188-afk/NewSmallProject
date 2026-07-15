@@ -1,0 +1,21 @@
+.DS_Store
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+
+# Upstream reference checkout and locally supplied papers are intentionally
+# separate from this reproduction repository.
+QuaRot/
+*.pdf
+
+# Generated experiment artifacts; configuration and documentation stay tracked.
+results/*
+!results/.gitkeep
+
+# Model and framework caches are local state.
+models/
+checkpoints/
+offload/
+wandb/
+.cache/

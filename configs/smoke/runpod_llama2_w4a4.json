@@ -1,0 +1,37 @@
+{
+  "experiment_id": "smoke-runpod-llama2-7b-w4a4",
+  "track": "algorithm",
+  "status": "planned",
+  "model": {
+    "id": "meta-llama/Llama-2-7b-hf",
+    "revision": "pin-before-run",
+    "dtype": "bf16"
+  },
+  "quantization": {
+    "execution_mode": "fake_quant",
+    "rotation": "hadamard",
+    "w_bits": 4,
+    "a_bits": 4,
+    "k_bits": 16,
+    "v_bits": 16
+  },
+  "calibration": {
+    "dataset": "to-be-pinned",
+    "revision": "to-be-pinned",
+    "nsamples": 16,
+    "seed": 0,
+    "sequence_length": 128
+  },
+  "evaluation": {
+    "dataset": "to-be-pinned",
+    "revision": "to-be-pinned",
+    "sequence_length": 128
+  },
+  "runtime": {
+    "environment": "runpod-cuda",
+    "device_class": "nvidia_cuda"
+  },
+  "provenance": {
+    "upstream_commit": "5008669b08c1f11f9b64d52d16fddd47ca754c5a"
+  }
+}

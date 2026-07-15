@@ -1,0 +1,11 @@
+{
+  "pipeline_version": 1,
+  "model": {"kind": "pretrained", "id": "HuggingFaceTB/SmolLM2-135M", "revision": "93efa2f097d58c2a74874c7e644dbc9b0cee75a2", "local_files_only": true, "trust_remote_code": false, "dtype": "float32"},
+  "data": {"source": "synthetic", "num_batches": 1, "batch_size": 1, "sequence_length": 32, "max_samples": 1, "seed": 0},
+  "runtime": {"device": "cpu", "allow_fallback": false},
+  "experiment": {
+    "seed": 0,
+    "rotation": {"residual_mode": "random", "seed": 0, "vo_rotation": true, "mlp_online": true, "qk_post_rope": false},
+    "quantization": {"w_bits": 4, "a_bits": 4}
+  }
+}

@@ -1,0 +1,5 @@
+# Local-only tiny-model smoke environment. No model weights or datasets needed.
+torch==2.2.1
+transformers==4.38.0
+# Torch 2.2 wheels were built against NumPy 1.x.
+numpy<2

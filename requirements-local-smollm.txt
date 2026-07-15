@@ -1,0 +1,5 @@
+# Separate environment for the selected pretrained LLaMA-family local model.
+# Keep .venv-smoke unchanged for the existing Transformers 4.38 reference smoke.
+torch==2.2.1
+transformers==4.40.1
+numpy<2

@@ -1,0 +1,10 @@
+{
+  "name": "local-mac",
+  "purpose": ["static_audit", "unit_test", "tiny_model_smoke_test"],
+  "prohibited_claims": ["cuda_kernel_performance", "7b_scale_accuracy", "int4_deployment"],
+  "observed": {
+    "os": "macOS Darwin arm64",
+    "accelerator": "Apple M5 Metal",
+    "nvidia_cuda_available": false
+  }
+}

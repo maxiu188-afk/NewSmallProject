@@ -1,0 +1,83 @@
+{
+  "common": {
+    "track": "algorithm",
+    "status": "planned",
+    "model": {
+      "id": "meta-llama/Llama-2-7b-hf",
+      "revision": "to-be-pinned",
+      "dtype": "bf16"
+    },
+    "quantization": {
+      "execution_mode": "fake_quant",
+      "rotation": "none",
+      "weight_method": "gptq",
+      "w_bits": 16,
+      "a_bits": 16,
+      "k_bits": 16,
+      "v_bits": 16,
+      "w_groupsize": -1,
+      "a_groupsize": -1,
+      "k_groupsize": -1,
+      "v_groupsize": -1
+    },
+    "calibration": {
+      "dataset": "to-be-pinned",
+      "revision": "to-be-pinned",
+      "nsamples": 128,
+      "seed": 0,
+      "sequence_length": 2048
+    },
+    "evaluation": {
+      "dataset": "to-be-pinned",
+      "revision": "to-be-pinned",
+      "sequence_length": 2048
+    },
+    "runtime": {
+      "environment": "runpod-cuda",
+      "device_class": "nvidia_cuda"
+    },
+    "provenance": {
+      "upstream_commit": "5008669b08c1f11f9b64d52d16fddd47ca754c5a"
+    }
+  },
+  "variants": {
+    "F0-bf16": {
+      "quantization": {
+        "execution_mode": "bf16"
+      }
+    },
+    "F1-naive-w4": {
+      "quantization": {
+        "w_bits": 4
+      }
+    },
+    "F2-quarot-w4": {
+      "quantization": {
+        "rotation": "hadamard",
+        "w_bits": 4
+      }
+    },
+    "F3-naive-w4a4": {
+      "quantization": {
+        "w_bits": 4,
+        "a_bits": 4
+      }
+    },
+    "F4-quarot-w4a4": {
+      "quantization": {
+        "rotation": "hadamard",
+        "w_bits": 4,
+        "a_bits": 4
+      }
+    },
+    "F5-quarot-w4a4kv4": {
+      "quantization": {
+        "rotation": "hadamard",
+        "w_bits": 4,
+        "a_bits": 4,
+        "k_bits": 4,
+        "v_bits": 4
+      }
+    }
+  }
+}
