@@ -26,20 +26,22 @@ and matrix multiplications are genuinely low-bit or only simulated.
 
 ### Current scope decision (2026-07-15)
 
-The active reproduction scope ends with local algorithm checks and smoke tests.
-RunPod is not used for this project at present. Consequently, no CUDA build,
-real low-bit kernel, pretrained-model PPL, GPTQ calibration, or performance
-claim is in scope. The RunPod material below is retained only as a documented
-future option and must not be executed as part of the current work.
+The active reproduction first completes algorithm implementation and local
+Windows GPU smoke tests. Only after those gates pass may a server be used for
+pretrained-model PPL, GPTQ calibration, or large controlled matrices. CUDA
+kernel builds and performance claims remain separately gated deployment work;
+they must not be inferred from local fake-quant results.
 
 If the server scope is reopened, `docs/CUDA_PYTORCH_COMPATIBILITY_POLICY.md` is
 mandatory before any dependency or build script is written.
 
-### Local Mac: correctness and smoke tests only
+### Local Windows GPU: correctness and smoke tests only
 
-- Platform: Apple Silicon Mac, M5, 16 GB unified memory; no NVIDIA CUDA.
+- Platform: Windows with an NVIDIA GPU; the currently observed device is an
+  RTX 3070 Ti Laptop GPU with 8 GB VRAM. Exact driver, PyTorch CUDA build, and
+  device information must be recorded by each smoke result.
 - Use: deterministic mathematical tests, tiny/random model tests, static source
-  audit, config/schema validation, and optional small CPU/MPS smoke tests.
+  audit, config/schema validation, and small CUDA correctness smoke tests.
 - Common development packages may be installed locally when needed. Defer
   Datasets, Accelerate, LM-Eval, CUDA extensions, and model-weight downloads
   until there is a concrete need and the dependency scope has been reviewed.
@@ -51,7 +53,7 @@ mandatory before any dependency or build script is written.
 
 ### RunPod GPU: reproducibility and performance experiments
 
-**Dormant; not in the current execution scope.**
+**Runs only after the local GPU smoke gate passes.**
 
 - Use: model loading, calibration, PPL and zero-shot evaluation, CUDA extension
   builds, kernel correctness, memory, prefill, decode, throughput, and latency.

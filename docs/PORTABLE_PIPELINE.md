@@ -23,18 +23,23 @@ attention in its residual and V/O transformations. It derives all dimensions
 from `model.config`; no model ID is special-cased.
 
 Implemented: RMSNorm fusion, residual rotation (`hadamard` or seeded `random`),
-V/O compensation, optional power-of-two MLP online Hadamard, W-bit QDQ, and
-A-bit per-token QDQ.
+V/O compensation, Q/K per-head Hadamard immediately after RoPE, optional
+power-of-two MLP online Hadamard, W-bit QDQ, A-bit per-token QDQ, K-cache QDQ,
+and separate V-projection-output QDQ. K-cache QDQ supports either token-wise
+groups across all heads (`k_group_size: -1`) or a group per head
+(`k_group_size: head_dim`); the equivalent V option is `v_group_size`.
 
 When a LLaMA-family checkpoint ties input embeddings and the output head, the
 adapter copies the output head before reparameterization. This is required for
 exactness: the input embedding and output projection undergo different valid
 transformations after final-RMSNorm fusion.
 
-Explicitly not yet implemented: Q/K post-RoPE rotation. The portable adapter
-now supports both power-of-two online MLP Hadamards and the `12 x power-of-two`
-structure used by SmolLM2-135M (`1536 = 12 x 128`). It is still a partial
-QuaRot pipeline because Q/K rotation and KV-cache handling are absent.
+The portable adapter supports both power-of-two online MLP Hadamards and the
+`12 x power-of-two` structure used by SmolLM2-135M (`1536 = 12 x 128`). The
+post-RoPE wrapper targets the ordinary Hugging Face LLaMA attention helper and
+must be numerical-smoke-tested for every pinned Transformers version before a
+pretrained result is accepted. It is fake quantization only: it neither packs
+the cache nor replaces floating-point attention with an integer kernel.
 
 ## Preparing a pretrained model safely
 
@@ -85,6 +90,12 @@ macOS/Linux:
 .venv-smoke/bin/python scripts/run_quarot_pipeline.py \
   configs/pipeline/synthetic_llama_w4a4_smoke.json \
   --output results/pipeline-synthetic-w4a4-smoke/result.json
+
+# F5 algorithm smoke: Q/K post-RoPE rotation plus W4A4KV4 QDQ through
+# sequential cached decoding (still floating-point QDQ, not a deployment run)
+.venv-smoke/bin/python scripts/run_quarot_pipeline.py \
+  configs/pipeline/synthetic_llama_w4a4kv4_smoke.json \
+  --output results/pipeline-synthetic-w4a4kv4-smoke/result.json
 ```
 
 Windows PowerShell after creating an equivalent virtual environment:

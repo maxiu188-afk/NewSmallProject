@@ -15,7 +15,7 @@
       "attention_bias": false,
       "mlp_bias": false,
       "tie_word_embeddings": false,
-      "use_cache": false
+      "use_cache": true
     }
   },
   "data": {
@@ -26,24 +26,21 @@
     "max_samples": 2,
     "seed": 0
   },
-  "runtime": {
-    "device": "cpu",
-    "allow_fallback": false
-  },
+  "runtime": {"device": "cuda", "allow_fallback": false},
   "experiment": {
     "seed": 0,
-    "rotation": {
-      "residual_mode": "hadamard",
-      "seed": 0,
-      "vo_rotation": true,
-      "mlp_online": true,
-      "qk_post_rope": true
-    },
+    "rotation": {"residual_mode": "hadamard", "seed": 0, "vo_rotation": true, "mlp_online": true, "qk_post_rope": true},
     "quantization": {
       "w_bits": 4,
       "a_bits": 4,
-      "k_bits": 16,
-      "v_bits": 16
+      "k_bits": 4,
+      "v_bits": 4,
+      "k_group_size": -1,
+      "v_group_size": -1,
+      "k_symmetric": true,
+      "v_symmetric": true,
+      "k_clip_ratio": 1.0,
+      "v_clip_ratio": 1.0
     }
   }
 }
