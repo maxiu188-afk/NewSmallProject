@@ -9,6 +9,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 @unittest.skipUnless(HAS_TORCH_SMOKE_DEPS, "requires the isolated local smoke environment")
 class PortablePipelineTests(unittest.TestCase):
+    def test_smollm2_f5_configs_define_matched_fake_quant_control(self):
+        from repro.quarot_pipeline import load_pipeline_config
+
+        candidate = load_pipeline_config(PROJECT_ROOT / "configs/pipeline/smollm2_135m_local_quarot_w4a4kv4.json")
+        control = load_pipeline_config(PROJECT_ROOT / "configs/pipeline/smollm2_135m_local_naive_w4a4kv4.json")
+        self.assertTrue(candidate["model"]["local_files_only"])
+        self.assertTrue(candidate["experiment"]["rotation"]["qk_post_rope"])
+        self.assertEqual(candidate["experiment"]["quantization"], {"w_bits": 4, "a_bits": 4, "k_bits": 4, "v_bits": 4})
+        self.assertEqual(control["experiment"]["quantization"], candidate["experiment"]["quantization"])
+        self.assertEqual(control["experiment"]["rotation"]["residual_mode"], "none")
+
     def test_synthetic_llama_pipeline_is_configuration_driven_and_equivalent(self):
         from repro.quarot_pipeline import load_pipeline_config, run_pipeline
 

@@ -1,0 +1,3 @@
+# Isolated macOS/Linux API-compatibility smoke environment; no model weights or datasets required.
+torch==2.13.0
+transformers==5.14.1

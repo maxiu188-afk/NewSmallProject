@@ -52,8 +52,9 @@ Run on the local Mac CPU after the model was loaded with `local_files_only`:
 | First-logit mean absolute error | — | 3.8490e-05 |
 | First-logit max absolute error | — | 8.4114e-04 |
 
-The candidate uses seeded random residual rotation, V/O compensation, and the
-online structured MLP Hadamard for `1536 = 12 x 128`. It
+The candidate uses seeded random residual rotation, V/O compensation, Q/K
+post-RoPE rotation, and the online structured MLP Hadamard for `1536 = 12 x
+128`. It
 also detected SmolLM2's tied input/output embedding and copied the output head
 before applying the distinct input and final-output transformations. Without
 that step the first run had a max-logit error of about 53.55, so it was rejected
@@ -67,6 +68,6 @@ needed before treating this as stronger numerical-equivalence evidence.
 
 ## Explicitly not covered
 
-- Q/K post-RoPE rotation;
-- W4/A4, K/V-cache QDQ, calibration, or dataset perplexity;
+- W4/A4 or K/V-cache QDQ (recorded separately in
+  `LOCAL_SMOLLM2_135M_FAKE_QUANT.md`), calibration, or dataset perplexity;
 - CUDA kernels, memory, latency, and throughput.

@@ -1,7 +1,10 @@
 # RunPod smoke runbook
 
-> Status: dormant reference. The current project scope is local-only; do not
-> execute this runbook unless the scope is explicitly reopened.
+> Status: active preparation (2026-07-16). The server scope is reopened for
+> preflight and numerical-correctness gates only; it does not yet authorize a
+> benchmark or an accuracy claim.
+
+The selected launch resources are recorded in `RUNPOD_LAUNCH_SPEC.md`.
 
 This runbook starts only after the local reference checks pass. It does not
 authorize a benchmark before compatibility and numerical correctness gates.

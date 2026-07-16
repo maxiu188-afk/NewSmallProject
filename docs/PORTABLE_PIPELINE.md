@@ -41,6 +41,10 @@ must be numerical-smoke-tested for every pinned Transformers version before a
 pretrained result is accepted. It is fake quantization only: it neither packs
 the cache nor replaces floating-point attention with an integer kernel.
 
+The current newer-runtime API smoke (Python 3.11, PyTorch 2.13, Transformers 5)
+is recorded in `MODERN_RUNTIME_SMOKE.md`; the server still requires its separate
+Linux CUDA-extension compatibility gate.
+
 ## Preparing a pretrained model safely
 
 Use the separate preparation command once for each model revision. It downloads
@@ -96,6 +100,15 @@ macOS/Linux:
 .venv-smoke/bin/python scripts/run_quarot_pipeline.py \
   configs/pipeline/synthetic_llama_w4a4kv4_smoke.json \
   --output results/pipeline-synthetic-w4a4kv4-smoke/result.json
+
+# Matched offline W4A4KV4 control and F5 path on the pinned SmolLM2-135M checkpoint.
+.venv-smollm/bin/python scripts/run_quarot_pipeline.py \
+  configs/pipeline/smollm2_135m_local_naive_w4a4kv4.json \
+  --output results/pipeline-smollm2-135m-naive-w4a4kv4/result.json
+
+.venv-smollm/bin/python scripts/run_quarot_pipeline.py \
+  configs/pipeline/smollm2_135m_local_quarot_w4a4kv4.json \
+  --output results/pipeline-smollm2-135m-quarot-w4a4kv4/result.json
 ```
 
 Windows PowerShell after creating an equivalent virtual environment:

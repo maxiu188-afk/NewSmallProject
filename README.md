@@ -7,8 +7,9 @@ checks kept separate from real CUDA deployment and performance work.
 
 - Primitive and small LLaMA correctness checks;
 - A configuration-driven LLaMA-family pipeline;
-- Offline SmolLM2-135M equivalence smoke, including residual, V/O, and
-  `12 x 128` MLP structured Hadamard transforms;
+- Offline SmolLM2-135M equivalence and F5 fake-quant smokes, including
+  residual, V/O, Q/K-after-RoPE, and `12 x 128` MLP structured Hadamard
+  transforms;
 - Local W4, W4A4, and sequential-cache W4A4KV4 QDQ comparisons against a
   naive baseline.
 

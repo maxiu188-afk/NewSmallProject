@@ -25,7 +25,7 @@ from repro.fake_quant_smoke import quantize_linear_weights_in_place, quantize_li
 from repro.qk_post_rope import install_post_rope_qk
 from repro.structured_hadamard import StructuredHadamardInputLinear, structured_hadamard_12x_power2, supports_structured_hadamard
 from repro.torch_smoke import HadamardInputLinear, UnitRMSNorm, normalized_hadamard_matrix
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, __version__ as TRANSFORMERS_VERSION
 
 
 class PipelineConfigError(ValueError):
@@ -134,22 +134,27 @@ def _torch_dtype(name: str) -> torch.dtype:
     return {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}[name]
 
 
+def _model_dtype_kwargs(dtype: torch.dtype) -> Dict[str, torch.dtype]:
+    """Use the Transformers 5 dtype spelling while retaining 4.x support."""
+    major_version = int(TRANSFORMERS_VERSION.split(".", 1)[0])
+    return {"dtype": dtype} if major_version >= 5 else {"torch_dtype": dtype}
+
+
 def load_model_and_tokenizer(config: Mapping[str, Any], device: torch.device) -> Tuple[nn.Module, Optional[Any]]:
     model_spec = config["model"]
     dtype = _torch_dtype(model_spec.get("dtype", "float32"))
     if model_spec["kind"] == "random_config":
         model_config = AutoConfig.for_model(model_spec["architecture"], **dict(model_spec["config_overrides"]))
-        model = AutoModelForCausalLM.from_config(model_config, torch_dtype=dtype)
+        model = AutoModelForCausalLM.from_config(model_config, **_model_dtype_kwargs(dtype))
         tokenizer = None
     else:
-        kwargs = {
+        common_kwargs = {
             "revision": model_spec.get("revision"),
             "trust_remote_code": bool(model_spec.get("trust_remote_code", False)),
             "local_files_only": bool(model_spec.get("local_files_only", False)),
-            "torch_dtype": dtype,
         }
-        model = AutoModelForCausalLM.from_pretrained(model_spec["id"], **kwargs)
-        tokenizer = AutoTokenizer.from_pretrained(model_spec["id"], **kwargs)
+        model = AutoModelForCausalLM.from_pretrained(model_spec["id"], **common_kwargs, **_model_dtype_kwargs(dtype))
+        tokenizer = AutoTokenizer.from_pretrained(model_spec["id"], **common_kwargs)
     return model.to(device).eval(), tokenizer
 
 

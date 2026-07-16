@@ -5,8 +5,8 @@
 | 0 — Reproduction contract | complete | Offline config validation, run-manifest generation, environment templates, taxonomy, and upstream audit pass local smoke checks |
 | 1 — Primitive correctness | complete (reference scope) | Independent CPU tests pass for QDQ, int4 packing, Hadamard invariants, rotation equivalence, and LLaMA-2-relevant dimension planning |
 | 2 — Model equivalence | complete for local smoke scope | Framework-free one-token check passes with <=2.3e-16 error; two-layer PyTorch/Transformers random LLaMA passes with logits <=1.2e-07 and hidden states <=6.0e-07, with no model download |
-| 3 — Fake-quant accuracy | local mechanism smoke complete | F0–F4 random tiny-model QDQ and pinned SmolLM2-135M synthetic-input QDQ matrices ran successfully; neither establishes pretrained text accuracy or includes KV4 |
-| 3b — Portable LLaMA pipeline | partial pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, and 12 x 128 MLP equivalence checks |
+| 3 — Fake-quant accuracy | local mechanism smoke complete | F0–F5 random tiny-model QDQ and pinned SmolLM2-135M synthetic-input QDQ matrices ran successfully, including a matched naive/QuaRot sequential-cache KV4 control; neither establishes pretrained text accuracy |
+| 3b — Portable LLaMA pipeline | partial offline pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4KV4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, Q/K-after-RoPE, and 12 x 128 MLP checks |
 | 4 — CUDA/kernel correctness | out of current scope | Requires NVIDIA CUDA; not attempted |
 | 5 — Performance | out of current scope | Requires real deployment environment; not attempted |
 | 6 — Presentation package | partial | Plan, audit, execution taxonomy, local results, and method note are available; no empirical accuracy/performance table exists |
@@ -24,10 +24,10 @@ Windows PyTorch/Transformers CUDA smoke pass; see
 ## Local dependency boundary
 
 Common development dependencies may be added when a concrete task requires
-them. The next approved isolated smoke environment is Windows PyTorch and
-Transformers using the local NVIDIA GPU. It remains uncreated while the
-algorithm implementation is under review. Datasets, Accelerate, LM-Eval, and
-the upstream CUDA extension remain outside that local smoke environment.
+them. The isolated Windows PyTorch and Transformers smoke environment has been
+used only for the recorded local NVIDIA-GPU F5 check. Datasets, Accelerate,
+LM-Eval, and the upstream CUDA extension remain outside that local smoke
+environment.
 
 ## RunPod material
 
