@@ -22,7 +22,17 @@ class PortablePipelineTests(unittest.TestCase):
         from repro.quarot_pipeline import load_pipeline_config, run_pipeline
 
         result = run_pipeline(load_pipeline_config(PROJECT_ROOT / "configs/pipeline/synthetic_llama_w4a4_smoke.json"))
-        self.assertEqual(result["quantization"], {"w_bits": 4, "a_bits": 4})
+        self.assertEqual(result["quantization"], {"w_bits": 4, "a_bits": 4, "k_bits": 16, "v_bits": 16})
+        self.assertGreater(result["logit_error"]["max_absolute"], 0.0)
+
+    def test_synthetic_pipeline_simulates_w4a4kv4_through_cache(self):
+        from repro.quarot_pipeline import load_pipeline_config, run_pipeline
+
+        result = run_pipeline(load_pipeline_config(PROJECT_ROOT / "configs/pipeline/synthetic_llama_w4a4kv4_smoke.json"))
+        self.assertTrue(result["rotation"]["qk_post_rope"])
+        self.assertTrue(result["kv_cache_simulated"])
+        self.assertEqual(result["quantization"]["k_bits"], 4)
+        self.assertEqual(result["quantization"]["v_bits"], 4)
         self.assertGreater(result["logit_error"]["max_absolute"], 0.0)
 
     def test_tied_embedding_llama_is_untied_before_exact_rotation(self):
@@ -49,8 +59,8 @@ class PortablePipelineTests(unittest.TestCase):
             "runtime": {"device": "cpu", "allow_fallback": False},
             "experiment": {
                 "seed": 0,
-                "rotation": {"residual_mode": "random", "seed": 3, "vo_rotation": True, "mlp_online": True, "qk_post_rope": False},
-                "quantization": {"w_bits": 16, "a_bits": 16},
+                "rotation": {"residual_mode": "random", "seed": 3, "vo_rotation": True, "mlp_online": True, "qk_post_rope": True},
+                "quantization": {"w_bits": 16, "a_bits": 16, "k_bits": 16, "v_bits": 16},
             },
         }
         result = run_pipeline(config)

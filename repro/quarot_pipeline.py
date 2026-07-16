@@ -8,6 +8,7 @@ to JSON configuration files.  CUDA-specific work is intentionally absent.
 import copy
 import json
 import math
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,7 +17,12 @@ from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple
 import torch
 from torch import nn
 
-from repro.fake_quant_smoke import quantize_linear_weights_in_place, quantize_linear_inputs
+_CACHE_HOME = Path(__file__).resolve().parents[1] / ".cache" / "huggingface"
+_CACHE_HOME.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("HF_HOME", str(_CACHE_HOME))
+
+from repro.fake_quant_smoke import quantize_linear_weights_in_place, quantize_linear_inputs, quantize_value_projection_outputs
+from repro.qk_post_rope import install_post_rope_qk
 from repro.structured_hadamard import StructuredHadamardInputLinear, structured_hadamard_12x_power2, supports_structured_hadamard
 from repro.torch_smoke import HadamardInputLinear, UnitRMSNorm, normalized_hadamard_matrix
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
@@ -87,12 +93,21 @@ def validate_pipeline_config(config: Mapping[str, Any]) -> None:
     quantization = _mapping(experiment, "quantization")
     if rotation.get("residual_mode") not in {"none", "hadamard", "random"}:
         raise PipelineConfigError("rotation.residual_mode must be none, hadamard, or random")
-    if rotation.get("qk_post_rope", False):
-        raise PipelineConfigError("qk_post_rope is not implemented in the portable pipeline yet")
-    for name in ("w_bits", "a_bits"):
+    for name in ("w_bits", "a_bits", "k_bits", "v_bits"):
         bits = quantization.get(name)
         if not isinstance(bits, int) or bits < 2 or bits > 16:
             raise PipelineConfigError("quantization.{} must be an integer in [2, 16]".format(name))
+    for name in ("k_group_size", "v_group_size"):
+        group_size = quantization.get(name, -1)
+        if not isinstance(group_size, int) or group_size == 0 or group_size < -1:
+            raise PipelineConfigError("quantization.{} must be -1 or a positive integer".format(name))
+    for name in ("k_symmetric", "v_symmetric"):
+        if not isinstance(quantization.get(name, True), bool):
+            raise PipelineConfigError("quantization.{} must be boolean".format(name))
+    for name in ("k_clip_ratio", "v_clip_ratio"):
+        clip_ratio = quantization.get(name, 1.0)
+        if not isinstance(clip_ratio, (int, float)) or not 0.0 < float(clip_ratio) <= 1.0:
+            raise PipelineConfigError("quantization.{} must be in (0, 1]".format(name))
 
 
 def resolve_device(runtime: Mapping[str, Any]) -> torch.device:
@@ -247,21 +262,20 @@ def _fuse_llama_norms(model: nn.Module) -> None:
         model.model.norm = UnitRMSNorm(model.model.norm.variance_epsilon)
 
 
-def apply_llama_quarot(model: nn.Module, rotation: Mapping[str, Any]) -> Dict[str, Any]:
-    """Apply portable residual, V/O, and optional power-of-two MLP rotation.
+def apply_llama_quarot(
+    model: nn.Module, rotation: Mapping[str, Any], quantization: Mapping[str, Any]
+) -> Dict[str, Any]:
+    """Apply the portable QuaRot transformations, including post-RoPE Q/K.
 
     This adapter supports the standard LLaMA module layout, including GQA. It
-    deliberately rejects Q/K post-RoPE rotation. MLP online transforms support
-    a power-of-two dimension and the 12 x power-of-two structure used by
-    SmolLM2-135M's 1536-wide MLP.
+    MLP online transforms support a power-of-two dimension and the 12 x
+    power-of-two structure used by SmolLM2-135M's 1536-wide MLP.  Post-RoPE
+    Q/K processing is installed as a narrow wrapper around the Transformers
+    helper so keys are QDQ-ed before cache insertion.
     """
     if getattr(model.config, "model_type", None) != "llama":
         raise RuntimeError("portable QuaRot adapter currently supports model_type=llama only")
     mode = rotation["residual_mode"]
-    if mode == "none":
-        return {"applied": False, "reason": "residual_mode=none"}
-    if rotation.get("qk_post_rope", False):
-        raise RuntimeError("qk_post_rope is not implemented in the portable adapter")
     config = model.config
     hidden_size = int(config.hidden_size)
     num_q_heads = int(config.num_attention_heads)
@@ -271,10 +285,34 @@ def apply_llama_quarot(model: nn.Module, rotation: Mapping[str, Any]) -> Dict[st
     head_dim = hidden_size // num_q_heads
     if head_dim & (head_dim - 1):
         raise RuntimeError("head_dim must be a power of two for V/O Hadamard rotation")
+    for name in ("k_group_size", "v_group_size"):
+        group_size = int(quantization.get(name, -1))
+        if group_size not in {-1, head_dim}:
+            raise RuntimeError("{} must be -1 or head_dim ({})".format(name, head_dim))
     parameter = next(model.parameters())
     dtype, device = parameter.dtype, parameter.device
-    residual = _rotation_matrix(hidden_size, mode, dtype, device, int(rotation.get("seed", 0)))
     head = normalized_hadamard_matrix(head_dim, dtype, device)
+    qk_post_rope = bool(rotation.get("qk_post_rope", False))
+    key_bits = int(quantization["k_bits"])
+    if mode == "none":
+        if qk_post_rope or key_bits < 16:
+            install_post_rope_qk(
+                model,
+                head,
+                rotate_qk=qk_post_rope,
+                key_bits=key_bits,
+                key_group_size=int(quantization.get("k_group_size", -1)),
+                key_symmetric=bool(quantization.get("k_symmetric", True)),
+                key_clip_ratio=float(quantization.get("k_clip_ratio", 1.0)),
+            )
+        return {
+            "applied": qk_post_rope or key_bits < 16,
+            "reason": "residual_mode=none",
+            "qk_post_rope": qk_post_rope,
+            "k_bits": key_bits,
+            "v_bits": int(quantization["v_bits"]),
+        }
+    residual = _rotation_matrix(hidden_size, mode, dtype, device, int(rotation.get("seed", 0)))
     query_head_block = torch.block_diag(*([head] * num_q_heads))
     kv_head_block = torch.block_diag(*([head] * num_kv_heads))
     mlp_online = bool(rotation.get("mlp_online", False))
@@ -316,6 +354,16 @@ def apply_llama_quarot(model: nn.Module, rotation: Mapping[str, Any]) -> Dict[st
                 mlp.down_proj.weight.copy_(residual.T @ mlp.down_proj.weight)
                 if mlp.down_proj.bias is not None:
                     mlp.down_proj.bias.copy_(residual.T @ mlp.down_proj.bias)
+    if qk_post_rope or key_bits < 16:
+        install_post_rope_qk(
+            model,
+            head,
+            rotate_qk=qk_post_rope,
+            key_bits=key_bits,
+            key_group_size=int(quantization.get("k_group_size", -1)),
+            key_symmetric=bool(quantization.get("k_symmetric", True)),
+            key_clip_ratio=float(quantization.get("k_clip_ratio", 1.0)),
+        )
     return {
         "applied": True,
         "residual_mode": mode,
@@ -326,17 +374,44 @@ def apply_llama_quarot(model: nn.Module, rotation: Mapping[str, Any]) -> Dict[st
         "vo_rotation": bool(rotation.get("vo_rotation", True)),
         "mlp_online": mlp_online,
         "mlp_hadamard": "power_of_two" if mlp_online and intermediate_is_pow2 else ("12_x_power_of_two" if mlp_online else "none"),
-        "qk_post_rope": False,
+        "qk_post_rope": qk_post_rope,
+        "k_bits": key_bits,
+        "v_bits": int(quantization["v_bits"]),
         "output_head_was_untied": output_head_was_untied,
     }
 
 
-def _evaluate(model: nn.Module, batches: Iterable[torch.Tensor], device: torch.device, activation_bits: int) -> Dict[str, float]:
+def _forward_logits(model: nn.Module, input_ids: torch.Tensor, use_kv_cache: bool) -> torch.Tensor:
+    if not use_kv_cache:
+        return model(input_ids=input_ids, use_cache=False).logits.float()
+    cached_logits: List[torch.Tensor] = []
+    past_key_values = None
+    for index in range(input_ids.shape[1]):
+        output = model(input_ids=input_ids[:, index : index + 1], past_key_values=past_key_values, use_cache=True)
+        past_key_values = output.past_key_values
+        cached_logits.append(output.logits.float())
+    return torch.cat(cached_logits, dim=1)
+
+
+def _evaluate(
+    model: nn.Module,
+    batches: Iterable[torch.Tensor],
+    device: torch.device,
+    activation_bits: int,
+    quantization: Mapping[str, Any],
+    use_kv_cache: bool,
+) -> Dict[str, float]:
     total_nll, total_tokens, first_logits = 0.0, 0, None
-    with torch.inference_mode(), quantize_linear_inputs(model, activation_bits):
+    with torch.inference_mode(), quantize_linear_inputs(model, activation_bits), quantize_value_projection_outputs(
+        model,
+        int(quantization["v_bits"]),
+        group_size=int(quantization.get("v_group_size", -1)),
+        symmetric=bool(quantization.get("v_symmetric", True)),
+        clip_ratio=float(quantization.get("v_clip_ratio", 1.0)),
+    ):
         for input_ids in batches:
             input_ids = input_ids.to(device)
-            logits = model(input_ids=input_ids, use_cache=False).logits.float()
+            logits = _forward_logits(model, input_ids, use_kv_cache)
             if first_logits is None:
                 first_logits = logits.detach().cpu()
             loss = torch.nn.functional.cross_entropy(
@@ -358,12 +433,22 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
     batches = list(token_batches(config, model, tokenizer))
     if not batches:
         raise RuntimeError("data source yielded no batches")
-    reference = _evaluate(model, batches, device, activation_bits=16)
     quantization = config["experiment"]["quantization"]
+    use_kv_cache = int(quantization["k_bits"]) < 16 or int(quantization["v_bits"]) < 16
+    reference_quantization = dict(quantization)
+    reference_quantization.update({"v_bits": 16, "k_bits": 16})
+    reference = _evaluate(model, batches, device, activation_bits=16, quantization=reference_quantization, use_kv_cache=use_kv_cache)
     candidate = copy.deepcopy(model).eval()
-    rotation_summary = apply_llama_quarot(candidate, config["experiment"]["rotation"])
+    rotation_summary = apply_llama_quarot(candidate, config["experiment"]["rotation"], quantization)
     quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
-    evaluated = _evaluate(candidate, batches, device, activation_bits=int(quantization["a_bits"]))
+    evaluated = _evaluate(
+        candidate,
+        batches,
+        device,
+        activation_bits=int(quantization["a_bits"]),
+        quantization=quantization,
+        use_kv_cache=use_kv_cache,
+    )
     logit_error = (reference.pop("first_logits") - evaluated.pop("first_logits")).abs()
     return {
         "device": str(device),
@@ -373,5 +458,6 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
         "candidate": evaluated,
         "rotation": rotation_summary,
         "quantization": dict(quantization),
+        "kv_cache_simulated": use_kv_cache,
         "logit_error": {"mean_absolute": logit_error.mean().item(), "max_absolute": logit_error.max().item()},
     }

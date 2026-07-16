@@ -5,7 +5,7 @@
   "runtime": {"device": "cpu", "allow_fallback": false},
   "experiment": {
     "seed": 0,
-    "rotation": {"residual_mode": "random", "seed": 0, "vo_rotation": true, "mlp_online": true, "qk_post_rope": false},
-    "quantization": {"w_bits": 4, "a_bits": 4}
+    "rotation": {"residual_mode": "random", "seed": 0, "vo_rotation": true, "mlp_online": true, "qk_post_rope": true},
+    "quantization": {"w_bits": 4, "a_bits": 4, "k_bits": 16, "v_bits": 16}
   }
 }

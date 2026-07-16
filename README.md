@@ -9,11 +9,13 @@ checks kept separate from real CUDA deployment and performance work.
 - A configuration-driven LLaMA-family pipeline;
 - Offline SmolLM2-135M equivalence smoke, including residual, V/O, and
   `12 x 128` MLP structured Hadamard transforms;
-- Local W4 and W4A4 QDQ comparisons against a naive baseline.
+- Local W4, W4A4, and sequential-cache W4A4KV4 QDQ comparisons against a
+  naive baseline.
 
 The current results are code-path checks on fixed synthetic inputs. They are
-not pretrained text-evaluation claims, KV4 results, or real low-bit inference
-benchmarks. See [phase status](docs/PHASE_STATUS.md) and the
+not pretrained text-evaluation claims or real low-bit inference benchmarks.
+The W4A4KV4 path remains an algorithmic QDQ simulation, not packed KV storage
+or a CUDA attention kernel. See [phase status](docs/PHASE_STATUS.md) and the
 [SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md).
 
 ## Layout

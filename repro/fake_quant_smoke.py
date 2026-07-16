@@ -12,21 +12,16 @@ from typing import Dict, Iterator, List
 import torch
 from torch import nn
 
+from repro.qdq import qdq_attention_tensor, qdq_last_axis
 from repro.torch_smoke import rotate_tiny_llama_in_place
 from transformers import LlamaConfig, LlamaForCausalLM
 
 
 def symmetric_qdq(values: torch.Tensor, bits: int, reduction_dim: int) -> torch.Tensor:
     """Symmetric fake quantization with a scale per retained tensor slice."""
-    if bits >= 16:
-        return values
-    if bits < 2:
-        raise ValueError("bits must be at least 2")
-    maxq = 2 ** (bits - 1) - 1
-    scale = values.abs().amax(dim=reduction_dim, keepdim=True) / maxq
-    scale = torch.where(scale == 0, torch.ones_like(scale), scale)
-    quantized = torch.clamp(torch.round(values / scale), -maxq - 1, maxq)
-    return quantized * scale
+    if reduction_dim != -1 and reduction_dim != values.ndim - 1:
+        raise ValueError("the portable QDQ helper supports only the final reduction dimension")
+    return qdq_last_axis(values, bits, symmetric=True)
 
 
 def quantize_linear_weights_in_place(model: nn.Module, bits: int) -> None:
@@ -50,6 +45,45 @@ def quantize_linear_inputs(model: nn.Module, bits: int) -> Iterator[None]:
         for module in model.modules():
             if isinstance(module, nn.Linear):
                 handles.append(module.register_forward_pre_hook(hook))
+    try:
+        yield
+    finally:
+        for handle in handles:
+            handle.remove()
+
+
+@contextmanager
+def quantize_value_projection_outputs(
+    model: nn.Module,
+    bits: int,
+    *,
+    group_size: int,
+    symmetric: bool,
+    clip_ratio: float,
+) -> Iterator[None]:
+    """QDQ V-projection outputs before they can be added to the KV cache."""
+    handles: List[torch.utils.hooks.RemovableHandle] = []
+    if bits < 16:
+        for layer in model.model.layers:
+            attention = layer.self_attn
+            # A post-RoPE wrapper delegates its original attention module here.
+            if not hasattr(attention, "v_proj"):
+                attention = attention.attention
+            head_dim = attention.v_proj.out_features // int(model.config.num_key_value_heads)
+
+            def hook(_module: nn.Module, _inputs: tuple, output: torch.Tensor, *, head_dim: int = head_dim) -> torch.Tensor:
+                shape = output.shape
+                values = output.reshape(*shape[:-1], int(model.config.num_key_value_heads), head_dim).transpose(-3, -2)
+                values = qdq_attention_tensor(
+                    values,
+                    bits,
+                    group_size=group_size,
+                    symmetric=symmetric,
+                    clip_ratio=clip_ratio,
+                )
+                return values.transpose(-3, -2).reshape(shape)
+
+            handles.append(attention.v_proj.register_forward_hook(hook))
     try:
         yield
     finally:

@@ -27,11 +27,13 @@
       "seed": 0,
       "vo_rotation": true,
       "mlp_online": true,
-      "qk_post_rope": false
+      "qk_post_rope": true
     },
     "quantization": {
       "w_bits": 16,
-      "a_bits": 16
+      "a_bits": 16,
+      "k_bits": 16,
+      "v_bits": 16
     }
   }
 }

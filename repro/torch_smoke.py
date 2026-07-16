@@ -2,8 +2,9 @@
 
     This module creates a model from ``LlamaConfig`` only. It never calls
 ``from_pretrained`` and therefore never downloads model weights or a tokenizer.
-The Q/K post-RoPE head rotation remains covered by the framework-free algebraic
-test because the upstream implementation injects it into attention internals.
+This legacy tiny smoke does not inject Q/K post-RoPE rotation. That path is
+covered by the configuration-driven portable pipeline, whose wrapper acts at
+the Transformers RoPE helper boundary.
 """
 
 import copy
