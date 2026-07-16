@@ -72,10 +72,15 @@ the native kernel track was stopped rather than treated as successful.
 
 ## Next formal text evaluation
 
-The chosen official dataset is `wikitext2`, which is the upstream fake-quant
-default for both evaluation and GPTQ calibration. A strict upstream run also
-requires an accessible, pinned LLaMA-2 checkpoint; the existing SmolLM2 result
-does not substitute for that model requirement. The next Pod session should
-rebuild the container environment, keep model/data/output under `/workspace`,
-record the WikiText-2 revision and LLaMA-2 revision, then run the same
-configuration for baseline and fake-quant variants.
+The selected common evaluation dataset is `wikitext2`, which is the upstream
+fake-quant default for both evaluation and GPTQ calibration. The next primary
+model is the openly accessible `Qwen/Qwen2.5-7B`, not the gated LLaMA-2
+checkpoint expected by the old upstream script. Qwen is a deliberate research
+extension: its GQA and Qwen-specific attention details require a new portable
+adapter and full-precision equivalence check before it enters a fake-quant
+table.
+
+The next Pod session should rebuild the container environment, keep
+model/data/output under `/workspace`, resolve and record immutable Qwen and
+WikiText-2 revisions, then run matched full-precision, no-rotation QDQ,
+QuaRot-style baseline, and research-extension configurations.

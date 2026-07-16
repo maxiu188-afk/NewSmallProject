@@ -74,22 +74,19 @@ within declared tolerance. A failure blocks F0–F5 accuracy experiments.
 
 ## D. Accuracy smoke, then full matrix
 
-Use `configs/smoke/runpod_llama2_w4a4.json` as a deliberately small starting
-configuration. The selected official dataset is `wikitext2`, matching the
-upstream fake-quant defaults. Before execution, resolve and record the exact
-dataset revision and the accepted LLaMA-2 model revision, then write a per-run
-config. The upstream fake-quant path currently supports LLaMA-2 models, so the
-earlier SmolLM2 smoke is evidence for the portable path only.
+The selected evaluation dataset is `wikitext2`, matching the upstream
+fake-quant defaults. The next primary model is `Qwen/Qwen2.5-7B`, not the
+gated LLaMA-2 checkpoint from the old upstream script. Before execution,
+resolve and record the exact model, tokenizer, and dataset revisions, then
+write a per-run config. The portable adapter must first pass a Qwen-specific
+full-precision equivalence smoke; the older upstream script remains a
+reference, not an execution dependency.
 
-The controlled F0–F5 matrix is defined once in
-`configs/templates/llama2_fake_quant_matrix.json`. Materialize its independent
-configs before review or execution:
-
-```bash
-python3 scripts/materialize_matrix.py \
-  configs/templates/llama2_fake_quant_matrix.json \
-  --output-dir results/runpod-config-review/fake-quant
-```
+`configs/templates/llama2_fake_quant_matrix.json` remains a historical
+LLaMA-2 reference template. Do not materialize it directly for Qwen. After
+the Qwen equivalence gate, create a Qwen-specific matrix with the same F0–F5
+control logic and resolved model/dataset revisions, then review the independent
+configs before execution.
 
 Run BF16/FP16 and fake-quant experiments with identical model, data, seed,
 calibration count, and sequence length. Only after the smoke run completes may

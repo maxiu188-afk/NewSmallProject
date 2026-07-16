@@ -44,5 +44,7 @@ environment.
 
 `scripts/runpod_preflight.py`, `docs/RUNPOD_SMOKE_RUNBOOK.md`, and the RunPod
 configuration templates have now been used for preflight and the small CUDA
-fake-quant gate. A pinned WikiText-2 evaluation and official LLaMA-2 model
-access remain required before a text-accuracy claim or large-scale execution.
+fake-quant gate. The next text-evaluation track uses Qwen2.5-7B and pinned
+WikiText-2 snapshots. QuaRot remains the baseline; the upstream reference
+implementation is not a required kernel dependency for the owned deployment
+track.
