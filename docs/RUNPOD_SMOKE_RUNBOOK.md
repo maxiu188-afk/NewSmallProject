@@ -1,13 +1,28 @@
 # RunPod smoke runbook
 
-> Status: active preparation (2026-07-16). The server scope is reopened for
-> preflight and numerical-correctness gates only; it does not yet authorize a
-> benchmark or an accuracy claim.
+> Status: CUDA smoke completed (2026-07-16). Preflight, a 16-bit rotation
+> check, and a matched synthetic-input W4A4KV4 smoke completed on an A40. The
+> Pod is currently stopped. These results do not authorize a benchmark or a
+> text-accuracy claim.
 
 The selected launch resources are recorded in `RUNPOD_LAUNCH_SPEC.md`.
 
 This runbook starts only after the local reference checks pass. It does not
 authorize a benchmark before compatibility and numerical correctness gates.
+
+## Recorded progress
+
+- Gate A preflight passed on an A40 (`sm_86`) with CUDA compiler `12.8.93` and
+  PyTorch `2.11.0+cu128`.
+- The portable CUDA path passed a 16-bit SmolLM2-135M rotation check and a
+  matched synthetic-input W4A4KV4 naive/QuaRot smoke.
+- The unmodified upstream editable build was attempted. CMake configuration
+  completed, but the legacy nested editable install failed under modern pip
+  build isolation because its setup script imports PyTorch. The failure was
+  logged; no upstream source patch was applied and no native kernel result is
+  claimed.
+
+See `RUNPOD_FAKE_QUANT_RESULTS.md` for exact versions and metrics.
 
 ## A. Preflight: no model required
 
@@ -60,8 +75,11 @@ within declared tolerance. A failure blocks F0–F5 accuracy experiments.
 ## D. Accuracy smoke, then full matrix
 
 Use `configs/smoke/runpod_llama2_w4a4.json` as a deliberately small starting
-configuration. Before execution, replace every `to-be-pinned` dataset/model
-revision with the exact resolved revision, and write a per-run config.
+configuration. The selected official dataset is `wikitext2`, matching the
+upstream fake-quant defaults. Before execution, resolve and record the exact
+dataset revision and the accepted LLaMA-2 model revision, then write a per-run
+config. The upstream fake-quant path currently supports LLaMA-2 models, so the
+earlier SmolLM2 smoke is evidence for the portable path only.
 
 The controlled F0–F5 matrix is defined once in
 `configs/templates/llama2_fake_quant_matrix.json`. Materialize its independent

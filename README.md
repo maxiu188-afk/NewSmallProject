@@ -3,7 +3,7 @@
 Research-oriented reproduction of QuaRot, with algorithmic fake-quantization
 checks kept separate from real CUDA deployment and performance work.
 
-## Current local scope
+## Current validated scope
 
 - Primitive and small LLaMA correctness checks;
 - A configuration-driven LLaMA-family pipeline;
@@ -12,12 +12,16 @@ checks kept separate from real CUDA deployment and performance work.
   transforms;
 - Local W4, W4A4, and sequential-cache W4A4KV4 QDQ comparisons against a
   naive baseline.
+- A recorded RunPod A40 CUDA smoke: 16-bit rotation equivalence plus matched
+  SmolLM2-135M synthetic-input W4A4KV4 naive/QuaRot runs.
 
 The current results are code-path checks on fixed synthetic inputs. They are
 not pretrained text-evaluation claims or real low-bit inference benchmarks.
 The W4A4KV4 path remains an algorithmic QDQ simulation, not packed KV storage
 or a CUDA attention kernel. See [phase status](docs/PHASE_STATUS.md) and the
-[SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md).
+[SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md). The
+server-side record, including the exact scope and limits of the CUDA smoke, is
+in [RunPod fake-quant results](docs/RUNPOD_FAKE_QUANT_RESULTS.md).
 
 ## Layout
 
