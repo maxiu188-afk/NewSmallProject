@@ -1,5 +1,10 @@
 # RunPod launch specification
 
+> This is the historical A40/CUDA 12.8 kernel-build launch specification. The
+> active 13B GPTQ session instead uses an RTX 6000 Ada with a CUDA 12.4 runtime;
+> see `RUNPOD_GPTQ_SESSION.md`. Do not overwrite this record with the current
+> session because the two environments answer different validation questions.
+
 ## Selected resources
 
 | Setting | Selection | Reason |
