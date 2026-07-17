@@ -443,17 +443,43 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
     reference_quantization = dict(quantization)
     reference_quantization.update({"v_bits": 16, "k_bits": 16})
     reference = _evaluate(model, batches, device, activation_bits=16, quantization=reference_quantization, use_kv_cache=use_kv_cache)
-    candidate = copy.deepcopy(model).eval()
-    rotation_summary = apply_llama_quarot(candidate, config["experiment"]["rotation"], quantization)
-    quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
-    evaluated = _evaluate(
-        candidate,
-        batches,
-        device,
-        activation_bits=int(quantization["a_bits"]),
-        quantization=quantization,
-        use_kv_cache=use_kv_cache,
+    no_candidate_change = (
+        config["experiment"]["rotation"]["residual_mode"] == "none"
+        and all(int(quantization[name]) >= 16 for name in ("w_bits", "a_bits", "k_bits", "v_bits"))
     )
+    if no_candidate_change:
+        evaluated = dict(reference)
+        rotation_summary = {"applied": False, "reason": "full-precision baseline"}
+    elif config["model"]["kind"] == "pretrained":
+        # A 13B BF16 checkpoint does not fit twice on a 48 GB smoke GPU.  The
+        # reference values are already moved to CPU by _evaluate, so release
+        # its model before loading the candidate from the pinned local cache.
+        del model
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+        candidate, _ = load_model_and_tokenizer(config, device)
+        rotation_summary = apply_llama_quarot(candidate, config["experiment"]["rotation"], quantization)
+        quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
+        evaluated = _evaluate(
+            candidate,
+            batches,
+            device,
+            activation_bits=int(quantization["a_bits"]),
+            quantization=quantization,
+            use_kv_cache=use_kv_cache,
+        )
+    else:
+        candidate = copy.deepcopy(model).eval()
+        rotation_summary = apply_llama_quarot(candidate, config["experiment"]["rotation"], quantization)
+        quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
+        evaluated = _evaluate(
+            candidate,
+            batches,
+            device,
+            activation_bits=int(quantization["a_bits"]),
+            quantization=quantization,
+            use_kv_cache=use_kv_cache,
+        )
     logit_error = (reference.pop("first_logits") - evaluated.pop("first_logits")).abs()
     return {
         "device": str(device),

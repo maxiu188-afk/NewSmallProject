@@ -1,0 +1,28 @@
+{
+  "pipeline_version": 1,
+  "model": {
+    "kind": "pretrained",
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "pin-before-first-download",
+    "dtype": "bfloat16",
+    "local_files_only": true,
+    "trust_remote_code": false
+  },
+  "data": {
+    "source": "huggingface_text",
+    "id": "Salesforce/wikitext",
+    "subset": "wikitext-2-raw-v1",
+    "split": "test",
+    "revision": "pin-before-first-download",
+    "text_field": "text",
+    "batch_size": 1,
+    "sequence_length": 2048,
+    "max_samples": 4358
+  },
+  "runtime": {"device": "cuda", "allow_fallback": false},
+  "experiment": {
+    "seed": 0,
+    "rotation": {"residual_mode": "none", "seed": 0, "vo_rotation": false, "mlp_online": false, "qk_post_rope": false},
+    "quantization": {"w_bits": 16, "a_bits": 16, "k_bits": 16, "v_bits": 16}
+  }
+}
