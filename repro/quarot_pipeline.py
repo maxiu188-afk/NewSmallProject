@@ -483,8 +483,24 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
     logit_error = (reference.pop("first_logits") - evaluated.pop("first_logits")).abs()
     return {
         "device": str(device),
-        "model": {"kind": config["model"]["kind"], "id": config["model"].get("id"), "dtype": config["model"].get("dtype", "float32")},
-        "data": {"source": config["data"]["source"], "sequence_length": config["data"]["sequence_length"], "batches": len(batches)},
+        "model": {
+            "kind": config["model"]["kind"],
+            "id": config["model"].get("id"),
+            "revision": config["model"].get("revision"),
+            "dtype": config["model"].get("dtype", "float32"),
+        },
+        "data": {
+            "source": config["data"]["source"],
+            "id": config["data"].get("id"),
+            "subset": config["data"].get("subset"),
+            "split": config["data"].get("split"),
+            "revision": config["data"].get("revision"),
+            "sequence_length": config["data"]["sequence_length"],
+            "batch_size": config["data"]["batch_size"],
+            "max_samples": config["data"]["max_samples"],
+            "batches": len(batches),
+        },
+        "experiment": {"seed": int(config["experiment"].get("seed", 0))},
         "reference": reference,
         "candidate": evaluated,
         "rotation": rotation_summary,

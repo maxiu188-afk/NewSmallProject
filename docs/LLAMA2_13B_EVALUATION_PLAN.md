@@ -75,7 +75,37 @@ For the completed download, `hf-xet 1.5.2` failed with
 `DataHashHexParseError`; the successful retry used `HF_HUB_DISABLE_XET=1`.
 This controls the transport only and does not change the evaluated model.
 
-## Gate before GPTQ (F0 passed; GPTQ remains open)
+## RTN W4A4 gate before GPTQ
+
+The next server session runs only the matched W4A4 pair, using the already
+cached, pinned Llama-2-13B and WikiText-2 snapshots. These are RTN-style QDQ
+experiments: no calibration set is used and they must not be called GPTQ.
+
+```bash
+export HF_HUB_DISABLE_XET=1
+cd /workspace/NewSmallProject
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_naive_w4a4_rtn.json \
+  --output results/llama2-13b-wikitext2-rtn-w4a4/naive-f3.json
+
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_quarot_w4a4_rtn.json \
+  --output results/llama2-13b-wikitext2-rtn-w4a4/quarot-f4.json
+
+python3 scripts/compare_rtn_w4a4.py \
+  --naive results/llama2-13b-wikitext2-rtn-w4a4/naive-f3.json \
+  --quarot results/llama2-13b-wikitext2-rtn-w4a4/quarot-f4.json \
+  --output results/llama2-13b-wikitext2-rtn-w4a4/comparison.json
+```
+
+The comparison command only passes when both result files use the same pinned
+model/data/evaluation protocol and seed, are respectively unrotated F3 and
+Hadamard-rotated F4, keep KV quantization disabled, and contain finite
+metrics. It prints the PPL/NLL difference; it deliberately does not impose an
+invented PPL threshold. Inspect that difference before deciding that QuaRot is
+accurate enough to justify GPTQ work.
+
+## GPTQ gate (remains open)
 
 The completed baseline records the model and dataset commits, environment,
 token count, mean NLL, and PPL. Before starting GPTQ, define and pin a separate
