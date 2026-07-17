@@ -105,6 +105,15 @@ metrics. It prints the PPL/NLL difference; it deliberately does not impose an
 invented PPL threshold. Inspect that difference before deciding that QuaRot is
 accurate enough to justify GPTQ work.
 
+## Completed RTN W4A4 gate
+
+The matched pair completed on 2026-07-17. The comparison gate passed with
+identical pinned model/data/evaluation fields: F3 naive RTN W4A4 scored PPL
+`8719.677539`, while F4 QuaRot RTN W4A4 scored `12.460633`. The matched BF16
+reference in these runs scored `5.008573`. Full provenance, numerical
+boundaries, and the saved result locations are in
+[LLAMA2_13B_RTN_W4A4_RESULTS.md](LLAMA2_13B_RTN_W4A4_RESULTS.md).
+
 ## GPTQ gate (remains open)
 
 The completed baseline records the model and dataset commits, environment,
