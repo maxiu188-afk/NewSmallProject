@@ -31,6 +31,12 @@ _H12 = (
     (1, -1, 1, -1, -1, -1, 1, 1, 1, -1, 1, 1),
 )
 
+# Bit-packed upstream get_had40() sign matrix.  Llama-2-13B has
+# hidden_size = 40 x 128, so this supplies its exact residual-space transform.
+_H40_BITS_B64 = (
+    "gAAIAADYV52FeewrzsK8thXrYV6bCvmwr82FfNhX5sK+bCvzYV82Ffmwr5sKvNhbzYXebC3mwq82GvNh15sNebCrzYq82JXmyV5sivNorzaFebhXm8K83CvN4V5uFeawrzsK84AAB///2FeSeobsK8E9Q7YV5J6hmwr2T1DNhXMnqObCsZPU82FQyer5sKBk9bzYVDJ63mwiGT2vNhUMntebAoZPq82FQyeV5sahk4rzZ1DJhXm3qGTCvNPUMuFeYeoZsK809Qw="
+)
+
 # Bit-packed (+1 = 1, -1 = 0) order-108 sign matrix transcribed from the
 # pinned QuaRot reference's get_had108().  Llama-2-13B has
 # intermediate_size = 108 x 128, so this is the factor required for its
@@ -66,7 +72,7 @@ def supports_structured_hadamard(size: int) -> bool:
 
 
 def _structured_factor(size: int) -> int | None:
-    for factor in (108, 12):
+    for factor in (108, 40, 12):
         if size % factor == 0 and is_power_of_two(size // factor):
             return factor
     return None
@@ -77,12 +83,22 @@ def normalized_h12(dtype: torch.dtype, device: torch.device, transpose: bool = F
     return matrix.T if transpose else matrix
 
 
-def normalized_h108(dtype: torch.dtype, device: torch.device, transpose: bool = False) -> torch.Tensor:
-    packed = torch.tensor(list(base64.b64decode(_H108_BITS_B64)), dtype=torch.uint8, device=device)
+def _normalized_packed_sign_matrix(
+    encoded: str, order: int, dtype: torch.dtype, device: torch.device, transpose: bool = False
+) -> torch.Tensor:
+    packed = torch.tensor(list(base64.b64decode(encoded)), dtype=torch.uint8, device=device)
     shifts = torch.arange(7, -1, -1, dtype=torch.uint8, device=device)
     signs = ((packed.unsqueeze(1) >> shifts) & 1).reshape(-1).to(dtype).mul_(2).sub_(1)
-    matrix = signs.reshape(108, 108) / math.sqrt(108.0)
+    matrix = signs.reshape(order, order) / math.sqrt(float(order))
     return matrix.T if transpose else matrix
+
+
+def normalized_h40(dtype: torch.dtype, device: torch.device, transpose: bool = False) -> torch.Tensor:
+    return _normalized_packed_sign_matrix(_H40_BITS_B64, 40, dtype, device, transpose)
+
+
+def normalized_h108(dtype: torch.dtype, device: torch.device, transpose: bool = False) -> torch.Tensor:
+    return _normalized_packed_sign_matrix(_H108_BITS_B64, 108, dtype, device, transpose)
 
 
 def _normalized_structured_factor(
@@ -90,6 +106,8 @@ def _normalized_structured_factor(
 ) -> torch.Tensor:
     if factor == 12:
         return normalized_h12(dtype, device, transpose)
+    if factor == 40:
+        return normalized_h40(dtype, device, transpose)
     if factor == 108:
         return normalized_h108(dtype, device, transpose)
     raise ValueError("unsupported structured Hadamard factor {}".format(factor))
