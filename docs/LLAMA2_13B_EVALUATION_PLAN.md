@@ -158,17 +158,17 @@ estimated loss. GPTQ results must compare F0, F3/F4 RTN, and F3/F4 GPTQ on the
 same pinned WikiText-2 protocol; no synthetic-token result substitutes for
 this gate.
 
-## Active CUDA 12.4 run — do not interpret yet
+## Completed CUDA 12.4 F4 GPTQ run
 
-The initial QuaRot F4 GPTQ command is running in server-side `tmux` session
-`gptq-f4` on an RTX 6000 Ada. It uses an independent container-disk Python
-3.12 environment with PyTorch `2.6.0+cu124` and the existing persistent
-`/workspace/NewSmallProject/.cache/huggingface` cache. This session first runs
-its own BF16 reference, then consumes the previously unreviewed `train` split
-calibration material and writes ignored raw artifacts under
-`results/llama2-13b-wikitext2-gptq-w4a4/`.
+The initial QuaRot F4 GPTQ command completed on an RTX 6000 Ada using an
+independent container-disk Python 3.12 environment with PyTorch `2.6.0+cu124`
+and the persistent `/workspace/NewSmallProject/.cache/huggingface` cache. Its
+same-run BF16 reference scored PPL `5.008716`; the fully calibrated F4 GPTQ
+candidate scored `5.837575`. The result JSON records 128 train calibration
+sequences, all 40 decoder layers, and 280 quantized linear layers; raw files
+were copied and checksum-verified before server shutdown.
 
-The next action is review, not a second experiment: inspect the session exit
-state, log, cache provenance, and JSON schema before reporting a GPTQ metric or
-launching the matched naive run. See `RUNPOD_GPTQ_SESSION.md` for the exact
-review checklist.
+This completes the F4 GPTQ accuracy gate and shows a clear improvement over
+F4 RTN. The next experiment is the matched naive GPTQ F3 control, not a repeat
+of F4; only that pair can isolate QuaRot's effect under GPTQ. See
+`LLAMA2_13B_GPTQ_W4A4_RESULTS.md` for the result boundary and provenance.
