@@ -126,6 +126,26 @@ def _walsh_hadamard_last_axis(values: torch.Tensor) -> torch.Tensor:
     return result
 
 
+def _normalized_walsh_matrix(size: int, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
+    if not is_power_of_two(size):
+        raise ValueError("Walsh Hadamard size must be a power of two")
+    matrix = torch.ones((1, 1), dtype=dtype, device=device)
+    while matrix.shape[0] < size:
+        matrix = torch.cat((torch.cat((matrix, matrix), dim=1), torch.cat((matrix, -matrix), dim=1)), dim=0)
+    return matrix / math.sqrt(float(size))
+
+
+def normalized_structured_hadamard_matrix(size: int, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
+    """Build an exact dense matrix only where a residual reparameterization needs it."""
+    factor = _structured_factor(size)
+    if factor is None:
+        raise ValueError("expected a supported factor times a power of two, got {}".format(size))
+    return torch.kron(
+        _normalized_structured_factor(factor, dtype, device),
+        _normalized_walsh_matrix(size // factor, dtype, device),
+    )
+
+
 def structured_hadamard(values: torch.Tensor, transpose: bool = False) -> torch.Tensor:
     """Apply the upstream-compatible factor x power-of-two transform."""
     size = values.shape[-1]

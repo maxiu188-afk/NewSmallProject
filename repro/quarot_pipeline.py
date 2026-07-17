@@ -23,7 +23,12 @@ os.environ.setdefault("HF_HOME", str(_CACHE_HOME))
 
 from repro.fake_quant_smoke import quantize_linear_weights_in_place, quantize_linear_inputs, quantize_value_projection_outputs
 from repro.qk_post_rope import install_post_rope_qk
-from repro.structured_hadamard import StructuredHadamardInputLinear, structured_hadamard, supports_structured_hadamard
+from repro.structured_hadamard import (
+    StructuredHadamardInputLinear,
+    normalized_structured_hadamard_matrix,
+    structured_hadamard,
+    supports_structured_hadamard,
+)
 from repro.torch_smoke import HadamardInputLinear, UnitRMSNorm, normalized_hadamard_matrix
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, __version__ as TRANSFORMERS_VERSION
 
@@ -229,6 +234,8 @@ def _random_orthogonal(size: int, dtype: torch.dtype, device: torch.device, seed
 
 def _rotation_matrix(size: int, mode: str, dtype: torch.dtype, device: torch.device, seed: int) -> torch.Tensor:
     if mode == "hadamard":
+        if supports_structured_hadamard(size):
+            return normalized_structured_hadamard_matrix(size, dtype, device)
         return normalized_hadamard_matrix(size, dtype, device)
     if mode == "random":
         return _random_orthogonal(size, dtype, device, seed)
