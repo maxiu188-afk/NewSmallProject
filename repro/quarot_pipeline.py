@@ -22,6 +22,7 @@ _CACHE_HOME.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("HF_HOME", str(_CACHE_HOME))
 
 from repro.fake_quant_smoke import quantize_linear_weights_in_place, quantize_linear_inputs, quantize_value_projection_outputs
+from repro.gptq import GPTQSettings, quantize_llama_weights_gptq
 from repro.qk_post_rope import install_post_rope_qk
 from repro.structured_hadamard import (
     StructuredHadamardInputLinear,
@@ -88,6 +89,9 @@ def validate_pipeline_config(config: Mapping[str, Any]) -> None:
         value = data.get(name)
         if not isinstance(value, int) or value <= 0:
             raise PipelineConfigError("data.{} must be a positive integer".format(name))
+    for name in ("max_rows", "max_batches"):
+        if name in data and (not isinstance(data[name], int) or data[name] <= 0):
+            raise PipelineConfigError("data.{} must be a positive integer when set".format(name))
 
     if runtime.get("device") not in {"auto", "cpu", "mps", "cuda"}:
         raise PipelineConfigError("runtime.device must be auto, cpu, mps, or cuda")
@@ -113,6 +117,35 @@ def validate_pipeline_config(config: Mapping[str, Any]) -> None:
         clip_ratio = quantization.get(name, 1.0)
         if not isinstance(clip_ratio, (int, float)) or not 0.0 < float(clip_ratio) <= 1.0:
             raise PipelineConfigError("quantization.{} must be in (0, 1]".format(name))
+    weight_quantization = experiment.get("weight_quantization", {"method": "rtn"})
+    if not isinstance(weight_quantization, Mapping) or weight_quantization.get("method", "rtn") not in {"rtn", "gptq"}:
+        raise PipelineConfigError("experiment.weight_quantization.method must be rtn or gptq")
+    if weight_quantization.get("method", "rtn") == "gptq":
+        calibration = _mapping(config, "calibration")
+        calibration_data = _mapping(calibration, "data")
+        if calibration_data.get("source") not in {"jsonl_text", "huggingface_text"}:
+            raise PipelineConfigError("GPTQ calibration.data.source must be jsonl_text or huggingface_text")
+        for name in ("batch_size", "sequence_length", "max_samples"):
+            value = calibration_data.get(name)
+            if not isinstance(value, int) or value <= 0:
+                raise PipelineConfigError("GPTQ calibration.data.{} must be a positive integer".format(name))
+        if calibration_data["batch_size"] != 1:
+            raise PipelineConfigError("GPTQ calibration.data.batch_size must be 1")
+        for name in ("max_rows", "max_batches"):
+            if name in calibration_data and (not isinstance(calibration_data[name], int) or calibration_data[name] <= 0):
+                raise PipelineConfigError("GPTQ calibration.data.{} must be a positive integer when set".format(name))
+        if not isinstance(weight_quantization.get("group_size", 128), int) or weight_quantization.get("group_size", 128) == 0:
+            raise PipelineConfigError("GPTQ group_size must be -1 or a positive integer")
+        if not isinstance(weight_quantization.get("symmetric", True), bool) or not weight_quantization.get("symmetric", True):
+            raise PipelineConfigError("portable GPTQ currently requires symmetric=true")
+        for name in ("damp_percent",):
+            value = weight_quantization.get(name, 0.01)
+            if not isinstance(value, (int, float)) or float(value) <= 0.0:
+                raise PipelineConfigError("GPTQ {} must be positive".format(name))
+        if not isinstance(weight_quantization.get("block_size", 128), int) or weight_quantization.get("block_size", 128) <= 0:
+            raise PipelineConfigError("GPTQ block_size must be positive")
+        if not isinstance(weight_quantization.get("act_order", True), bool):
+            raise PipelineConfigError("GPTQ act_order must be boolean")
 
 
 def resolve_device(runtime: Mapping[str, Any]) -> torch.device:
@@ -180,11 +213,13 @@ def _synthetic_batches(data: Mapping[str, Any], vocab_size: int) -> Iterator[tor
 
 
 def _text_batches(texts: Iterable[str], tokenizer: Any, data: Mapping[str, Any]) -> Iterator[torch.Tensor]:
-    sequence_length, batch_size, max_samples = data["sequence_length"], data["batch_size"], data["max_samples"]
+    sequence_length, batch_size = data["sequence_length"], data["batch_size"]
+    max_rows = int(data.get("max_rows", data["max_samples"]))
+    max_batches = int(data.get("max_batches", data["max_samples"]))
     token_buffer: List[int] = []
     yielded, seen = 0, 0
     for text in texts:
-        if seen >= max_samples:
+        if seen >= max_rows:
             break
         seen += 1
         token_buffer.extend(tokenizer(text, add_special_tokens=False)["input_ids"])
@@ -193,7 +228,7 @@ def _text_batches(texts: Iterable[str], tokenizer: Any, data: Mapping[str, Any])
             del token_buffer[: sequence_length * batch_size]
             yield torch.tensor(values, dtype=torch.long).reshape(batch_size, sequence_length)
             yielded += 1
-            if yielded >= max_samples:
+            if yielded >= max_batches:
                 return
 
 
@@ -222,6 +257,29 @@ def token_batches(config: Mapping[str, Any], model: nn.Module, tokenizer: Option
     dataset = load_dataset(data["id"], data.get("subset"), split=data.get("split", "validation"), revision=data.get("revision"))
     field = data.get("text_field", "text")
     yield from _text_batches((row[field] for row in dataset if isinstance(row.get(field), str)), tokenizer, data)
+
+
+def _calibration_config(config: Mapping[str, Any]) -> Dict[str, Any]:
+    """Adapt the separately pinned GPTQ data block to the token-batch API."""
+    calibration = config["calibration"]
+    return {"_config_dir": config["_config_dir"], "data": calibration["data"]}
+
+
+def _data_summary(data: Mapping[str, Any], batches: List[torch.Tensor]) -> Dict[str, Any]:
+    return {
+        "source": data["source"],
+        "id": data.get("id"),
+        "subset": data.get("subset"),
+        "split": data.get("split"),
+        "revision": data.get("revision"),
+        "sequence_length": data["sequence_length"],
+        "batch_size": data["batch_size"],
+        "max_samples": data["max_samples"],
+        "max_rows": data.get("max_rows", data["max_samples"]),
+        "max_batches": data.get("max_batches", data["max_samples"]),
+        "batches": len(batches),
+        "tokens": sum(int(batch.numel()) for batch in batches),
+    }
 
 
 def _random_orthogonal(size: int, dtype: torch.dtype, device: torch.device, seed: int) -> torch.Tensor:
@@ -446,6 +504,12 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
     if not batches:
         raise RuntimeError("data source yielded no batches")
     quantization = config["experiment"]["quantization"]
+    weight_quantization = config["experiment"].get("weight_quantization", {"method": "rtn"})
+    calibration_batches: List[torch.Tensor] = []
+    if weight_quantization.get("method", "rtn") == "gptq":
+        calibration_batches = list(token_batches(_calibration_config(config), model, tokenizer))
+        if not calibration_batches:
+            raise RuntimeError("GPTQ calibration source yielded no complete token batch")
     use_kv_cache = int(quantization["k_bits"]) < 16 or int(quantization["v_bits"]) < 16
     reference_quantization = dict(quantization)
     reference_quantization.update({"v_bits": 16, "k_bits": 16})
@@ -466,7 +530,22 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
             torch.cuda.empty_cache()
         candidate, _ = load_model_and_tokenizer(config, device)
         rotation_summary = apply_llama_quarot(candidate, config["experiment"]["rotation"], quantization)
-        quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
+        if weight_quantization.get("method", "rtn") == "gptq":
+            gptq_summary = quantize_llama_weights_gptq(
+                candidate,
+                calibration_batches,
+                GPTQSettings(
+                    bits=int(quantization["w_bits"]),
+                    group_size=int(weight_quantization.get("group_size", 128)),
+                    damp_percent=float(weight_quantization.get("damp_percent", 0.01)),
+                    block_size=int(weight_quantization.get("block_size", 128)),
+                    act_order=bool(weight_quantization.get("act_order", True)),
+                    symmetric=bool(weight_quantization.get("symmetric", True)),
+                ),
+            )
+        else:
+            gptq_summary = None
+            quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
         evaluated = _evaluate(
             candidate,
             batches,
@@ -478,7 +557,22 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
     else:
         candidate = copy.deepcopy(model).eval()
         rotation_summary = apply_llama_quarot(candidate, config["experiment"]["rotation"], quantization)
-        quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
+        if weight_quantization.get("method", "rtn") == "gptq":
+            gptq_summary = quantize_llama_weights_gptq(
+                candidate,
+                calibration_batches,
+                GPTQSettings(
+                    bits=int(quantization["w_bits"]),
+                    group_size=int(weight_quantization.get("group_size", 128)),
+                    damp_percent=float(weight_quantization.get("damp_percent", 0.01)),
+                    block_size=int(weight_quantization.get("block_size", 128)),
+                    act_order=bool(weight_quantization.get("act_order", True)),
+                    symmetric=bool(weight_quantization.get("symmetric", True)),
+                ),
+            )
+        else:
+            gptq_summary = None
+            quantize_linear_weights_in_place(candidate, int(quantization["w_bits"]))
         evaluated = _evaluate(
             candidate,
             batches,
@@ -496,22 +590,17 @@ def run_pipeline(config: Mapping[str, Any]) -> Dict[str, Any]:
             "revision": config["model"].get("revision"),
             "dtype": config["model"].get("dtype", "float32"),
         },
-        "data": {
-            "source": config["data"]["source"],
-            "id": config["data"].get("id"),
-            "subset": config["data"].get("subset"),
-            "split": config["data"].get("split"),
-            "revision": config["data"].get("revision"),
-            "sequence_length": config["data"]["sequence_length"],
-            "batch_size": config["data"]["batch_size"],
-            "max_samples": config["data"]["max_samples"],
-            "batches": len(batches),
-        },
+        "data": _data_summary(config["data"], batches),
         "experiment": {"seed": int(config["experiment"].get("seed", 0))},
         "reference": reference,
         "candidate": evaluated,
         "rotation": rotation_summary,
         "quantization": dict(quantization),
+        "weight_quantization": dict(weight_quantization),
+        "calibration": _data_summary(config["calibration"]["data"], calibration_batches)
+        if calibration_batches
+        else None,
+        "gptq": gptq_summary,
         "kv_cache_simulated": use_kv_cache,
         "logit_error": {"mean_absolute": logit_error.mean().item(), "max_absolute": logit_error.max().item()},
     }

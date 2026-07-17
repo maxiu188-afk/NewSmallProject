@@ -114,11 +114,46 @@ reference in these runs scored `5.008573`. Full provenance, numerical
 boundaries, and the saved result locations are in
 [LLAMA2_13B_RTN_W4A4_RESULTS.md](LLAMA2_13B_RTN_W4A4_RESULTS.md).
 
-## GPTQ gate (remains open)
+## GPTQ implementation and gate
 
-The completed baseline records the model and dataset commits, environment,
-token count, mean NLL, and PPL. Before starting GPTQ, define and pin a separate
-calibration corpus and record calibration count, token count, group size,
-damping, act-order, symmetry, seed, and bit widths. GPTQ results must compare
-F0, F1/F2, F3/F4, and F5 on the same pinned WikiText-2 protocol; no synthetic
-token result substitutes for this gate.
+The GPTQ implementation is now configuration-driven, but its 13B result is
+not yet claimed. It uses a separately pinned calibration source and processes
+the LLaMA decoder one layer at a time. For each `nn.Linear`, it accumulates the
+input Hessian on calibration tokens, applies damping and activation ordering,
+then quantizes W4 columns while propagating the quantization error through the
+inverse Hessian. It remains a floating-point fake-quant weight transform: it
+does not pack weights or provide a custom CUDA kernel.
+
+Both initial GPTQ controls use `Salesforce/wikitext`,
+`wikitext-2-raw-v1`, revision `b08601e04326c79dfdd32d625aee71d232d685c3`,
+but keep its roles separate:
+
+- Evaluation is the existing `test` split (162 non-overlapping sequences of
+  length 2048).
+- Calibration is the `train` split, consumed deterministically in source order
+  as 128 sequences of length 2048 (262,144 input tokens). It has a row ceiling
+  of 100,000 only to make the source bound explicit; `max_batches: 128` is the
+  actual calibration limit.
+- Both candidates use symmetric W4, group size 128, 1% Hessian damping,
+  block size 128, and activation-ordering enabled. Their evaluation stays A4
+  with K/V at 16-bit, so a change in the result is attributable to GPTQ weight
+  fitting and/or QuaRot rather than KV-cache quantization.
+
+Run the matched naive and QuaRot candidates only after the GPU end-to-end smoke
+test completes:
+
+```bash
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_naive_w4a4_gptq.json \
+  --output results/llama2-13b-wikitext2-gptq-w4a4/naive-f3-gptq.json
+
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_quarot_w4a4_gptq.json \
+  --output results/llama2-13b-wikitext2-gptq-w4a4/quarot-f4-gptq.json
+```
+
+The result JSON records both data roles, the actual number of calibration
+sequences/tokens, all GPTQ hyperparameters, and each quantized linear layer's
+estimated loss. GPTQ results must compare F0, F3/F4 RTN, and F3/F4 GPTQ on the
+same pinned WikiText-2 protocol; no synthetic-token result substitutes for
+this gate.
