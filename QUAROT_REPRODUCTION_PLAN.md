@@ -1,22 +1,33 @@
-# QuaRot Reproduction Plan
+# Quantization research plan
 
 ## 1. Scope and principles
 
-This project reproduces **QuaRot only**. `Spin.pdf` and related work are out of
-scope unless a clearly documented, method-independent reference is needed.
+This project starts from **QuaRot**, but is not a pure reproduction. QuaRot is
+the fixed algorithmic baseline and source of transformation ideas; the research
+goal is to test and extend those ideas on a more current, openly accessible
+decoder model. Related work such as learned rotations and quantization/kernel
+co-design is in scope when it is implemented and evaluated independently.
 
 `QuaRot/` is the upstream reference implementation, pinned locally at commit
 `5008669b08c1f11f9b64d52d16fddd47ca754c5a`. It is used to understand intended
 behaviour, tensor placement, checkpoint format, and CUDA execution paths. It
-is not treated as code to copy wholesale: its Python, Transformers, CUDA, and
-benchmark assumptions are from 2024 and must be validated before reuse.
+is not treated as code to copy wholesale or a required deployment dependency:
+its Python, Transformers, CUDA, and benchmark assumptions are from 2024 and
+must be validated before any idea is reused.
+
+The primary planned model is `Qwen/Qwen2.5-7B`, with WikiText-2 as the common
+text evaluation corpus. Qwen2.5-7B is a 7.61B-parameter, Apache-2.0, GQA
+decoder with RoPE, SwiGLU, and RMSNorm. It is intentionally not presented as
+an exact LLaMA-2 reproduction target. The resolved immutable model and dataset
+revisions are mandatory run artifacts and must be recorded only after download.
 
 The reproduction has two strictly separated tracks:
 
 | Track | Question answered | Allowed claim |
 |---|---|---|
-| Algorithm / fake quant | Does rotation preserve the model and improve low-bit QDQ accuracy? | Algorithmic simulation result |
-| Deployment / kernels | Does a real low-bit kernel reduce storage or improve measured serving cost? | CUDA deployment result for the exact tested configuration |
+| QuaRot baseline | Does the fixed/random rotation baseline preserve the model and improve controlled low-bit QDQ accuracy? | Algorithmic baseline result |
+| Research extensions | Do learned/structured rotations, quantizer changes, or kernel co-design improve a controlled baseline? | Result for the exact implementation and configuration |
+| Deployment / kernels | Does a verified low-bit kernel reduce storage or improve measured serving cost? | CUDA deployment result for the exact tested configuration |
 
 No result may be labelled “A4W4KV4 deployment” merely because a model loads or
 generates text. The report must state whether weights, activations, KV cache,
@@ -59,8 +70,9 @@ mandatory before any dependency or build script is written.
   builds, kernel correctness, memory, prefill, decode, throughput, and latency.
 - Each run records GPU model/count, driver, CUDA toolkit, PyTorch, Transformers,
   Python, Git revision, command, seed, model revision, and dataset revision.
-- Start with one supported LLaMA-2 configuration and a small smoke workload;
-  scale only after the preceding gate passes.
+- Start with Qwen2.5-7B and a small smoke workload; scale only after the
+  preceding gate passes. The model, tokenizer, and dataset revisions are pinned
+  from the actual resolved snapshots rather than a mutable branch name.
 
 ## 3. Planned project layout
 
@@ -136,8 +148,9 @@ large logs are not committed.
 - Test residual-stream rotation, layer-norm fusion, MLP down-projection online
   Hadamard rotation, V/O rotation, and Q/K rotation separately on toy modules.
 - Run a tiny randomly initialized LLaMA-shaped model locally.
-- On RunPod, repeat on the selected pretrained LLaMA-2 model with quantization
-  disabled.
+- On RunPod, repeat on the selected pretrained Qwen2.5-7B model with
+  quantization disabled. Add a Qwen-specific adapter only after random-model
+  tests identify the required configuration and attention differences.
 
 **Checkable exit criteria**
 
@@ -155,7 +168,7 @@ large logs are not committed.
 - Use the same base model, evaluation corpus, calibration corpus, calibration
   sample count, sequence length, seed, and GPTQ/RTN settings in each comparison.
 - Begin with a small smoke configuration, then run the following controlled
-  matrix on LLaMA-2:
+  matrix on Qwen2.5-7B:
 
 | ID | Rotation | Quantization scope | Role |
 |---|---:|---|---|
@@ -179,23 +192,23 @@ large logs are not committed.
 
 ### Phase 4 — CUDA compatibility and kernel correctness (RunPod)
 
-**Goal:** determine what portion of the upstream real-int4 implementation runs
-correctly on the rented GPU.
+**Goal:** build and validate a maintained low-bit execution path informed by,
+but independent from, the upstream implementation.
 
 **Work**
 
-- Initialize upstream submodules only on RunPod and attempt a pinned build.
-- Record the original build result before changing anything. The upstream setup
-  currently targets `sm_75`, `sm_80`, and `sm_86`; GPU architecture mismatch is
-  a compatibility finding, not a reason to silently replace code.
-- If needed, make only a minimal, isolated architecture/build patch and compare
-  results with the original intended path.
-- Validate packed W4 linear output against a dequantized/reference calculation,
-  then validate int4 KV cache attention against FP16 cache output.
+- Treat any upstream build only as a recorded compatibility reference, not a
+  prerequisite for this track.
+- Implement a small, owned packed-W4 linear reference first and validate it
+  against the project's dequantized calculation. Add activation and KV paths
+  only after the preceding numerical check passes.
+- Evaluate a practical W4A8 path separately from the more aggressive W4A4KV4
+  simulation; do not claim that one kernel validates the other.
 
 **Checkable exit criteria**
 
-- The build log and exact CUDA stack are saved.
+- The exact CUDA stack, implementation revision, build log, and generated
+  artifacts are saved.
 - Kernel outputs pass documented numerical tolerance tests for every supported
   shape; unsupported shapes are listed explicitly.
 - The report states kernel constraints such as head dimension, batch/page layout,
@@ -244,11 +257,8 @@ correctly on the rented GPU.
 
 ## 5. Immediate next milestone
 
-The local deterministic test suite and experiment-manifest validator are the
-current final deliverables. No large-model dependency or RunPod environment is
-needed for the agreed scope.
-
-The next local-only extension is the portable LLaMA pipeline documented in
-`docs/PORTABLE_PIPELINE.md`. It must remain model/data configuration driven and
-run its first checks on random/synthetic inputs before any selected pretrained
-model is downloaded.
+Implement and validate a Qwen2-compatible portable adapter on random/synthetic
+configurations before downloading Qwen2.5-7B. The first server session then
+records a resolved Qwen model revision, a resolved WikiText-2 revision, and a
+full-precision text baseline. Controlled fake-quant comparisons follow only
+after that equivalence gate passes.
