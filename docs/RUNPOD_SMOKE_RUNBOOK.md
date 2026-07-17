@@ -75,12 +75,10 @@ within declared tolerance. A failure blocks F0–F5 accuracy experiments.
 ## D. Accuracy smoke, then full matrix
 
 The selected evaluation dataset is `wikitext2`, matching the upstream
-fake-quant defaults. The next primary model is `Qwen/Qwen2.5-7B`, not the
-gated LLaMA-2 checkpoint from the old upstream script. Before execution,
-resolve and record the exact model, tokenizer, and dataset revisions, then
-write a per-run config. The portable adapter must first pass a Qwen-specific
-full-precision equivalence smoke; the older upstream script remains a
-reference, not an execution dependency.
+fake-quant defaults. The next primary model is
+`meta-llama/Llama-2-13b-hf`. Authenticate the RunPod environment with the
+approved Hugging Face account before downloading it. Resolve and record the
+exact model, tokenizer, and dataset revisions, then write a per-run config.
 
 `configs/templates/llama2_fake_quant_matrix.json` remains a historical
 LLaMA-2 reference template. Do not materialize it directly for Qwen. After

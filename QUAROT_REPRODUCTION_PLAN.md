@@ -2,11 +2,10 @@
 
 ## 1. Scope and principles
 
-This project starts from **QuaRot**, but is not a pure reproduction. QuaRot is
-the fixed algorithmic baseline and source of transformation ideas; the research
-goal is to test and extend those ideas on a more current, openly accessible
-decoder model. Related work such as learned rotations and quantization/kernel
-co-design is in scope when it is implemented and evaluated independently.
+This project starts from **QuaRot** and uses the original LLaMA-2 setting for
+the primary controlled baseline. Related work such as learned rotations and
+quantization/kernel co-design is in scope only after the LLaMA-2 baseline is
+implemented and evaluated independently.
 
 `QuaRot/` is the upstream reference implementation, pinned locally at commit
 `5008669b08c1f11f9b64d52d16fddd47ca754c5a`. It is used to understand intended
@@ -15,11 +14,11 @@ is not treated as code to copy wholesale or a required deployment dependency:
 its Python, Transformers, CUDA, and benchmark assumptions are from 2024 and
 must be validated before any idea is reused.
 
-The primary planned model is `Qwen/Qwen2.5-7B`, with WikiText-2 as the common
-text evaluation corpus. Qwen2.5-7B is a 7.61B-parameter, Apache-2.0, GQA
-decoder with RoPE, SwiGLU, and RMSNorm. It is intentionally not presented as
-an exact LLaMA-2 reproduction target. The resolved immutable model and dataset
-revisions are mandatory run artifacts and must be recorded only after download.
+The primary planned model is `meta-llama/Llama-2-13b-hf`, with WikiText-2 as
+the common text evaluation corpus. It is a gated model, so the RunPod user
+must authenticate with a Hugging Face account whose access has been approved.
+The resolved immutable model and dataset revisions are mandatory run artifacts
+and must be recorded only after download.
 
 The reproduction has two strictly separated tracks:
 
@@ -70,7 +69,7 @@ mandatory before any dependency or build script is written.
   builds, kernel correctness, memory, prefill, decode, throughput, and latency.
 - Each run records GPU model/count, driver, CUDA toolkit, PyTorch, Transformers,
   Python, Git revision, command, seed, model revision, and dataset revision.
-- Start with Qwen2.5-7B and a small smoke workload; scale only after the
+- Start with Llama-2-13B and a small full-precision text workload; scale only after the
   preceding gate passes. The model, tokenizer, and dataset revisions are pinned
   from the actual resolved snapshots rather than a mutable branch name.
 
@@ -148,9 +147,8 @@ large logs are not committed.
 - Test residual-stream rotation, layer-norm fusion, MLP down-projection online
   Hadamard rotation, V/O rotation, and Q/K rotation separately on toy modules.
 - Run a tiny randomly initialized LLaMA-shaped model locally.
-- On RunPod, repeat on the selected pretrained Qwen2.5-7B model with
-  quantization disabled. Add a Qwen-specific adapter only after random-model
-  tests identify the required configuration and attention differences.
+- On RunPod, repeat on the selected pretrained Llama-2-13B model with
+  quantization disabled.
 
 **Checkable exit criteria**
 
@@ -168,7 +166,7 @@ large logs are not committed.
 - Use the same base model, evaluation corpus, calibration corpus, calibration
   sample count, sequence length, seed, and GPTQ/RTN settings in each comparison.
 - Begin with a small smoke configuration, then run the following controlled
-  matrix on Qwen2.5-7B:
+  matrix on Llama-2-13B:
 
 | ID | Rotation | Quantization scope | Role |
 |---|---:|---|---|
@@ -257,8 +255,7 @@ but independent from, the upstream implementation.
 
 ## 5. Immediate next milestone
 
-Implement and validate a Qwen2-compatible portable adapter on random/synthetic
-configurations before downloading Qwen2.5-7B. The first server session then
-records a resolved Qwen model revision, a resolved WikiText-2 revision, and a
-full-precision text baseline. Controlled fake-quant comparisons follow only
-after that equivalence gate passes.
+Run the pinned Llama-2-13B WikiText-2 BF16 baseline. The first server session
+records resolved Llama model and WikiText-2 revisions before reporting PPL.
+Controlled RTN and then GPTQ fake-quant comparisons follow only after that
+baseline gate passes.

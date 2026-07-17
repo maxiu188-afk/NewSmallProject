@@ -74,13 +74,12 @@ the native kernel track was stopped rather than treated as successful.
 
 The selected common evaluation dataset is `wikitext2`, which is the upstream
 fake-quant default for both evaluation and GPTQ calibration. The next primary
-model is the openly accessible `Qwen/Qwen2.5-7B`, not the gated LLaMA-2
-checkpoint expected by the old upstream script. Qwen is a deliberate research
-extension: its GQA and Qwen-specific attention details require a new portable
-adapter and full-precision equivalence check before it enters a fake-quant
-table.
+model is `meta-llama/Llama-2-13b-hf`. The project owner has approved access on
+Hugging Face; the disposable RunPod environment must still authenticate with
+that account before downloading weights. Llama-2-13B returns the work to the
+upstream model family and does not require a Qwen adapter.
 
 The next Pod session should rebuild the container environment, keep
-model/data/output under `/workspace`, resolve and record immutable Qwen and
-WikiText-2 revisions, then run matched full-precision, no-rotation QDQ,
-QuaRot-style baseline, and research-extension configurations.
+model/data/output under `/workspace`, resolve and record immutable Llama-2-13B
+and WikiText-2 revisions, then run the full-precision baseline before matched
+RTN and GPTQ fake-quant controls.

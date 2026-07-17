@@ -1,8 +1,8 @@
-# Qwen2.5-7B quantization research roadmap
+# Deferred Qwen2.5-7B quantization research roadmap
 
 ## Decision
 
-`Qwen/Qwen2.5-7B` is the next primary model. It is an openly accessible 7.61B
+`Qwen/Qwen2.5-7B` is not the current primary model. It is a deferred 7.61B
 parameter decoder with Apache-2.0 licensing, RoPE, SwiGLU, RMSNorm, QKV bias,
 and grouped-query attention (28 query heads and 4 KV heads). The target is
 large enough to make low-bit behavior meaningful while avoiding the access
