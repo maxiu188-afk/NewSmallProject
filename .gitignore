@@ -12,6 +12,7 @@ QuaRot/
 # Generated experiment artifacts; configuration and documentation stay tracked.
 results/*
 !results/.gitkeep
+!results/README.md
 
 # Model and framework caches are local state.
 models/

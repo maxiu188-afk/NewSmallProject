@@ -75,11 +75,100 @@ For the completed download, `hf-xet 1.5.2` failed with
 `DataHashHexParseError`; the successful retry used `HF_HUB_DISABLE_XET=1`.
 This controls the transport only and does not change the evaluated model.
 
-## Gate before GPTQ (F0 passed; GPTQ remains open)
+## RTN W4A4 gate before GPTQ
 
-The completed baseline records the model and dataset commits, environment,
-token count, mean NLL, and PPL. Before starting GPTQ, define and pin a separate
-calibration corpus and record calibration count, token count, group size,
-damping, act-order, symmetry, seed, and bit widths. GPTQ results must compare
-F0, F1/F2, F3/F4, and F5 on the same pinned WikiText-2 protocol; no synthetic
-token result substitutes for this gate.
+The next server session runs only the matched W4A4 pair, using the already
+cached, pinned Llama-2-13B and WikiText-2 snapshots. These are RTN-style QDQ
+experiments: no calibration set is used and they must not be called GPTQ.
+
+```bash
+export HF_HUB_DISABLE_XET=1
+cd /workspace/NewSmallProject
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_naive_w4a4_rtn.json \
+  --output results/llama2-13b-wikitext2-rtn-w4a4/naive-f3.json
+
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_quarot_w4a4_rtn.json \
+  --output results/llama2-13b-wikitext2-rtn-w4a4/quarot-f4.json
+
+python3 scripts/compare_rtn_w4a4.py \
+  --naive results/llama2-13b-wikitext2-rtn-w4a4/naive-f3.json \
+  --quarot results/llama2-13b-wikitext2-rtn-w4a4/quarot-f4.json \
+  --output results/llama2-13b-wikitext2-rtn-w4a4/comparison.json
+```
+
+The comparison command only passes when both result files use the same pinned
+model/data/evaluation protocol and seed, are respectively unrotated F3 and
+Hadamard-rotated F4, keep KV quantization disabled, and contain finite
+metrics. It prints the PPL/NLL difference; it deliberately does not impose an
+invented PPL threshold. Inspect that difference before deciding that QuaRot is
+accurate enough to justify GPTQ work.
+
+## Completed RTN W4A4 gate
+
+The matched pair completed on 2026-07-17. The comparison gate passed with
+identical pinned model/data/evaluation fields: F3 naive RTN W4A4 scored PPL
+`8719.677539`, while F4 QuaRot RTN W4A4 scored `12.460633`. The matched BF16
+reference in these runs scored `5.008573`. Full provenance, numerical
+boundaries, and the saved result locations are in
+[LLAMA2_13B_RTN_W4A4_RESULTS.md](LLAMA2_13B_RTN_W4A4_RESULTS.md).
+
+## GPTQ implementation and gate
+
+The GPTQ implementation is now configuration-driven, but its 13B result is
+not yet claimed. It uses a separately pinned calibration source and processes
+the LLaMA decoder one layer at a time. For each `nn.Linear`, it accumulates the
+input Hessian on calibration tokens, applies damping and activation ordering,
+then quantizes W4 columns while propagating the quantization error through the
+inverse Hessian. It remains a floating-point fake-quant weight transform: it
+does not pack weights or provide a custom CUDA kernel.
+
+Both initial GPTQ controls use `Salesforce/wikitext`,
+`wikitext-2-raw-v1`, revision `b08601e04326c79dfdd32d625aee71d232d685c3`,
+but keep its roles separate:
+
+- Evaluation is the existing `test` split (162 non-overlapping sequences of
+  length 2048).
+- Calibration is the `train` split, consumed deterministically in source order
+  as 128 sequences of length 2048 (262,144 input tokens). It has a row ceiling
+  of 100,000 only to make the source bound explicit; `max_batches: 128` is the
+  actual calibration limit.
+- Both candidates use symmetric W4, group size 128, 1% Hessian damping,
+  block size 128, and activation-ordering enabled. Their evaluation stays A4
+  with K/V at 16-bit, so a change in the result is attributable to GPTQ weight
+  fitting and/or QuaRot rather than KV-cache quantization.
+
+Run the matched naive and QuaRot candidates only after the GPU end-to-end smoke
+test completes:
+
+```bash
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_naive_w4a4_gptq.json \
+  --output results/llama2-13b-wikitext2-gptq-w4a4/naive-f3-gptq.json
+
+python3 scripts/run_quarot_pipeline.py \
+  configs/pipeline/llama2_13b_wikitext2_quarot_w4a4_gptq.json \
+  --output results/llama2-13b-wikitext2-gptq-w4a4/quarot-f4-gptq.json
+```
+
+The result JSON records both data roles, the actual number of calibration
+sequences/tokens, all GPTQ hyperparameters, and each quantized linear layer's
+estimated loss. GPTQ results must compare F0, F3/F4 RTN, and F3/F4 GPTQ on the
+same pinned WikiText-2 protocol; no synthetic-token result substitutes for
+this gate.
+
+## Active CUDA 12.4 run — do not interpret yet
+
+The initial QuaRot F4 GPTQ command is running in server-side `tmux` session
+`gptq-f4` on an RTX 6000 Ada. It uses an independent container-disk Python
+3.12 environment with PyTorch `2.6.0+cu124` and the existing persistent
+`/workspace/NewSmallProject/.cache/huggingface` cache. This session first runs
+its own BF16 reference, then consumes the previously unreviewed `train` split
+calibration material and writes ignored raw artifacts under
+`results/llama2-13b-wikitext2-gptq-w4a4/`.
+
+The next action is review, not a second experiment: inspect the session exit
+state, log, cache provenance, and JSON schema before reporting a GPTQ metric or
+launching the matched naive run. See `RUNPOD_GPTQ_SESSION.md` for the exact
+review checklist.

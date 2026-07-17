@@ -1,9 +1,10 @@
 # RunPod smoke runbook
 
-> Status: CUDA smoke completed (2026-07-16). Preflight, a 16-bit rotation
-> check, and a matched synthetic-input W4A4KV4 smoke completed on an A40. The
-> Pod is currently stopped. These results do not authorize a benchmark or a
-> text-accuracy claim.
+> Historical status: CUDA smoke completed (2026-07-16). Preflight, a 16-bit
+> rotation check, and a matched synthetic-input W4A4KV4 smoke completed on an
+> A40. Those results do not authorize a benchmark or a text-accuracy claim.
+> A separate RTX 6000 Ada CUDA 12.4 GPTQ session is now active; its pending
+> artifacts and review boundary are recorded in `RUNPOD_GPTQ_SESSION.md`.
 
 The selected launch resources are recorded in `RUNPOD_LAUNCH_SPEC.md`.
 
