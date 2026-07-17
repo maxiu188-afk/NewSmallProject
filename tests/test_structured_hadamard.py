@@ -31,4 +31,17 @@ class StructuredHadamardTests(unittest.TestCase):
         from repro.structured_hadamard import supports_structured_hadamard
 
         self.assertTrue(supports_structured_hadamard(1536))
+        self.assertTrue(supports_structured_hadamard(13824))
         self.assertFalse(supports_structured_hadamard(576))
+
+    def test_108x_power2_is_orthogonal_and_matches_dense_kron(self):
+        import torch
+
+        from repro.structured_hadamard import normalized_h108, structured_hadamard
+        from repro.torch_smoke import normalized_hadamard_matrix
+
+        h108 = normalized_h108(torch.float64, torch.device("cpu"))
+        self.assertTrue(torch.allclose(h108 @ h108.T, torch.eye(108, dtype=torch.float64), atol=1e-12, rtol=0.0))
+        values = torch.randn(2, 216, dtype=torch.float64)
+        dense = torch.kron(h108, normalized_hadamard_matrix(2, torch.float64, torch.device("cpu")))
+        self.assertTrue(torch.allclose(structured_hadamard(values), values @ dense.T, atol=1e-12, rtol=0.0))

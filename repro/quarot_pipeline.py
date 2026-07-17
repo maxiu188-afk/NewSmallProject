@@ -23,7 +23,7 @@ os.environ.setdefault("HF_HOME", str(_CACHE_HOME))
 
 from repro.fake_quant_smoke import quantize_linear_weights_in_place, quantize_linear_inputs, quantize_value_projection_outputs
 from repro.qk_post_rope import install_post_rope_qk
-from repro.structured_hadamard import StructuredHadamardInputLinear, structured_hadamard_12x_power2, supports_structured_hadamard
+from repro.structured_hadamard import StructuredHadamardInputLinear, structured_hadamard, supports_structured_hadamard
 from repro.torch_smoke import HadamardInputLinear, UnitRMSNorm, normalized_hadamard_matrix
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, __version__ as TRANSFORMERS_VERSION
 
@@ -324,7 +324,7 @@ def apply_llama_quarot(
     intermediate_size = int(config.intermediate_size)
     intermediate_is_pow2 = not (intermediate_size & (intermediate_size - 1))
     if mlp_online and not (intermediate_is_pow2 or supports_structured_hadamard(intermediate_size)):
-        raise RuntimeError("mlp_online requires a power-of-two or 12 x power-of-two intermediate_size")
+        raise RuntimeError("mlp_online requires a power-of-two or a supported structured intermediate_size")
 
     output_head_was_untied = _untie_llama_output_head_if_needed(model)
     _fuse_llama_norms(model)
@@ -353,7 +353,7 @@ def apply_llama_quarot(
                     mlp.down_proj.weight.copy_(residual.T @ mlp.down_proj.weight @ intermediate)
                     mlp.down_proj = HadamardInputLinear(mlp.down_proj, intermediate)
                 else:
-                    mlp.down_proj.weight.copy_(structured_hadamard_12x_power2(residual.T @ mlp.down_proj.weight))
+                    mlp.down_proj.weight.copy_(structured_hadamard(residual.T @ mlp.down_proj.weight))
                     mlp.down_proj = StructuredHadamardInputLinear(mlp.down_proj)
             else:
                 mlp.down_proj.weight.copy_(residual.T @ mlp.down_proj.weight)
@@ -378,7 +378,7 @@ def apply_llama_quarot(
         "num_kv_heads": num_kv_heads,
         "vo_rotation": bool(rotation.get("vo_rotation", True)),
         "mlp_online": mlp_online,
-        "mlp_hadamard": "power_of_two" if mlp_online and intermediate_is_pow2 else ("12_x_power_of_two" if mlp_online else "none"),
+        "mlp_hadamard": "power_of_two" if mlp_online and intermediate_is_pow2 else ("structured" if mlp_online else "none"),
         "qk_post_rope": qk_post_rope,
         "k_bits": key_bits,
         "v_bits": int(quantization["v_bits"]),
