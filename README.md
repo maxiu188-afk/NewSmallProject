@@ -14,14 +14,15 @@ checks kept separate from real CUDA deployment and performance work.
   naive baseline.
 - A recorded RunPod A40 CUDA smoke: 16-bit rotation equivalence plus matched
   SmolLM2-135M synthetic-input W4A4KV4 naive/QuaRot runs.
+- A pinned Llama-2-13B BF16 WikiText-2 F0 baseline (`PPL=5.0083` over 331,614
+  next-token targets).
 
-The current results are code-path checks on fixed synthetic inputs. They are
-not pretrained text-evaluation claims or real low-bit inference benchmarks.
-The W4A4KV4 path remains an algorithmic QDQ simulation, not packed KV storage
-or a CUDA attention kernel. See [phase status](docs/PHASE_STATUS.md) and the
-[SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md). The
-server-side record, including the exact scope and limits of the CUDA smoke, is
-in [RunPod fake-quant results](docs/RUNPOD_FAKE_QUANT_RESULTS.md).
+The Llama-2 result is a reproducible full-precision text-evaluation control,
+not an algorithmic low-bit result. All current W4A4KV4 evidence remains an
+algorithmic QDQ simulation rather than packed KV storage or a CUDA attention
+kernel. See [phase status](docs/PHASE_STATUS.md), the
+[Llama-2-13B BF16 baseline](docs/LLAMA2_13B_BF16_BASELINE.md), and the
+[SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md).
 
 ## Layout
 

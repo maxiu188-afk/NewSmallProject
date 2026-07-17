@@ -12,14 +12,25 @@ The portable pipeline's current W-bit operation is RTN-style QDQ. It must not
 be labelled GPTQ. The GPTQ stage uses the upstream fake-quant behaviour as a
 reference and records every calibration and evaluation choice separately.
 
+## Completed F0 record
+
+The BF16 baseline completed on 2026-07-17 with model revision
+`5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1` and WikiText-2 revision
+`b08601e04326c79dfdd32d625aee71d232d685c3`. It scored mean NLL
+`1.6111028514668504` and PPL `5.008331629066348` over 331,614 next-token
+targets (162 sequences of length 2048). The full result and its evaluation
+boundary are recorded in [LLAMA2_13B_BF16_BASELINE.md](LLAMA2_13B_BF16_BASELINE.md).
+
 ## Server preparation and authentication
 
-On the RunPod persistent volume, keep the Hugging Face cache and generated
-records outside the Git worktree:
+The current preparation and runner scripts explicitly use the ignored project
+cache `.cache/huggingface`, overriding a caller-supplied `HF_HOME`. Until that
+implementation changes, authenticate into that cache and keep it on the
+persistent volume:
 
 ```bash
-export HF_HOME=/workspace/hf-cache
-export HF_HUB_CACHE=/workspace/hf-cache
+export HF_HOME=/workspace/NewSmallProject/.cache/huggingface
+export HF_HUB_CACHE=/workspace/NewSmallProject/.cache/huggingface
 hf auth login
 ```
 
@@ -60,10 +71,15 @@ The pipeline runs this F0 baseline without cloning the model. This is necessary
 on the A40: one BF16 13B model is feasible, whereas reference and candidate
 copies together are not a safe 48 GB workload.
 
-## Gate before GPTQ
+For the completed download, `hf-xet 1.5.2` failed with
+`DataHashHexParseError`; the successful retry used `HF_HUB_DISABLE_XET=1`.
+This controls the transport only and does not change the evaluated model.
 
-The baseline record must contain the model and dataset commits, command,
-environment snapshot, token count, mean NLL, and PPL. Review it before
-downloading calibration data or starting GPTQ. GPTQ results must compare F0,
-F1/F2, F3/F4, and F5 on the same pinned WikiText-2 protocol; no synthetic
+## Gate before GPTQ (F0 passed; GPTQ remains open)
+
+The completed baseline records the model and dataset commits, environment,
+token count, mean NLL, and PPL. Before starting GPTQ, define and pin a separate
+calibration corpus and record calibration count, token count, group size,
+damping, act-order, symmetry, seed, and bit widths. GPTQ results must compare
+F0, F1/F2, F3/F4, and F5 on the same pinned WikiText-2 protocol; no synthetic
 token result substitutes for this gate.
