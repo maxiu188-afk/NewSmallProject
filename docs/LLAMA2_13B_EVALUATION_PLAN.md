@@ -173,11 +173,11 @@ F4 RTN. The next experiment is the matched naive GPTQ F3 control, not a repeat
 of F4; only that pair can isolate QuaRot's effect under GPTQ. See
 `LLAMA2_13B_GPTQ_W4A4_RESULTS.md` for the result boundary and provenance.
 
-## Planned component and calibration study
+## Completed component and calibration study
 
-The next server session additionally batches the matched naive F3 GPTQ
-control, a cumulative QuaRot component ablation, and a matched 32/64/128
-calibration-size study. It keeps the same pinned model/data/runtime contract
-and W4A4, K/V-16 GPTQ settings. The tracked configurations and restartable
-launcher are documented in `LLAMA2_13B_GPTQ_STUDY_RUNBOOK.md`; no result is
-claimed until the raw server artifacts are reviewed.
+The follow-up server session completed the matched naive F3 GPTQ control, a
+cumulative QuaRot component ablation, and the matched 32/64/128
+calibration-size study. It retained the pinned model/data/runtime contract and
+W4A4, K/V-16 GPTQ settings. The raw server JSON/log files were recovered and
+SHA-256 checked. See `LLAMA2_13B_GPTQ_ABLATION_CALIBRATION_RESULTS.md` for the
+result table and its interpretation boundary.

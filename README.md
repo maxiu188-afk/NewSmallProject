@@ -20,7 +20,9 @@ checks kept separate from real CUDA deployment and performance work.
   QuaRot F4 PPL `12.4606` (K/V remain 16-bit; this is floating-point QDQ).
 - A configuration-driven GPTQ W4A4 path with a separately pinned WikiText-2
   `train` calibration contract. The completed QuaRot F4 GPTQ result is
-  `PPL=5.8376` (same-run BF16 `5.0087`); the naive GPTQ F3 control remains open.
+  `PPL=5.8376` (same-run BF16 `5.0087`); the matched naive GPTQ F3 control is
+  `PPL=8624.3509`. The component and calibration results are recorded in the
+  [GPTQ ablation record](docs/LLAMA2_13B_GPTQ_ABLATION_CALIBRATION_RESULTS.md).
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
