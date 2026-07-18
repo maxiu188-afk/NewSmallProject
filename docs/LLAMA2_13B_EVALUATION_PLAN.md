@@ -172,3 +172,12 @@ This completes the F4 GPTQ accuracy gate and shows a clear improvement over
 F4 RTN. The next experiment is the matched naive GPTQ F3 control, not a repeat
 of F4; only that pair can isolate QuaRot's effect under GPTQ. See
 `LLAMA2_13B_GPTQ_W4A4_RESULTS.md` for the result boundary and provenance.
+
+## Planned component and calibration study
+
+The next server session additionally batches the matched naive F3 GPTQ
+control, a cumulative QuaRot component ablation, and a matched 32/64/128
+calibration-size study. It keeps the same pinned model/data/runtime contract
+and W4A4, K/V-16 GPTQ settings. The tracked configurations and restartable
+launcher are documented in `LLAMA2_13B_GPTQ_STUDY_RUNBOOK.md`; no result is
+claimed until the raw server artifacts are reviewed.

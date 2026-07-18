@@ -1,0 +1,57 @@
+{
+  "pipeline_version": 1,
+  "model": {
+    "kind": "pretrained",
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "local_files_only": true,
+    "trust_remote_code": false
+  },
+  "data": {
+    "source": "huggingface_text",
+    "id": "Salesforce/wikitext",
+    "subset": "wikitext-2-raw-v1",
+    "split": "test",
+    "revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "text_field": "text",
+    "batch_size": 1,
+    "sequence_length": 2048,
+    "max_samples": 4358
+  },
+  "calibration": {
+    "data": {
+      "source": "huggingface_text",
+      "id": "Salesforce/wikitext",
+      "subset": "wikitext-2-raw-v1",
+      "split": "train",
+      "revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+      "text_field": "text",
+      "batch_size": 1,
+      "sequence_length": 2048,
+      "max_samples": 128,
+      "max_rows": 100000,
+      "max_batches": 128
+    }
+  },
+  "runtime": {"device": "cuda", "allow_fallback": false},
+  "experiment": {
+    "seed": 0,
+    "rotation": {
+      "residual_mode": "hadamard",
+      "seed": 0,
+      "vo_rotation": false,
+      "mlp_online": false,
+      "qk_post_rope": false
+    },
+    "quantization": {"w_bits": 4, "a_bits": 4, "k_bits": 16, "v_bits": 16},
+    "weight_quantization": {
+      "method": "gptq",
+      "group_size": 128,
+      "damp_percent": 0.01,
+      "block_size": 128,
+      "act_order": true,
+      "symmetric": true
+    }
+  }
+}
