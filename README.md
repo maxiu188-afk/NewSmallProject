@@ -19,8 +19,8 @@ checks kept separate from real CUDA deployment and performance work.
 - A matched Llama-2-13B RTN W4A4 text gate: naive F3 PPL `8719.6775` and
   QuaRot F4 PPL `12.4606` (K/V remain 16-bit; this is floating-point QDQ).
 - A configuration-driven GPTQ W4A4 path with a separately pinned WikiText-2
-  `train` calibration contract. Its first 13B server run is active but not yet
-  an accepted result; review the persistent-volume artifacts first.
+  `train` calibration contract. The completed QuaRot F4 GPTQ result is
+  `PPL=5.8376` (same-run BF16 `5.0087`); the naive GPTQ F3 control remains open.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
@@ -29,7 +29,7 @@ packed KV storage or a CUDA attention kernel. See
 [phase status](docs/PHASE_STATUS.md), the
 [Llama-2-13B BF16 baseline](docs/LLAMA2_13B_BF16_BASELINE.md), the
 [Llama-2-13B RTN W4A4 result](docs/LLAMA2_13B_RTN_W4A4_RESULTS.md), the
-[active GPTQ session checklist](docs/RUNPOD_GPTQ_SESSION.md), and the
+[Llama-2-13B GPTQ W4A4 result](docs/LLAMA2_13B_GPTQ_W4A4_RESULTS.md), and the
 [SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md).
 
 ## Layout
