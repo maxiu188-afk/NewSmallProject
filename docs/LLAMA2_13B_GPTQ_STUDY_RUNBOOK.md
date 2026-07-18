@@ -43,8 +43,10 @@ end-to-end CUDA GPTQ smoke has passed again in that exact runtime.
 
 ```bash
 cd /workspace/NewSmallProject
-CUDA_PYTHON=/opt/quarot-venv-cu124/bin/python
+CUDA_PYTHON=/opt/quarot-venv-cu124-study/bin/python
 
+$CUDA_PYTHON scripts/run_tiny_llama_gptq_smoke.py \
+  --output results/llama2-13b-wikitext2-gptq-study/tiny-gptq-smoke.json
 $CUDA_PYTHON scripts/run_llama2_13b_gptq_study.py --validate-only
 $CUDA_PYTHON scripts/run_llama2_13b_gptq_study.py --dry-run
 tmux new-session -d -s gptq-study \
