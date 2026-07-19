@@ -5,6 +5,7 @@ import argparse
 import datetime as dt
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 
@@ -15,6 +16,13 @@ import torch
 
 from repro.packed_w4 import LLAMA2_13B_LINEAR_SHAPES, validate_w4a8_linear_shape
 from repro.w4a8_cuda import grouped_int32_matmul
+
+
+def _project_revision() -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(PROJECT_ROOT), "rev-parse", "HEAD"], text=True, capture_output=True, check=False
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else "unavailable"
 
 
 def _packed_w4_weights(out_features: int, in_features: int, device: torch.device) -> torch.Tensor:
@@ -85,6 +93,7 @@ def run(tokens: int, group_size: int, verbose_build: bool) -> dict:
             "compute_capability": list(torch.cuda.get_device_capability(device)),
             "torch": torch.__version__,
             "torch_cuda": torch.version.cuda,
+            "project_revision": _project_revision(),
         },
         "rows": rows,
     }
