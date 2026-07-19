@@ -34,6 +34,13 @@ def _nvcc_version() -> str:
     return completed.stdout.strip() if completed.returncode == 0 else "unavailable"
 
 
+def _project_revision() -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(PROJECT_ROOT), "rev-parse", "HEAD"], text=True, capture_output=True, check=False
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else "unavailable"
+
+
 def run(verbose_build: bool) -> dict:
     if not torch.cuda.is_available():
         raise RuntimeError("W4A8 CUDA smoke requires CUDA; CPU or MPS fallback is not permitted")
@@ -91,6 +98,7 @@ def run(verbose_build: bool) -> dict:
             "torch_cuda": torch.version.cuda,
             "nvcc": _nvcc_version(),
             "torch_cuda_arch_list": os.environ.get("TORCH_CUDA_ARCH_LIST"),
+            "project_revision": _project_revision(),
         },
         "matrix": {
             "tokens": tokens,
