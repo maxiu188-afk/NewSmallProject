@@ -4,7 +4,9 @@
 import argparse
 import datetime as dt
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -19,7 +21,16 @@ from repro.w4a8_cuda import grouped_int32_matmul
 
 
 def _nvcc_version() -> str:
-    completed = subprocess.run(["nvcc", "--version"], text=True, capture_output=True, check=False)
+    candidates = [shutil.which("nvcc")]
+    cuda_home = os.environ.get("CUDA_HOME")
+    if cuda_home:
+        candidates.append(str(Path(cuda_home) / "bin" / "nvcc"))
+    if torch.version.cuda:
+        candidates.append("/usr/local/cuda-{}/bin/nvcc".format(torch.version.cuda))
+    nvcc = next((candidate for candidate in candidates if candidate and Path(candidate).is_file()), None)
+    if nvcc is None:
+        return "unavailable"
+    completed = subprocess.run([nvcc, "--version"], text=True, capture_output=True, check=False)
     return completed.stdout.strip() if completed.returncode == 0 else "unavailable"
 
 
@@ -79,6 +90,7 @@ def run(verbose_build: bool) -> dict:
             "torch": torch.__version__,
             "torch_cuda": torch.version.cuda,
             "nvcc": _nvcc_version(),
+            "torch_cuda_arch_list": os.environ.get("TORCH_CUDA_ARCH_LIST"),
         },
         "matrix": {
             "tokens": tokens,

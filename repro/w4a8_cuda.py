@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,9 @@ def load_extension(verbose: bool = False) -> Any:
     if not torch.cuda.is_available():
         raise RuntimeError("W4A8 CUDA kernel requires an NVIDIA CUDA runtime")
     if _extension is None:
+        if not os.environ.get("TORCH_CUDA_ARCH_LIST"):
+            major, minor = torch.cuda.get_device_capability()
+            os.environ["TORCH_CUDA_ARCH_LIST"] = "{}.{}".format(major, minor)
         _extension = load(
             name=_EXTENSION_NAME,
             sources=[
