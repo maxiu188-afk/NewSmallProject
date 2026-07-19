@@ -64,6 +64,17 @@ def run(config_path: Path, tensor_name: str) -> tuple[Dict[str, Any], Dict[str, 
     torch.manual_seed(int(config["experiment"].get("seed", 0)))
     device = resolve_device(config["runtime"])
     model, tokenizer = load_model_and_tokenizer(config, device)
+    available_linears = {
+        "model.layers.0." + name
+        for name, module in model.model.layers[0].named_modules()
+        if isinstance(module, torch.nn.Linear)
+    }
+    if tensor_name not in available_linears:
+        raise RuntimeError(
+            "requested tensor is not a capturable layer-0 linear; available names: {}".format(
+                ", ".join(sorted(available_linears))
+            )
+        )
     calibration = list(token_batches(_calibration_config(config), model, tokenizer))
     if not calibration:
         raise RuntimeError("GPTQ export received no calibration batches")
@@ -132,7 +143,7 @@ def main() -> int:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--artifact", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--tensor", default="model.layers.0.self_attn.q_proj")
+    parser.add_argument("--tensor", default="model.layers.0.self_attn.attention.q_proj")
     args = parser.parse_args()
     try:
         artifact, result = run(args.config, args.tensor)
