@@ -5,6 +5,7 @@ import argparse
 import datetime as dt
 import importlib.metadata
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -36,6 +37,18 @@ def _package_version(name: str) -> str:
         return "not-installed"
 
 
+def _nvcc_command() -> List[str]:
+    """Locate a CUDA compiler even when its versioned install is not on PATH."""
+    candidates = [shutil.which("nvcc")]
+    cuda_home = os.environ.get("CUDA_HOME")
+    if cuda_home:
+        candidates.append(str(Path(cuda_home) / "bin" / "nvcc"))
+    candidates.append("/usr/local/cuda/bin/nvcc")
+    candidates.extend(str(path) for path in sorted(Path("/usr/local").glob("cuda-*/bin/nvcc")))
+    executable = next((candidate for candidate in candidates if candidate and Path(candidate).is_file()), "nvcc")
+    return [executable, "--version"]
+
+
 def _git_revision(path: Path) -> str:
     result = _command_output(["git", "-C", str(path), "rev-parse", "HEAD"])
     return str(result.get("output", "unavailable")) if result.get("returncode") == 0 else "unavailable"
@@ -60,7 +73,7 @@ def collect_preflight() -> Dict[str, object]:
                 "--query-gpu=name,driver_version,memory.total,compute_cap",
                 "--format=csv,noheader",
             ]),
-            "nvcc": _command_output(["nvcc", "--version"]),
+            "nvcc": _command_output(_nvcc_command()),
             "git": _command_output(["git", "--version"]),
         },
         "packages": {
