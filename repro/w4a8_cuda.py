@@ -25,7 +25,7 @@ def load_extension(verbose: bool = False) -> Any:
         # Calling a venv's Python by absolute path does not activate that venv,
         # so its console scripts (notably ``ninja``) are otherwise absent from
         # PATH in detached server sessions.
-        environment_bin = str(Path(sys.executable).resolve().parent)
+        environment_bin = str(Path(sys.executable).parent)
         path_entries = os.environ.get("PATH", "").split(os.pathsep)
         if environment_bin not in path_entries:
             os.environ["PATH"] = environment_bin + os.pathsep + os.environ.get("PATH", "")
