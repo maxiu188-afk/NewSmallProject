@@ -38,11 +38,13 @@ validated separately.
 ## Three execution phases
 
 Each phase is a coherent work package, not a reason to repeatedly create and
-tear down a server.  A phase may contain several local commits and checks, but
-all server work within it uses one project directory and one reusable CUDA
-environment on the persistent RunPod volume.  A new Pod first reuses the saved
-environment specification and project-local wheel/cache artifacts; it does not
-reconstruct an ad-hoc environment from memory.
+tear down a server.  A phase may contain several local commits and checks.  On
+one Pod, all server work uses one CUDA environment on the container disk;
+`/workspace` retains only project code, model/Hugging Face caches, generated
+artifacts, and the recorded environment specification.  A replacement Pod
+creates a fresh container-disk environment from that saved specification; it
+does not reconstruct an ad-hoc environment from memory or persist a virtual
+environment on the shared volume.
 
 | Phase | Owned work | Required evidence to complete | Claim allowed after completion |
 |---|---|---|---|
@@ -97,9 +99,10 @@ Phase-1 CUDA portion:
 1. Add the packed-W4 layout/specification and deterministic CPU/PyTorch tests.
 2. Add a small export/import tool for one GPTQ-transformed linear tensor plus
    its manifest and checksums.
-3. Prepare a versioned environment specification plus project-local bootstrap
-   script/wheel cache.  Save the resolved package list and build output on the
-   persistent volume so a replacement Pod can restore the same environment.
+3. Prepare a versioned environment specification plus bootstrap script.  Build
+   the virtual environment on container disk, and save the resolved package
+   list and build output on the persistent volume so a replacement Pod can
+   recreate the same environment.
 4. In the same Phase-1 server session, run the CUDA-tensor packed-dequant
    numerical smoke and the W4A8 int4-GEMM accumulator/output checks for
    representative Llama-2-13B shapes (`5120 x 5120`, `13824 x 5120`, and

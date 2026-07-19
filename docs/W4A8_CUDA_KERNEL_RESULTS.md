@@ -32,10 +32,12 @@ one token and group size 128:
 - shape-matrix implementation revision:
   `d2a6b2db4ddb9d843ae6e25b5775631f53d9faa9`.
 
-The project-local `.venv-w4a8-cu128` uses the server's matching PyTorch CUDA
-runtime and adds `ninja==1.11.1.4` for extension builds.  The versioned CUDA
-toolkit is discovered at `/usr/local/cuda/bin/nvcc`, rather than assumed to be
-on `PATH`.
+The container-disk environment
+`/opt/newsmallproject/venvs/w4a8-cu128` uses the server's matching PyTorch CUDA
+runtime and adds `ninja==1.11.1.4` plus Transformers `5.14.1`.  Project code,
+the 13B model cache, and result artifacts remain on `/workspace`; a virtual
+environment is not retained there.  The versioned CUDA toolkit is discovered
+at `/usr/local/cuda/bin/nvcc`, rather than assumed to be on `PATH`.
 
 ## Artifact verification
 
@@ -47,6 +49,8 @@ persistent server volume and SHA-256 verified locally:
 | `preflight.json` | `6bb0b3d8113be79174b2bb523f7aba8a86559e5c87b78d5cf731e22d8b5fd47b` |
 | `smoke.json` | `d2b2f07dd81ec824f422f4e204c1928b37262dda42ba3c823a9407627e4bbc28` |
 | `llama-shape-matrix.json` | `8e934bd998cbca52770ba7e2bd40952613458bd9cabd8882b897908b84404444` |
+| `container-env-smoke.json` | `833342406c729a5d036427a4d3d7bbf2f3ff28e5233df94e5f3a10b61ce1d8e6` |
+| `container-pip-freeze.txt` | `7689a6a20d9ca00a39c84fa70a93fc5a63ab1550d97eb7b3fdb772b00ed158c9` |
 
 ## Scope and next gate
 
