@@ -19,9 +19,14 @@ class GPTQLinearTests(unittest.TestCase):
         collector = GPTQLinear(linear)
         for _ in range(4):
             collector.add_batch(torch.randn(2, 8, 16))
-        summary = collector.quantize(GPTQSettings(bits=4, group_size=8, act_order=True))
+        summary = collector.quantize(GPTQSettings(bits=4, group_size=8, act_order=True), capture_packed_weight=True)
 
         self.assertTrue(torch.isfinite(linear.weight).all())
         self.assertGreater(summary["calibration_tokens"], 0.0)
         self.assertGreater((linear.weight - original).abs().max().item(), 0.0)
         self.assertGreaterEqual(summary["mean_estimated_loss"], 0.0)
+        self.assertIsNotNone(collector.packed_weight)
+        self.assertEqual(collector.packed_weight.packed_weight.shape, (12, 8))
+        self.assertEqual(collector.packed_weight.scales.shape, (12, 2))
+        self.assertEqual(collector.packed_weight.input_permutation.shape, (16,))
+        self.assertEqual(collector.packed_weight.packed_weight.dtype, torch.uint8)
