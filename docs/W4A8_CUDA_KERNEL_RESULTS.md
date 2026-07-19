@@ -63,3 +63,20 @@ The next work is Phase 2: export a GPTQ-transformed Llama linear tensor to the
 checksummed packed-W4 format, replace selected Llama linears with the verified
 W4A8 path, and compare fixed-token layer outputs against the existing GPTQ
 floating reference before adding KV4.
+
+## Phase-2 integration smoke
+
+The first Phase-2 boundary has passed for a real cached model tensor:
+`model.layers.0.self_attn.q_proj` from the pinned Llama-2-13B checkpoint was
+packed to groupwise W4 (group size 128), executed through `W4A8Linear`, and
+compared with an independent floating computation using exactly the same packed
+W4 values and per-token A8 values.  For a fixed CUDA BF16 input of shape
+`[1, 2, 5120]`, the output shape was `[1, 2, 5120]` and maximum absolute error
+was `1.9073486328125e-06`.
+
+The recovered `llama-q-proj-smoke.json` artifact has SHA-256
+`9b0e199bb3da22c7c319ba4f91d913a2207242e986d247fadb8f91841b90105d`.
+This is RTN-style W4 packing integration evidence only.  It is not a
+GPTQ-transformed packed checkpoint, full-layer/model equivalence, PPL, KV4, or
+performance result.  The next Phase-2 task remains exporting and integrating
+the formal GPTQ-transformed weights.
