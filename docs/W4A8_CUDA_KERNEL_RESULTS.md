@@ -80,3 +80,36 @@ This is RTN-style W4 packing integration evidence only.  It is not a
 GPTQ-transformed packed checkpoint, full-layer/model equivalence, PPL, KV4, or
 performance result.  The next Phase-2 task remains exporting and integrating
 the formal GPTQ-transformed weights.
+
+## Formal F4 GPTQ W4 export
+
+That export gate has now passed for one real, formally calibrated Llama
+linear.  The full F4 pipeline applied the configured QuaRot transformations,
+then ran symmetric W4 GPTQ with activation ordering, group/block size 128, and
+1% damping over 128 fixed WikiText-2 calibration sequences of 2,048 tokens.
+It quantized all 40 decoder layers and 280 linear modules before exporting
+`model.layers.0.self_attn.attention.q_proj`.
+
+The exported artifact keeps the GPTQ act-order input permutation rather than
+silently repacking by original column order.  It contains a `(5120, 2560)`
+row-major uint8 tensor with two signed-int4 values per byte, FP32 scales of
+shape `(5120, 40)`, that permutation, and no full-model checkpoint.  The
+recovered files were SHA-256 verified locally:
+
+| Artifact | SHA-256 |
+|---|---|
+| `llama2-13b-f4-layer0-qproj.pt` | `573feb9812f7e002b53a22fbc993ba79e9f7822f76833630db882d548585c9a6` |
+| `llama2-13b-f4-layer0-qproj.json` | `4588fa52bdabb836812c062a7e8a54ef1576759ac8893f362491664c1a86f0bc` |
+
+The exported W4 values reconstruct the in-memory BF16 GPTQ linear with maximum
+absolute error `9.927153587341309e-05`; the actual CUDA `W4A8Linear` output
+matches the independent packed floating oracle to
+`5.662441253662109e-07` maximum absolute error.  The distinction matters: the
+first value includes casting the GPTQ FP32 scale product to the model's BF16
+weight storage, while the second validates the owned packed deployment path.
+
+This is a self-describing **single-linear** formal-GPTQ deployment artifact and
+correctness result.  It is not yet a packed full-model checkpoint, transformer
+layer/model equivalence or PPL result, KV4 cache result, or performance claim.
+The next gate is to replace that selected Llama linear in a fixed-token layer
+execution while preserving the recorded rotation and input permutation.
