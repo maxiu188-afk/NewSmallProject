@@ -64,6 +64,10 @@ def run(config_path: Path, tensor_name: str) -> tuple[Dict[str, Any], Dict[str, 
     torch.manual_seed(int(config["experiment"].get("seed", 0)))
     device = resolve_device(config["runtime"])
     model, tokenizer = load_model_and_tokenizer(config, device)
+    calibration = list(token_batches(_calibration_config(config), model, tokenizer))
+    if not calibration:
+        raise RuntimeError("GPTQ export received no calibration batches")
+    rotation = apply_llama_quarot(model, config["experiment"]["rotation"], config["experiment"]["quantization"])
     available_linears = {
         "model.layers.0." + name
         for name, module in model.model.layers[0].named_modules()
@@ -75,10 +79,6 @@ def run(config_path: Path, tensor_name: str) -> tuple[Dict[str, Any], Dict[str, 
                 ", ".join(sorted(available_linears))
             )
         )
-    calibration = list(token_batches(_calibration_config(config), model, tokenizer))
-    if not calibration:
-        raise RuntimeError("GPTQ export received no calibration batches")
-    rotation = apply_llama_quarot(model, config["experiment"]["rotation"], config["experiment"]["quantization"])
     weight_config = config["experiment"]["weight_quantization"]
     captures = {}
     summary = quantize_llama_weights_gptq(
