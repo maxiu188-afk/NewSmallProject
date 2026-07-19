@@ -11,6 +11,8 @@ import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
+os.environ.setdefault("HF_HOME", str(PROJECT_ROOT / ".cache" / "huggingface"))
+os.environ.setdefault("HF_HUB_CACHE", str(PROJECT_ROOT / ".cache" / "huggingface"))
 
 import torch
 from transformers import AutoModelForCausalLM
@@ -25,8 +27,6 @@ MODEL_REVISION = "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1"
 def run() -> dict:
     if not torch.cuda.is_available():
         raise RuntimeError("Llama linear smoke requires CUDA")
-    os.environ.setdefault("HF_HOME", str(PROJECT_ROOT / ".cache" / "huggingface"))
-    os.environ.setdefault("HF_HUB_CACHE", str(PROJECT_ROOT / ".cache" / "huggingface"))
     torch.manual_seed(0)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID, revision=MODEL_REVISION, local_files_only=True, torch_dtype=torch.bfloat16
@@ -59,7 +59,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = run()
-    except RuntimeError as error:
+    except (OSError, RuntimeError) as error:
         print("W4A8 LLAMA LINEAR SMOKE FAILED: {}".format(error), file=sys.stderr)
         return 1
     result["created_at_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
