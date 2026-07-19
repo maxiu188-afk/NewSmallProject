@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import sys
 from typing import Any
 
 import torch
@@ -21,6 +22,13 @@ def load_extension(verbose: bool = False) -> Any:
     if not torch.cuda.is_available():
         raise RuntimeError("W4A8 CUDA kernel requires an NVIDIA CUDA runtime")
     if _extension is None:
+        # Calling a venv's Python by absolute path does not activate that venv,
+        # so its console scripts (notably ``ninja``) are otherwise absent from
+        # PATH in detached server sessions.
+        environment_bin = str(Path(sys.executable).resolve().parent)
+        path_entries = os.environ.get("PATH", "").split(os.pathsep)
+        if environment_bin not in path_entries:
+            os.environ["PATH"] = environment_bin + os.pathsep + os.environ.get("PATH", "")
         if not os.environ.get("TORCH_CUDA_ARCH_LIST"):
             major, minor = torch.cuda.get_device_capability()
             os.environ["TORCH_CUDA_ARCH_LIST"] = "{}.{}".format(major, minor)
