@@ -65,3 +65,15 @@ python scripts/export_packed_w4_tensor.py \
 The exporter is an offline conversion tool.  Its output is `packed_weight`
 evidence until the Phase-1 CUDA kernel matches the reference int32
 accumulators.
+
+Once a matching CUDA 12.8/PyTorch environment is recorded on RunPod, the
+owned correctness kernel is run with:
+
+```bash
+python scripts/run_w4a8_cuda_smoke.py \
+  --output results/phase1-w4a8-kernel/smoke.json
+```
+
+This is an integer-kernel correctness gate only.  It must report exact int32
+accumulator agreement before the resulting path can be labelled `int4_gemm`;
+it has no throughput or latency claim.
