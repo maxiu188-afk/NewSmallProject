@@ -9,7 +9,7 @@ the main additional GPU memory consumers.
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 import torch
 from torch import nn
@@ -27,6 +27,15 @@ class GPTQSettings:
     block_size: int = 128
     act_order: bool = True
     symmetric: bool = True
+
+
+@dataclass
+class GPTQPackedWeight:
+    """Exact W4 grouping metadata emitted by one GPTQ linear quantization."""
+
+    packed_weight: torch.Tensor
+    scales: torch.Tensor
+    input_permutation: Optional[torch.Tensor]
 
 
 class _SymmetricGroupQuantizer:
@@ -55,6 +64,7 @@ class GPTQLinear:
         self.columns = int(layer.weight.shape[1])
         self.hessian = torch.zeros((self.columns, self.columns), device=layer.weight.device, dtype=torch.float32)
         self.samples = 0
+        self.packed_weight: Optional[GPTQPackedWeight] = None
 
     @torch.no_grad()
     def add_batch(self, inputs: torch.Tensor) -> None:
@@ -65,7 +75,7 @@ class GPTQLinear:
         self.samples += int(values.shape[0])
 
     @torch.no_grad()
-    def quantize(self, settings: GPTQSettings) -> Dict[str, float]:
+    def quantize(self, settings: GPTQSettings, capture_packed_weight: bool = False) -> Dict[str, float]:
         if not settings.symmetric:
             raise GPTQError("portable GPTQ currently supports symmetric weight quantization only")
         if self.samples == 0:
@@ -102,8 +112,10 @@ class GPTQLinear:
             raise GPTQError("calibration Hessian is not positive definite after damping") from error
 
         quantized = torch.zeros_like(weight)
+        integer_quantized = torch.empty_like(weight, dtype=torch.int8) if capture_packed_weight else None
         losses = torch.zeros_like(weight)
         quantizer = _SymmetricGroupQuantizer(settings.bits)
+        group_scales: List[torch.Tensor] = []
         for block_start in range(0, self.columns, settings.block_size):
             block_end = min(block_start + settings.block_size, self.columns)
             block = weight[:, block_start:block_end].clone()
@@ -115,8 +127,12 @@ class GPTQLinear:
                 if settings.group_size == -1 or absolute_index % settings.group_size == 0:
                     group_end = self.columns if settings.group_size == -1 else min(absolute_index + settings.group_size, self.columns)
                     quantizer.find_params(weight[:, absolute_index:group_end])
+                    if capture_packed_weight:
+                        group_scales.append(quantizer.scale.squeeze(1).clone())
                 q_column = quantizer.quantize(column.unsqueeze(1)).flatten()
                 quantized[:, absolute_index] = q_column
+                if integer_quantized is not None:
+                    integer_quantized[:, absolute_index] = torch.round(q_column / quantizer.scale.squeeze(1)).to(torch.int8)
                 diagonal_value = block_inverse[offset, offset]
                 losses[:, absolute_index] = (column - q_column).square() / diagonal_value.square()
                 error = (column - q_column) / diagonal_value
@@ -125,6 +141,16 @@ class GPTQLinear:
             if block_end < self.columns:
                 weight[:, block_end:] -= errors @ inverse_factor[block_start:block_end, block_end:]
 
+        if integer_quantized is not None:
+            if settings.bits != 4:
+                raise GPTQError("packed W4 export requires bits=4")
+            low = (integer_quantized[:, 0::2].to(torch.int16) & 0x0F).to(torch.uint8)
+            high = (integer_quantized[:, 1::2].to(torch.int16) & 0x0F).to(torch.uint8)
+            self.packed_weight = GPTQPackedWeight(
+                packed_weight=(low | (high << 4)).contiguous(),
+                scales=torch.stack(group_scales, dim=1).float().contiguous(),
+                input_permutation=None if permutation is None else permutation.contiguous(),
+            )
         if inverse_permutation is not None:
             quantized = quantized[:, inverse_permutation]
         if not torch.isfinite(quantized).all():
@@ -164,7 +190,11 @@ def _hidden_states(output: Any) -> torch.Tensor:
 
 @torch.no_grad()
 def quantize_llama_weights_gptq(
-    model: nn.Module, calibration_batches: Sequence[torch.Tensor], settings: GPTQSettings
+    model: nn.Module,
+    calibration_batches: Sequence[torch.Tensor],
+    settings: GPTQSettings,
+    capture_packed_linears: Iterable[str] = (),
+    captured_packed_weights: Optional[MutableMapping[str, GPTQPackedWeight]] = None,
 ) -> Dict[str, Any]:
     """Apply sequential GPTQ to a standard LLaMA decoder stack.
 
@@ -186,6 +216,9 @@ def quantize_llama_weights_gptq(
     layers = model.model.layers
     dtype = next(model.parameters()).dtype
     samples = len(calibration_batches)
+    capture_names = set(capture_packed_linears)
+    if capture_names and captured_packed_weights is None:
+        raise GPTQError("captured_packed_weights is required when capture_packed_linears is set")
     inputs = torch.empty((samples, sequence_length, model.config.hidden_size), dtype=dtype, device=device)
     captured_kwargs: Dict[str, Any] = {}
     captured = 0
@@ -238,7 +271,12 @@ def quantize_llama_weights_gptq(
                     for handle in handles:
                         handle.remove()
                 for name, collector in collectors.items():
-                    layer_results["model.layers.{}.{}".format(layer_index, name)] = collector.quantize(settings)
+                    full_name = "model.layers.{}.{}".format(layer_index, name)
+                    layer_results[full_name] = collector.quantize(settings, capture_packed_weight=full_name in capture_names)
+                    if full_name in capture_names:
+                        if collector.packed_weight is None:
+                            raise GPTQError("failed to capture packed GPTQ weight for {}".format(full_name))
+                        captured_packed_weights[full_name] = collector.packed_weight
             for sample_index in range(samples):
                 outputs[sample_index] = _hidden_states(layer(inputs[sample_index : sample_index + 1], **captured_kwargs))[0]
             inputs, outputs = outputs, inputs

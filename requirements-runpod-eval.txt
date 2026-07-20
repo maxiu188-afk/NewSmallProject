@@ -1,4 +1,5 @@
 # Install PyTorch separately from the selected CUDA wheel index.
 transformers==5.14.1
-datasets
-huggingface_hub
+datasets==5.0.0
+huggingface_hub==1.24.0
+ninja==1.11.1.4

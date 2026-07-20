@@ -1,0 +1,52 @@
+"""CUDA binding for the owned W4A8 integer-accumulator correctness kernel."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import sys
+from typing import Any
+
+import torch
+from torch.utils.cpp_extension import load
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_EXTENSION_NAME = "newsmallproject_w4a8_grouped_int32_v1"
+_extension: Any = None
+
+
+def load_extension(verbose: bool = False) -> Any:
+    """Build/load the exact W4A8 correctness kernel for the active CUDA GPU."""
+    global _extension
+    if not torch.cuda.is_available():
+        raise RuntimeError("W4A8 CUDA kernel requires an NVIDIA CUDA runtime")
+    if _extension is None:
+        # Calling a venv's Python by absolute path does not activate that venv,
+        # so its console scripts (notably ``ninja``) are otherwise absent from
+        # PATH in detached server sessions.
+        environment_bin = str(Path(sys.executable).parent)
+        path_entries = os.environ.get("PATH", "").split(os.pathsep)
+        if environment_bin not in path_entries:
+            os.environ["PATH"] = environment_bin + os.pathsep + os.environ.get("PATH", "")
+        if not os.environ.get("TORCH_CUDA_ARCH_LIST"):
+            major, minor = torch.cuda.get_device_capability()
+            os.environ["TORCH_CUDA_ARCH_LIST"] = "{}.{}".format(major, minor)
+        _extension = load(
+            name=_EXTENSION_NAME,
+            sources=[
+                str(PROJECT_ROOT / "csrc" / "w4a8_grouped_int32.cpp"),
+                str(PROJECT_ROOT / "csrc" / "w4a8_grouped_int32.cu"),
+            ],
+            extra_cflags=["-O3"],
+            extra_cuda_cflags=["-O3"],
+            verbose=verbose,
+        )
+    return _extension
+
+
+def grouped_int32_matmul(
+    activations: torch.Tensor, packed_weights: torch.Tensor, group_size: int, verbose: bool = False
+) -> torch.Tensor:
+    """Return `[tokens, out_features, groups_per_row]` exact int32 accumulators."""
+    return load_extension(verbose=verbose).w4a8_grouped_int32(activations, packed_weights, group_size)
