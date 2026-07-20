@@ -113,3 +113,46 @@ correctness result.  It is not yet a packed full-model checkpoint, transformer
 layer/model equivalence or PPL result, KV4 cache result, or performance claim.
 The next gate is to replace that selected Llama linear in a fixed-token layer
 execution while preserving the recorded rotation and input permutation.
+
+## Formal fixed-token Llama layer gate
+
+That next gate passed on the RTX 6000 Ada RunPod environment. The test loaded
+the pinned Llama-2-13B model, applied the same QuaRot transformation, and made
+two sequential forwards over fixed `[1, 16]` token IDs:
+
+1. `PackedW4A8ReferenceLinear` used the exported signed W4 values, FP32 group
+   scales, act-order input permutation, and per-token A8 rule through an
+   independent Torch int32 accumulation oracle.
+2. `W4A8Linear` replaced only that oracle with the owned CUDA int32 kernel.
+
+Both replacements explicitly return BF16 at the surrounding transformer module
+boundary. This is required because the CUDA/oracle accumulation and scale
+application are FP32 while the Llama decoder layer remains BF16. The captured
+layer output (`[1, 16, 5120]`) and model logits (`[1, 16, 32000]`) were exactly
+equal at the declared `atol=2e-4`, `rtol=1e-5` comparison: max and mean absolute
+errors were both `0.0` for this fixed input.
+
+The recovered artifacts were copied locally and SHA-256 verified:
+
+| Artifact | SHA-256 |
+|---|---|
+| `phase2-w4a8-layer/preflight.json` | `30c41a837c3a28736d36de49f26d883591c97fb52bfdd135cb308ddfeb955af4` |
+| `phase2-w4a8-layer/w4a8-kernel-smoke.json` | `df63c72490689ea96f86d83af2775a21195ed469c02f038511f4fb78f10cf65f` |
+| `phase2-w4a8-layer/llama2-13b-f4-qproj-layer-smoke.json` | `406d16c805fcf95b5854a13701b1a58e8f47bffd3f7642d9942ba24dcf207c61` |
+
+This passes only the selected-linear fixed-token integration boundary. All
+other linears and K/V remain BF16. It does not validate a packed full model,
+generation, PPL, KV4, latency, throughput, or memory saving.
+
+## Isambard-AI portability status
+
+The same Phase-2 gate is prepared for the `brics.u6rt` project on
+Isambard-AI. Its ARM64 CUDA 12.8 wheel index provides PyTorch
+`2.9.0+cu128`, rather than the RunPod runtime's `2.8.0+cu128`; the environment
+also records Transformers `5.14.1`, Datasets `5.0.0`, CUDA compiler `12.6`,
+and `ninja==1.11.1.4`. The exact Llama revision and WikiText-2 splits were
+verified from the local cache with outbound Hub access disabled.
+
+Slurm job `5732906` runs the preflight, kernel smoke, and layer gate in that
+order. At this document update it is pending on scheduler priority, so it is a
+reproducibility attempt rather than a completed Isambard result.

@@ -137,13 +137,21 @@ def run(config_path: Path, artifact_path: Path, report_path: Path, sequence_leng
         raise RuntimeError("this Llama q_proj is expected to be bias-free")
     input_ids = torch.arange(sequence_length, device=device, dtype=torch.long).view(1, -1) % model.config.vocab_size
     reference_linear = PackedW4A8ReferenceLinear(
-        artifact["packed_weight"], artifact["weight_scales"], artifact["bias"], artifact["input_permutation"]
+        artifact["packed_weight"],
+        artifact["weight_scales"],
+        artifact["bias"],
+        artifact["input_permutation"],
+        output_dtype=target.weight.dtype,
     ).to(device).eval()
     original = _replace_submodule(model, tensor_name, reference_linear)
     layer = model.model.layers[0]
     reference_layer, reference_logits = _run_and_capture(model, layer, input_ids)
     deployment_linear = W4A8Linear(
-        artifact["packed_weight"], artifact["weight_scales"], artifact["bias"], artifact["input_permutation"]
+        artifact["packed_weight"],
+        artifact["weight_scales"],
+        artifact["bias"],
+        artifact["input_permutation"],
+        output_dtype=target.weight.dtype,
     ).to(device).eval()
     _replace_submodule(model, tensor_name, deployment_linear)
     candidate_layer, candidate_logits = _run_and_capture(model, layer, input_ids)
@@ -151,8 +159,6 @@ def run(config_path: Path, artifact_path: Path, report_path: Path, sequence_leng
     torch.cuda.empty_cache()
     layer_comparison = _comparison(reference_layer, candidate_layer)
     logits_comparison = _comparison(reference_logits, candidate_logits)
-    if not layer_comparison["allclose"] or not logits_comparison["allclose"]:
-        raise RuntimeError("W4A8 Llama layer output differs from the packed floating oracle")
     return {
         "scope": "fixed-token Llama layer correctness: one formal GPTQ packed q_proj is W4A8; all other weights and K/V remain BF16; not a packed full-model, PPL, KV4, or performance result",
         "source": {
@@ -171,12 +177,14 @@ def run(config_path: Path, artifact_path: Path, report_path: Path, sequence_leng
             "activation_precision": "per-token symmetric A8",
             "other_linear_precision": "BF16",
             "key_value_precision": "BF16",
+            "q_proj_output_dtype": str(target.weight.dtype),
             "input_permutation_applied_before_a8": artifact["input_permutation"] is not None,
         },
         "input": {"shape": list(input_ids.shape), "sequence": "arange token ids modulo vocab", "seed": int(config["experiment"].get("seed", 0))},
         "tolerance": {"atol": LAYER_ATOL, "rtol": LAYER_RTOL},
         "layer_output": layer_comparison,
         "logits": logits_comparison,
+        "passed": bool(layer_comparison["allclose"] and logits_comparison["allclose"]),
         "runtime": {
             "device": torch.cuda.get_device_name(device),
             "compute_capability": list(torch.cuda.get_device_capability(device)),
@@ -203,6 +211,9 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, sort_keys=True))
+    if not result["passed"]:
+        print("LLAMA GPTQ W4A8 LAYER SMOKE FAILED: packed oracle comparison exceeded tolerance", file=sys.stderr)
+        return 1
     return 0
 
 
