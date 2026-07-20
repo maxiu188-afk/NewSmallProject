@@ -113,3 +113,32 @@ class W4A8Linear(nn.Module):
         if self.bias is not None:
             output = output + self.bias
         return output.view(*original_shape, self.packed_weight.shape[0])
+
+
+class PackedW4A8ReferenceLinear(nn.Module):
+    """Floating oracle module for the exact packed W4/A8 representation.
+
+    This is deliberately distinct from ``W4A8Linear``: it follows the same
+    signed-int4 packing, scales, input permutation, and A8 rule, but performs
+    the final product through the independent floating reference.  It is the
+    immediate numerical reference for a transformer-level replacement test.
+    """
+
+    def __init__(
+        self,
+        packed_weight: torch.Tensor,
+        scales: torch.Tensor,
+        bias: torch.Tensor | None = None,
+        input_permutation: torch.Tensor | None = None,
+    ) -> None:
+        super().__init__()
+        self.register_buffer("packed_weight", packed_weight)
+        self.register_buffer("weight_scales", scales)
+        self.register_buffer("bias", None if bias is None else bias.float())
+        self.register_buffer("input_permutation", input_permutation)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        output = w4a8_reference_linear(inputs, self.packed_weight, self.weight_scales, self.input_permutation)
+        if self.bias is not None:
+            output = output + self.bias
+        return output.view(*inputs.shape[:-1], self.packed_weight.shape[0])
