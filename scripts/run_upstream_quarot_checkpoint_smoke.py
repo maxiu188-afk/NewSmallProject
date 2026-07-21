@@ -85,6 +85,8 @@ def run(checkpoint: Path, prefill_tokens: int, decode_tokens: int) -> dict:
         "all_scales_are_positive": all(bool((module.weight_scales > 0).all().item()) for module in linears),
     }
 
+    torch.cuda.init()
+    torch.cuda.set_device(device)
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats(device)
     model = model.to(device).eval()
