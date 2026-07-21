@@ -81,6 +81,45 @@ present during the W4 measurements. The negative latency result should be
 presented directly: this legacy upstream kernel substantially reduces memory
 on Ada but does not outperform the highly optimized FP16 baseline at batch 1.
 
+## Why lower precision did not accelerate this workload
+
+The measured result is consistent with the implementation rather than a
+failure to enter the low-bit path:
+
+1. The upstream CUTLASS GEMM selects `cutlass::arch::Sm80` in `gemm.cu`.
+   Adding `sm_89` to the build makes the legacy backend executable on Ada, but
+   does not supply an Ada-tuned kernel, shape autotuning, or a modern fused
+   W4 implementation such as Marlin.
+2. Each packed linear remains a multi-kernel pipeline. `Quantizer` first runs
+   an absolute-value maximum reduction and scale calculation, then launches
+   FP16-to-int4 packing. The GEMM writes a full int32 output, and a separate
+   kernel reads that output to dequantize it to FP16. These extra launches and
+   intermediate-memory operations can exceed the saved weight bandwidth.
+3. Batch-one autoregressive decode gives each projection an effective GEMM
+   height of one. Tensor Core occupancy is low while Llama-2-13B still invokes
+   seven packed projections in each of 40 layers for every token, so many small
+   kernel launches dominate decode latency.
+4. QuaRot also retains online Hadamard transforms around the output/down
+   projections and in the quantized cache path. They are required by this
+   faithful algorithm but are not fused into the surrounding kernels.
+5. KV4 reduces cache storage and attention bandwidth, but each update must
+   compute scale/zero-point metadata, pack K/V, update page metadata, and
+   dequantize inside the decode attention kernel. At a 2048-token context this
+   saving did not amortize those costs across the whole decoder.
+6. The comparator is already strong: it uses the same upstream model/cache
+   structure with FP16 weights plus FlashAttention 2 and mature FP16 GEMM on an
+   Ada GPU. Lower storage precision alone cannot guarantee lower latency.
+
+The workload trend supports this explanation. Increasing prefill from 128 to
+2048 tokens narrowed the W4 slowdown from 1.33x to 1.13x, consistent with
+better amortization at larger matrix sizes. Decode remained 1.52x slower,
+where the one-token matrix shape and launch overhead are least favorable.
+
+No claim is made that W4A4 cannot accelerate on other kernels or workload
+shapes. The supported conclusion is narrower: this pinned official backend,
+on RTX 6000 Ada at batch one, provides a large memory-capacity improvement but
+not latency acceleration.
+
 ## Recovered artifacts
 
 The raw results are retained locally under the ignored results tree at
