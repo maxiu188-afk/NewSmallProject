@@ -8,8 +8,8 @@
 | 3 — Fake-quant accuracy | GPTQ F3/F4, component, and calibration study complete | Local F0–F5 checks plus a RunPod A40 matched SmolLM2-135M W4A4KV4 naive/QuaRot smoke completed. On Llama-2-13B WikiText-2, GPTQ naive F3 / complete F4 records PPL 8624.35 / 5.84; 32/64/128 calibration and cumulative-component rows are reviewed; the same-run BF16 F0 is 5.0087 |
 | 3b — Portable LLaMA pipeline | partial offline pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4KV4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, Q/K-after-RoPE, and 12 x 128 MLP checks |
 | 4 — CUDA/kernel correctness | Complete 280-linear W4A8 decoder gate passed on RTX 6000 Ada; Isambard portability remains pending | The owned kernel exactly matches int32 references for all three Llama linear shapes. The full sharded GPTQ checkpoint replaced all 280 decoder linears; all 40 fixed-token layer outputs and final logits matched the packed oracle with maximum error `0.0`, and BF16-K/V generation logits were finite. Embedding and `lm_head` remain BF16. Isambard job `5739260` is still only the selected-linear portability attempt; no Isambard full-decoder or KV4 result exists. |
-| 5 — Performance | owned W4A8 smoke complete; backend pivoted | On RTX 6000 Ada, packed W4A8 reduced peak allocated memory to about 28.4--28.8% of BF16 but was slower in every smoke workload. The long grid was stopped because it would only characterize a non-competitive correctness kernel. This is a negative performance result, not an acceleration claim. |
-| 6 — Presentation package | two-route deployment plan active | The presentation track now separates faithful upstream QuaRot W4A4 reproduction from offline QuaRot-style rotation plus a stable vLLM-supported format. GPU W4A8 is not currently supported by stable vLLM; W4A16 GPTQ is the first serving target. |
+| 5 — Performance | official W4A4KV4 benchmark complete on RTX 6000 Ada | The complete 280-linear upstream QuaRot W4A4 backend plus KV4 cache reduced model-resident allocated memory from 26.29 GB to 7.18 GB, but was slower than its matched upstream FP16 backend. At 2048+32 tokens it was 1.13x slower for prefill, 1.52x slower per decode token, and 1.42x slower end to end. This is a capacity result, not an acceleration claim. |
+| 6 — Presentation package | Route A demonstrated; Route B serving remains | Faithful upstream Llama-2-13B W4A4KV4 now loads, generates, and has matched latency/memory evidence. The separate QuaRot-style vLLM route still targets stable GPU W4A16 GPTQ, not original QuaRot W4A4. |
 
 ## 2026-07-16 implementation update
 
@@ -204,6 +204,25 @@ planned. A tiny GQA Llama offline-rotation smoke already passes direct and
 save/reload equivalence with maximum logits error
 `3.5762786865234375e-07`, while retaining standard decoder `nn.Linear`
 modules. This is rotation-only evidence, not quantization or vLLM execution.
+
+## 2026-07-21 official QuaRot W4A4KV4 result
+
+Route A now executes the complete exported Llama-2-13B checkpoint using the
+pinned upstream backend on an RTX 6000 Ada. All 280 decoder projections are
+upstream packed `Linear4bit` modules, activations use the upstream W4 path, and
+the paged K/V cache is 4 bit. The full-checkpoint smoke passed packed-weight,
+scale, finite-logit, cache-length, and exact repeated-generation checks. Peak
+allocated memory in that short smoke was 7.19 GB.
+
+The matched repeated benchmark compares this model against the upstream QuaRot
+FP16 model/cache implementation with sequential loading and identical fixed
+tokens. At 2048 prefill + 32 decode tokens (3 warm-ups, 10 repeats), median
+prefill was 392.51 ms FP16 versus 441.70 ms W4A4KV4, decode was 52.28 versus
+79.51 ms/token, and end to end was 2076.90 versus 2945.97 ms. Model-resident
+allocated memory fell from 26.29 GB to 7.18 GB. Thus the faithful backend is a
+real low-bit, large memory-saving deployment on Ada, but not a speedup. See
+`OFFICIAL_QUAROT_W4A4_RESULTS.md` for scope, hashes, raw samples, and remaining
+accuracy boundary.
 
 ## Local dependency boundary
 

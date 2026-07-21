@@ -129,8 +129,13 @@ come from the matched repeated protocol.
 
 ## Immediate next run
 
-No CUDA run is authorized from macOS. The next GPU session should perform only
-the official source/build/primitive gates and the vLLM tiny three-checkpoint
-smoke. A failed primitive or tiny-model gate blocks 7B/13B conversion and any
-performance benchmark. Results from the two routes remain in separate
-directories and are never merged into one precision label.
+Route A's pinned source/build/primitive/KV gates, complete Llama-2-13B export,
+full-checkpoint generation smoke, and matched FP16/W4A4KV4 performance run have
+now completed on RTX 6000 Ada. The official backend reduces model-resident
+allocated memory from 26.29 GB to 7.18 GB but is slower at batch 1; see
+`OFFICIAL_QUAROT_W4A4_RESULTS.md`. A bounded PPL slice remains the next Route A
+accuracy gate if it is needed for the demonstration.
+
+The next implementation run should therefore advance Route B's tiny
+three-checkpoint quantizer/vLLM smoke. Results from the two routes remain in
+separate directories and are never merged into one precision label.

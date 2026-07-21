@@ -29,11 +29,16 @@ checks kept separate from real CUDA deployment and performance work.
   280-linear packed decoder subsequently passed all 40 layer-output and final
   logits comparisons against the independent packed oracle with maximum error
   `0.0`; its BF16-K/V generation smoke also produced finite logits.
+- A faithful pinned-upstream Llama-2-13B deployment with all 280 decoder
+  projections executing as packed W4A4 and the paged K/V cache at 4 bits. On
+  RTX 6000 Ada it reduced model-resident allocated memory from 26.29 GB to
+  7.18 GB, but was slower than the matched upstream FP16 backend.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
-evidence. All W4A4KV4 evidence remains an algorithmic simulation rather than
-packed KV storage or a CUDA attention kernel. See
+evidence. Those historic W4A4KV4 rows remain algorithmic simulations, while
+the separate official-backend result uses packed weights and the upstream
+4-bit CUDA K/V cache. See
 [phase status](docs/PHASE_STATUS.md), the
 [Llama-2-13B BF16 baseline](docs/LLAMA2_13B_BF16_BASELINE.md), the
 [Llama-2-13B RTN W4A4 result](docs/LLAMA2_13B_RTN_W4A4_RESULTS.md), the
@@ -44,7 +49,9 @@ deployment boundary and next gate are documented in the
 [full-decoder runbook](docs/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md). The
 matched BF16/W4A8 smoke and its negative acceleration result are described in
 the [performance runbook](docs/W4A8_PERFORMANCE_RUNBOOK.md) and current
-[phase status](docs/PHASE_STATUS.md).
+[phase status](docs/PHASE_STATUS.md). The faithful upstream load/generation,
+latency, and memory result is recorded in the
+[official W4A4 backend result](docs/OFFICIAL_QUAROT_W4A4_RESULTS.md).
 
 ## Layout
 
