@@ -1,0 +1,16 @@
+diff --git a/e2e/checkpoint_utils/quantize_llama_checkpoint.py b/e2e/checkpoint_utils/quantize_llama_checkpoint.py
+index 0428b62..a95db7e 100644
+--- a/e2e/checkpoint_utils/quantize_llama_checkpoint.py
++++ b/e2e/checkpoint_utils/quantize_llama_checkpoint.py
+@@ -10,6 +10,10 @@ from quarot.functional import pack_i4
+ 
+ def main(args):
+-    model = transformers.LlamaForCausalLM.from_pretrained(args.pretraiend_path_or_name)
++    model = transformers.LlamaForCausalLM.from_pretrained(
++        args.pretraiend_path_or_name,
++        torch_dtype=torch.float16,
++        low_cpu_mem_usage=True,
++    )
+ 
+     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+     model.seqlen = 2048
