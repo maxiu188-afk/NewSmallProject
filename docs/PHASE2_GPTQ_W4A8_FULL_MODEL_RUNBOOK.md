@@ -61,6 +61,11 @@ W4A8_FULL_GATE_STAGE=full_model_smoke
 W4A8_FULL_GATE_STAGE=assert_result
 ```
 
+During checkpoint export, each successfully checksummed shard additionally
+prints `W4A8_CHECKPOINT_SHARD=<completed>/280 <tensor-name>`. A long interval
+before the first marker can be normal while the first layer collects
+calibration activations, but later markers make forward progress explicit.
+
 If a complete checkpoint manifest already exists, the job validates and
 reuses it. If tensor shards exist without a manifest, export stops rather than
 silently mixing shards from different runs. Preserve the partial directory and

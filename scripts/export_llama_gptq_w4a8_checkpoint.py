@@ -76,12 +76,18 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, Any]:
             "model": dict(config["model"]),
         },
     )
+    progress = {"written": 0}
 
     def write_packed(name: str, packed: Any) -> None:
         linear = model.get_submodule(name)
         if not isinstance(linear, torch.nn.Linear):
             raise RuntimeError("GPTQ capture target is not nn.Linear: {}".format(name))
         writer.write(name, packed, linear.bias)
+        progress["written"] += 1
+        print(
+            "W4A8_CHECKPOINT_SHARD={}/{} {}".format(progress["written"], len(names), name),
+            flush=True,
+        )
 
     summary = quantize_llama_weights_gptq(
         model,
