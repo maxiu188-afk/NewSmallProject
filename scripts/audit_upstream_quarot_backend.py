@@ -20,7 +20,10 @@ EXPECTED_SUBMODULES = {
 
 
 def _run(args: list[str], cwd: Path) -> str:
-    return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+    # Preserve the leading status marker emitted by ``git submodule status``.
+    # A clean, initialized submodule starts with one space, so ``strip()``
+    # would corrupt the first line's revision before the parser sees it.
+    return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True).stdout.rstrip()
 
 
 def audit(source: Path) -> dict:
