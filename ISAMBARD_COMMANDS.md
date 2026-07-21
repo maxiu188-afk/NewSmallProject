@@ -66,7 +66,7 @@ already cached. Run this on the login node to confirm the persistent files:
 
 ```bash
 cd "$HOME/NewSmallProject"
-module load cray-python/3.11.7 cuda/12.6
+module load gcc-native/13.2 cray-python/3.11.7 cuda/12.6
 
 "$VENV_PATH/bin/python" -c 'import torch; print(torch.__version__, torch.version.cuda)'
 
@@ -76,6 +76,10 @@ du -sh "$VENV_PATH" "$HF_HOME"
 
 The login node has no GPU allocation; use the interactive diagnostic below for
 `torch.cuda.is_available()` and device checks.
+
+The CUDA extension jobs explicitly select `gcc-native/13.2` and export
+`CC`, `CXX`, and `CUDAHOSTCXX`. The system compiler is GCC 7.5, which is too
+old for the installed PyTorch 2.9 headers.
 
 The required model revision is
 `5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1`. The cache is rebuildable local
@@ -88,7 +92,7 @@ performed directly on the login node; do not submit it as a Slurm job.
 
 ```bash
 cd "$HOME/NewSmallProject"
-module load cray-python/3.11.7 cuda/12.6
+module load gcc-native/13.2 cray-python/3.11.7 cuda/12.6
 VENV_PATH="$HOME/.venvs/newsmallproject-w4a8"
 test -x "$VENV_PATH/bin/python" || python3 -m venv "$VENV_PATH"
 "$VENV_PATH/bin/python" -m pip install --upgrade pip
@@ -224,7 +228,7 @@ retain JSON reports plus Slurm logs.
 srun --account=brics.u6rt --partition=workq --nodes=1 --gpus=1 \
   --time=00:10:00 --pty /bin/bash --login
 
-module load cray-python/3.11.7 cuda/12.6
+module load gcc-native/13.2 cray-python/3.11.7 cuda/12.6
 cd "$HOME/NewSmallProject"
 export VENV_PATH="$HOME/.venvs/newsmallproject-w4a8"
 "$VENV_PATH/bin/python" -c 'import torch; print(torch.cuda.get_device_name(0))'

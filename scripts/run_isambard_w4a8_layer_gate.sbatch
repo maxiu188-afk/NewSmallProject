@@ -16,7 +16,10 @@
 set -euo pipefail
 
 echo "W4A8_LAYER_GATE_STAGE=module_load"
-module load cray-python/3.11.7 cuda/12.6
+module load gcc-native/13.2 cray-python/3.11.7 cuda/12.6
+export CC="$(command -v gcc)"
+export CXX="$(command -v g++)"
+export CUDAHOSTCXX="${CXX}"
 
 # Slurm copies the batch script to its spool directory before executing it, so
 # BASH_SOURCE no longer identifies the checkout.  SLURM_SUBMIT_DIR retains the

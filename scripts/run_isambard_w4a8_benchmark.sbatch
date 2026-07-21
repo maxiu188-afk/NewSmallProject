@@ -13,7 +13,10 @@
 set -euo pipefail
 
 echo "W4A8_BENCHMARK_STAGE=module_load"
-module load cray-python/3.11.7 cuda/12.6
+module load gcc-native/13.2 cray-python/3.11.7 cuda/12.6
+export CC="$(command -v gcc)"
+export CXX="$(command -v g++)"
+export CUDAHOSTCXX="${CXX}"
 
 project_root="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 venv_path="${HOME}/.venvs/newsmallproject-w4a8"
