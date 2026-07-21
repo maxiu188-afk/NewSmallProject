@@ -1,0 +1,16 @@
+diff --git a/e2e/checkpoint_utils/quantize_llama_checkpoint.py b/e2e/checkpoint_utils/quantize_llama_checkpoint.py
+index bb7a919..0428b62 100644
+--- a/e2e/checkpoint_utils/quantize_llama_checkpoint.py
++++ b/e2e/checkpoint_utils/quantize_llama_checkpoint.py
+@@ -47,9 +47,9 @@ def main(args):
+     new_dict = {_get_new_key(key): value for key, value in old_dict.items() if _keep_key(key)}
+     for key, value in quantizers.items():
+         new_key = _get_new_key(key)
+-        weight_scales = value.scale
+-        new_dict[f"{new_key}.weight_scales"] = weight_scales
+         weight_matrix = new_dict[f"{new_key}.weight"]
++        weight_scales = value.scale.to(weight_matrix.device)
++        new_dict[f"{new_key}.weight_scales"] = weight_scales
+         int_rounded_weight = (weight_matrix/weight_scales).round()
+         new_dict[f"{new_key}.weight"] = pack_i4(int_rounded_weight.to(torch.int8))
+ 
