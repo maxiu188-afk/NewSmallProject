@@ -9,7 +9,7 @@ the main additional GPU memory consumers.
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 import torch
 from torch import nn
@@ -195,6 +195,7 @@ def quantize_llama_weights_gptq(
     settings: GPTQSettings,
     capture_packed_linears: Iterable[str] = (),
     captured_packed_weights: Optional[MutableMapping[str, GPTQPackedWeight]] = None,
+    packed_weight_callback: Optional[Callable[[str, GPTQPackedWeight], None]] = None,
 ) -> Dict[str, Any]:
     """Apply sequential GPTQ to a standard LLaMA decoder stack.
 
@@ -217,8 +218,11 @@ def quantize_llama_weights_gptq(
     dtype = next(model.parameters()).dtype
     samples = len(calibration_batches)
     capture_names = set(capture_packed_linears)
-    if capture_names and captured_packed_weights is None:
-        raise GPTQError("captured_packed_weights is required when capture_packed_linears is set")
+    if capture_names and captured_packed_weights is None and packed_weight_callback is None:
+        raise GPTQError(
+            "captured_packed_weights or packed_weight_callback is required when capture_packed_linears is set"
+        )
+    captured_names: set[str] = set()
     inputs = torch.empty((samples, sequence_length, model.config.hidden_size), dtype=dtype, device=device)
     captured_kwargs: Dict[str, Any] = {}
     captured = 0
@@ -276,12 +280,19 @@ def quantize_llama_weights_gptq(
                     if full_name in capture_names:
                         if collector.packed_weight is None:
                             raise GPTQError("failed to capture packed GPTQ weight for {}".format(full_name))
-                        captured_packed_weights[full_name] = collector.packed_weight
+                        if captured_packed_weights is not None:
+                            captured_packed_weights[full_name] = collector.packed_weight
+                        if packed_weight_callback is not None:
+                            packed_weight_callback(full_name, collector.packed_weight)
+                        captured_names.add(full_name)
             for sample_index in range(samples):
                 outputs[sample_index] = _hidden_states(layer(inputs[sample_index : sample_index + 1], **captured_kwargs))[0]
             inputs, outputs = outputs, inputs
     finally:
         model.config.use_cache = previous_cache
+    missing_captures = sorted(capture_names - captured_names)
+    if missing_captures:
+        raise GPTQError("requested packed linears were not found: {}".format(", ".join(missing_captures)))
     return {
         "method": "gptq",
         "layers": len(layers),

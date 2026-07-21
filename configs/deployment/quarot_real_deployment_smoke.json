@@ -1,0 +1,38 @@
+{
+  "plan_version": 1,
+  "upstream_quarot": {
+    "repository": "https://github.com/spcl/QuaRot.git",
+    "revision": "5008669b08c1f11f9b64d52d16fddd47ca754c5a"
+  },
+  "official_backend": {
+    "first_platform": "linux-x86_64-nvidia-cuda",
+    "first_model": "meta-llama/Llama-2-7b-hf",
+    "precision": "W4A4KV4",
+    "smoke_order": [
+      "unmodified_build",
+      "pack_quant_kernel",
+      "int4_linear",
+      "int4_kv_cache",
+      "single_decoder_layer",
+      "full_model_fixed_tokens"
+    ]
+  },
+  "vllm_route": {
+    "verified_stable_release": "0.23.0",
+    "offline_rotation": "residual_hadamard_and_fused_value_output_only",
+    "standard_model_architecture_required": true,
+    "requested_gpu_w4a8_supported": false,
+    "first_gpu_format": "W4A16_G128_GPTQ",
+    "first_model": "tiny-random-llama",
+    "comparison_modes": [
+      "bf16_unrotated",
+      "w4a16_unrotated",
+      "w4a16_offline_rotated"
+    ]
+  },
+  "excluded": [
+    "new_full_cuda_kernel_implementation",
+    "custom_vllm_quantization_plugin",
+    "spinquant"
+  ]
+}

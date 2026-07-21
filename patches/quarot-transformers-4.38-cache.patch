@@ -1,0 +1,19 @@
+diff --git a/quarot/transformers/kv_cache.py b/quarot/transformers/kv_cache.py
+index 4f82dcc..ffec4a3 100644
+--- a/quarot/transformers/kv_cache.py
++++ b/quarot/transformers/kv_cache.py
+@@ -1,4 +1,4 @@
+-from transformers.cache_utils import Cache
++from transformers.cache_utils import StaticCache
+ from typing import Optional, Tuple, Dict, Any
+ import math
+ import torch
+@@ -127,7 +127,7 @@ class _AttentionStub(object):
+         return attn_output
+ 
+ 
+-class MultiLayerPagedKVCache4Bit(Cache):
++class MultiLayerPagedKVCache4Bit(StaticCache):
+     def __init__(
+         self, batch_size, page_size, max_seq_len, 
+         device, n_layers, num_heads, head_dim, 

@@ -1,0 +1,13 @@
+diff --git a/e2e/checkpoint_utils/gptq_utils.py b/e2e/checkpoint_utils/gptq_utils.py
+index 7521902..34616f6 100644
+--- a/e2e/checkpoint_utils/gptq_utils.py
++++ b/e2e/checkpoint_utils/gptq_utils.py
+@@ -296,7 +296,7 @@ def gptq_fwrd(model, dataloader, dev, args):
+ 
+     quantizers = {}
+     sequential = [
+-                ['self_attn.k_proj', 'self_attn.v_proj=', 'self_attn.q_proj'],
++                ['self_attn.k_proj', 'self_attn.v_proj', 'self_attn.q_proj'],
+                 ['self_attn.o_proj'],
+                 ['mlp.up_proj', 'mlp.gate_proj'],
+                 ['mlp.down_proj']

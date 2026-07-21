@@ -7,9 +7,9 @@
 | 2 — Model equivalence | complete for local smoke scope | Framework-free one-token check passes with <=2.3e-16 error; two-layer PyTorch/Transformers random LLaMA passes with logits <=1.2e-07 and hidden states <=6.0e-07, with no model download |
 | 3 — Fake-quant accuracy | GPTQ F3/F4, component, and calibration study complete | Local F0–F5 checks plus a RunPod A40 matched SmolLM2-135M W4A4KV4 naive/QuaRot smoke completed. On Llama-2-13B WikiText-2, GPTQ naive F3 / complete F4 records PPL 8624.35 / 5.84; 32/64/128 calibration and cumulative-component rows are reviewed; the same-run BF16 F0 is 5.0087 |
 | 3b — Portable LLaMA pipeline | partial offline pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4KV4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, Q/K-after-RoPE, and 12 x 128 MLP checks |
-| 4 — CUDA/kernel correctness | W4A8 int4 GEMM correctness plus one formal GPTQ-packed Llama linear export passed | The A40 preflight and cu128 runtime check passed. The unmodified upstream editable build reached CMake configuration, then failed because nested legacy `pip install -e` calls used build isolation without PyTorch; no source patch or kernel claim was made. The owned W4A8 CUDA kernel now compiles for RTX 6000 Ada `sm_89` under CUDA 12.8/PyTorch cu128 and exactly matches independent int32 references for `(5120,5120)`, `(13824,5120)`, and `(5120,13824)`. A 40-layer/280-linear F4 GPTQ run then exported a self-describing packed `q_proj`, retaining its act-order input permutation; the real CUDA module agrees with its packed floating oracle to `5.66e-07`. See `W4A8_CUDA_KERNEL_RESULTS.md`. Full-model integration and KV4 remain separate gates. |
-| 5 — Performance | out of current scope | Requires real deployment environment; not attempted |
-| 6 — Presentation package | partial | Plan, audit, execution taxonomy, and empirical Llama-2-13B BF16/RTN/GPTQ accuracy records are available; no deployment-performance table exists |
+| 4 — CUDA/kernel correctness | Complete 280-linear W4A8 decoder gate passed on RTX 6000 Ada; Isambard portability remains pending | The owned kernel exactly matches int32 references for all three Llama linear shapes. The full sharded GPTQ checkpoint replaced all 280 decoder linears; all 40 fixed-token layer outputs and final logits matched the packed oracle with maximum error `0.0`, and BF16-K/V generation logits were finite. Embedding and `lm_head` remain BF16. Isambard job `5739260` is still only the selected-linear portability attempt; no Isambard full-decoder or KV4 result exists. |
+| 5 — Performance | official W4A4KV4 benchmark complete on RTX 6000 Ada | The complete 280-linear upstream QuaRot W4A4 backend plus KV4 cache reduced model-resident allocated memory from 26.29 GB to 7.18 GB, but was slower than its matched upstream FP16 backend. At 2048+32 tokens it was 1.13x slower for prefill, 1.52x slower per decode token, and 1.42x slower end to end. This is a capacity result, not an acceleration claim. |
+| 6 — Presentation package | Route A demonstrated; Route B serving remains | Faithful upstream Llama-2-13B W4A4KV4 now loads, generates, and has matched latency/memory evidence. The separate QuaRot-style vLLM route still targets stable GPU W4A16 GPTQ, not original QuaRot W4A4. |
 
 ## 2026-07-16 implementation update
 
@@ -72,6 +72,157 @@ Llama-2-13B/WikiText-2 protocol. The missing naive GPTQ F3 control scored PPL
 and cumulative component rows are fully documented in
 `LLAMA2_13B_GPTQ_ABLATION_CALIBRATION_RESULTS.md`. Raw JSON/log artifacts were
 recovered and SHA-256 checked before this status update.
+
+## 2026-07-20 W4A8 layer gate and Isambard preparation
+
+The first formal real-model Phase-2 correctness gate passed on the RTX 6000
+Ada RunPod environment. It loaded the pinned Llama-2-13B revision, applied the
+recorded QuaRot transformation, and replaced only the exported formal GPTQ
+tensor `model.layers.0.self_attn.attention.q_proj`. The independent packed
+W4/A8 oracle and the owned CUDA `W4A8Linear` produced identical captured
+decoder-layer output and full-model logits for the fixed `[1, 16]` token input
+after their outputs were explicitly converted back to the surrounding BF16
+module boundary. The recovered report has SHA-256
+`406d16c805fcf95b5854a13701b1a58e8f47bffd3f7642d9942ba24dcf207c61`.
+
+The Isambard-AI `u6rt` project environment was then rebuilt directly in the
+persistent home directory, not as a Slurm environment-installation job. The
+ARM64 CUDA 12.8 wheel index does not publish `torch==2.8.0`; the recorded
+Isambard environment instead uses `torch==2.9.0+cu128`, Transformers `5.14.1`,
+Datasets `5.0.0`, CUDA compiler `12.6`, and `ninja==1.11.1.4`. The pinned model
+snapshot and WikiText-2 train/test splits were reloaded successfully in offline
+mode. Initial concurrent Hub download remnants were removed only after the
+offline snapshot was verified.
+
+The corresponding Isambard GPU gate is submitted as Slurm job `5732906` and
+was pending for scheduler priority at the time of this update. A queued job is
+not evidence: no Isambard CUDA result, all-linear integration, generation
+smoke, KV4 result, PPL, timing, throughput, or memory claim is made here.
+
+## 2026-07-21 Isambard gate repair and current state
+
+The initial Isambard jobs `5732906` and `5735242` failed before any CUDA,
+model, or numerical work. Slurm copies an `.sbatch` script to its spool
+directory before execution; the script had derived `project_root` from
+`BASH_SOURCE`, and therefore looked for the checked export artifact under
+`/var/spool/slurmd/...` rather than in `NewSmallProject`. The logged missing
+input was the formal packed `q_proj` artifact, not a missing cache or a failed
+GPTQ export.
+
+`scripts/run_isambard_w4a8_layer_gate.sbatch` now takes the project root from
+`SLURM_SUBMIT_DIR` (with the source-relative location retained for direct
+execution). Its Slurm `--test-only` validation passed, and job `5739260` was
+submitted on 2026-07-21 at 09:26 UK time. The scheduler snapshot immediately
+after submission was `PENDING`, `Reason=None`, `StartTime=Unknown`; a separate
+test-only estimate indicated approximately 2026-07-25 11:28 as the earliest
+currently available allocation. This is scheduling information only, not a
+failure or a result.
+
+The batch log now emits one unambiguous stage marker for each boundary:
+`module_load`, `inputs`, `source_manifest`, `preflight`, `kernel_smoke`,
+`layer_smoke`, and `assert_result`. Consequently, any later failure can be
+attributed to a specific prerequisite, CUDA kernel build/execution, or
+fixed-token layer comparison without rebuilding the environment, re-downloading
+the model, or re-exporting the W4 artifact. A successful job still proves only
+the selected W4A8 `q_proj` replacement; all other linears and K/V remain BF16.
+
+## Quantization naming boundary
+
+The historic QuaRot fake-quant accuracy study is W4A4 (and F5 is W4A4KV4): it
+uses floating QDQ simulation. The Phase-2 job is instead W4A8 execution: it
+uses a 4-bit GPTQ-packed `q_proj` weight artifact and quantizes that layer's
+runtime input to int8 before the owned CUDA int32 accumulator. The layer gate
+currently consumes the historic F4 configuration file named
+`llama2_13b_wikitext2_quarot_w4a4_gptq.json` as its transformation/export
+provenance; that filename does not change the W4A8 execution path or turn the
+job into a W4A4 fake-quant result.
+
+## 2026-07-21 local full-decoder gate preparation
+
+The next Phase-2 implementation slice is ready for review locally without
+starting another GPU server. GPTQ capture can now stream each completed packed
+linear through a callback, and the full-checkpoint exporter writes one CPU
+`.pt` shard per transformed decoder linear. It publishes the self-describing
+`manifest.json` atomically only after all expected tensors exist. The loader
+checks every SHA-256, dtype, shape, input permutation, bias boundary, model
+linear name, source config, and model revision before replacement.
+
+The corresponding correctness script installs all indexed linears through the
+independent packed Torch oracle, captures all 40 decoder outputs plus final
+logits, converts the same buffers to the owned CUDA modules without reloading
+the model, repeats the fixed-token forward, and then runs a short finite-logit
+greedy-generation smoke with BF16 K/V. The checked-in Isambard batch entry
+keeps preflight, kernel, export, validation, full-model comparison, and final
+assertion in one staged job. RunPod uses the same scripts only as a fallback.
+
+On macOS, the focused Torch tests pass for streamed callback capture,
+checkpoint creation/load, deliberate checksum corruption rejection, exact
+linear-set enforcement, and reference-to-CUDA module conversion. This is code
+preparation only: the full exporter and numerical comparison require NVIDIA
+CUDA and have not run. Isambard remains the primary formal environment once
+its service is healthy; the existing selected-linear job is not cancelled by
+this preparation. See `PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
+
+## 2026-07-21 local performance preparation
+
+The full-decoder RunPod correctness gate subsequently passed for all 280
+linears: all 40 captured layer outputs and final logits matched the independent
+packed oracle with maximum error `0.0`, and the BF16-K/V generation smoke had
+finite logits. The recovered result JSON has SHA-256
+`0a848e22ff1881ecd1ee76d829e3c39d43e2f9224892cdd1e61ada6be9b208d8`;
+the linked checkpoint manifest has SHA-256
+`caa12e485087e4bc5630c950e5b96041ba90e770cc40cdd7ae5defba64641e33`.
+
+Phase-3 benchmark code is now prepared locally and refuses to run without that
+passed evidence. BF16 and W4A8 use identical fixed inputs and the same QuaRot
+transform, run sequentially to avoid dual-model residency, and write every raw
+CUDA-event and synchronized-wall sample plus peak allocated/reserved memory.
+The packed oracle, model loading, checkpoint validation, and extension build
+are excluded from timing. Isambard remains the primary formal target; RunPod is
+the fallback.
+
+The subsequent RTX 6000 Ada smoke completed with result SHA-256
+`29528757e7f843efb501df3c7d920cbcffe38af4d02e3916f93209f31b030989`.
+W4A8 peak allocated memory was about 28.4--28.8% of BF16, but its measured
+speedup ratios were below one: about `0.024x` for 16-token prefill, `0.294x`
+for fixed-context one-token decode, and `0.079x` for four-token generation.
+The formal grid was stopped because the correctness-oriented kernel is not a
+competitive performance backend. See `W4A8_PERFORMANCE_RUNBOOK.md`.
+
+## 2026-07-21 two-route real-deployment reset
+
+Deployment work now follows `QUAROT_REAL_DEPLOYMENT_ROADMAP.md`. Route A is a
+faithful build and execution of the pinned upstream W4A4/CUDA/e2e backend,
+starting with source, primitive, KV4, and one-layer gates on x86-64 NVIDIA
+CUDA. Route B keeps only offline-fusible rotations in a standard Llama
+checkpoint, then uses a format supported by stable vLLM.
+
+The current stable vLLM support matrix marks GPU W4A8 unsupported and W4A16
+GPTQ/AWQ/Marlin supported on Ada and Hopper. The selected first serving format
+is therefore group-128 GPTQ W4A16; no custom vLLM plugin or new CUDA kernel is
+planned. A tiny GQA Llama offline-rotation smoke already passes direct and
+save/reload equivalence with maximum logits error
+`3.5762786865234375e-07`, while retaining standard decoder `nn.Linear`
+modules. This is rotation-only evidence, not quantization or vLLM execution.
+
+## 2026-07-21 official QuaRot W4A4KV4 result
+
+Route A now executes the complete exported Llama-2-13B checkpoint using the
+pinned upstream backend on an RTX 6000 Ada. All 280 decoder projections are
+upstream packed `Linear4bit` modules, activations use the upstream W4 path, and
+the paged K/V cache is 4 bit. The full-checkpoint smoke passed packed-weight,
+scale, finite-logit, cache-length, and exact repeated-generation checks. Peak
+allocated memory in that short smoke was 7.19 GB.
+
+The matched repeated benchmark compares this model against the upstream QuaRot
+FP16 model/cache implementation with sequential loading and identical fixed
+tokens. At 2048 prefill + 32 decode tokens (3 warm-ups, 10 repeats), median
+prefill was 392.51 ms FP16 versus 441.70 ms W4A4KV4, decode was 52.28 versus
+79.51 ms/token, and end to end was 2076.90 versus 2945.97 ms. Model-resident
+allocated memory fell from 26.29 GB to 7.18 GB. Thus the faithful backend is a
+real low-bit, large memory-saving deployment on Ada, but not a speedup. See
+`OFFICIAL_QUAROT_W4A4_RESULTS.md` for scope, hashes, raw samples, and remaining
+accuracy boundary.
 
 ## Local dependency boundary
 

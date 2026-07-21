@@ -1,0 +1,15 @@
+diff --git a/e2e/checkpoint_utils/gptq_utils.py b/e2e/checkpoint_utils/gptq_utils.py
+index 34616f6..fa3b50e 100644
+--- a/e2e/checkpoint_utils/gptq_utils.py
++++ b/e2e/checkpoint_utils/gptq_utils.py
+@@ -290,6 +290,10 @@ def gptq_fwrd(model, dataloader, dev, args):
+ 
+     outs = torch.zeros_like(inps)
+     attention_mask = cache['attention_mask']
++    if attention_mask is not None and attention_mask.ndim == 4:
++        # Transformers 4.38 may expose the full max-position causal mask
++        # when a decoder layer is captured and replayed outside LlamaModel.
++        attention_mask = attention_mask[..., :model.seqlen, :model.seqlen]
+     position_ids = cache['position_ids']
+ 
+     quantizers = {}

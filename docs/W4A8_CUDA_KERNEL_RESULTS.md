@@ -113,3 +113,80 @@ correctness result.  It is not yet a packed full-model checkpoint, transformer
 layer/model equivalence or PPL result, KV4 cache result, or performance claim.
 The next gate is to replace that selected Llama linear in a fixed-token layer
 execution while preserving the recorded rotation and input permutation.
+
+## Formal fixed-token Llama layer gate
+
+That next gate passed on the RTX 6000 Ada RunPod environment. The test loaded
+the pinned Llama-2-13B model, applied the same QuaRot transformation, and made
+two sequential forwards over fixed `[1, 16]` token IDs:
+
+1. `PackedW4A8ReferenceLinear` used the exported signed W4 values, FP32 group
+   scales, act-order input permutation, and per-token A8 rule through an
+   independent Torch int32 accumulation oracle.
+2. `W4A8Linear` replaced only that oracle with the owned CUDA int32 kernel.
+
+Both replacements explicitly return BF16 at the surrounding transformer module
+boundary. This is required because the CUDA/oracle accumulation and scale
+application are FP32 while the Llama decoder layer remains BF16. The captured
+layer output (`[1, 16, 5120]`) and model logits (`[1, 16, 32000]`) were exactly
+equal at the declared `atol=2e-4`, `rtol=1e-5` comparison: max and mean absolute
+errors were both `0.0` for this fixed input.
+
+The recovered artifacts were copied locally and SHA-256 verified:
+
+| Artifact | SHA-256 |
+|---|---|
+| `phase2-w4a8-layer/preflight.json` | `30c41a837c3a28736d36de49f26d883591c97fb52bfdd135cb308ddfeb955af4` |
+| `phase2-w4a8-layer/w4a8-kernel-smoke.json` | `df63c72490689ea96f86d83af2775a21195ed469c02f038511f4fb78f10cf65f` |
+| `phase2-w4a8-layer/llama2-13b-f4-qproj-layer-smoke.json` | `406d16c805fcf95b5854a13701b1a58e8f47bffd3f7642d9942ba24dcf207c61` |
+
+This passes only the selected-linear fixed-token integration boundary. All
+other linears and K/V remain BF16. It does not validate a packed full model,
+generation, PPL, KV4, latency, throughput, or memory saving.
+
+## Isambard-AI portability status
+
+The same Phase-2 gate is prepared for the `brics.u6rt` project on
+Isambard-AI. Its ARM64 CUDA 12.8 wheel index provides PyTorch
+`2.9.0+cu128`, rather than the RunPod runtime's `2.8.0+cu128`; the environment
+also records Transformers `5.14.1`, Datasets `5.0.0`, CUDA compiler `12.6`,
+and `ninja==1.11.1.4`. The exact Llama revision and WikiText-2 splits were
+verified from the local cache with outbound Hub access disabled.
+
+The original jobs `5732906` and `5735242` stopped before CUDA because the
+Slurm spool copy broke source-relative project-root discovery. The repaired
+script uses `SLURM_SUBMIT_DIR`; job `5739260` was submitted on 2026-07-21 and
+remains a reproducibility attempt rather than a completed Isambard result until
+its output is reviewed.
+
+## Full-decoder gate preparation
+
+The next gate is implemented locally but has no GPU result. It streams all 280
+decoder-linear GPTQ captures to independent checksum-protected tensor shards,
+publishes a complete manifest only after the expected set is present, and can
+install those exact tensors through either the independent packed oracle or
+the owned CUDA W4A8 module. The planned numerical gate compares every decoder
+layer output and final logits before a short BF16-K/V generation smoke.
+
+This preparation does not upgrade the selected-linear result into a full-model
+claim. See `PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md` for the Isambard-primary
+execution contract and RunPod fallback commands.
+
+## Full-decoder RunPod correctness result
+
+The prepared gate then passed on the RTX 6000 Ada environment at project
+revision `5aa871341000306fb2aa78afc1a74c4ee1600aa7`. The sharded checkpoint
+contains exactly 280 checksum-indexed decoder linears. Its manifest SHA-256 is
+`caa12e485087e4bc5630c950e5b96041ba90e770cc40cdd7ae5defba64641e33`.
+
+For fixed input IDs of shape `[1,16]`, the owned CUDA path and independent
+packed oracle agreed at every one of the 40 decoder-layer boundaries and at
+the final `[1,16,32000]` logits. Every maximum and mean absolute error was
+`0.0`. A subsequent eight-token greedy smoke kept its BF16 K/V cache and had
+finite logits. The recovered result JSON has SHA-256
+`0a848e22ff1881ecd1ee76d829e3c39d43e2f9224892cdd1e61ada6be9b208d8`.
+
+This establishes fixed-workload execution correctness for a complete W4A8
+decoder with BF16 embedding, `lm_head`, and K/V. It does not establish PPL,
+KV4, speed, throughput, or memory savings. The next permitted work is the
+matched BF16/W4A8 measurement protocol in `W4A8_PERFORMANCE_RUNBOOK.md`.

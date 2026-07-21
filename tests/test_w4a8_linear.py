@@ -25,6 +25,11 @@ class PackedW4A8ReferenceLinearTests(unittest.TestCase):
         self.assertEqual(actual.shape, (2, 3, 5))
         self.assertTrue(torch.allclose(actual, expected, atol=1e-6, rtol=1e-6))
 
+        bf16_module = PackedW4A8ReferenceLinear(
+            packed_weight, scales, bias, permutation, output_dtype=torch.bfloat16
+        ).eval()
+        self.assertEqual(bf16_module(inputs).dtype, torch.bfloat16)
+
 
 if __name__ == "__main__":
     unittest.main()

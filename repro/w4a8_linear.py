@@ -52,6 +52,7 @@ def w4a8_reference_linear(
     input_permutation: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Independent floating reference with the same packed values and scales."""
+    original_shape = inputs.shape[:-1]
     if input_permutation is not None:
         inputs = inputs.index_select(-1, input_permutation)
     tokens, in_features = inputs.reshape(-1, inputs.shape[-1]).shape
@@ -62,11 +63,15 @@ def w4a8_reference_linear(
         raise ValueError("packed weight and input feature dimensions differ")
     activations, activation_scales = quantize_a8(inputs)
     group_size = in_features // groups
-    dequantized_weights = weights.reshape(out_features, groups, group_size).float() * scales.unsqueeze(-1)
-    dequantized_activations = activations.reshape(tokens, groups, group_size).float() * activation_scales.view(
-        tokens, 1, 1
-    )
-    return torch.einsum("tgi,ogi->to", dequantized_activations, dequantized_weights)
+    # This must remain independent from the CUDA extension and avoid a float
+    # GEMM (which may select TF32 on NVIDIA).  It exactly mirrors the declared
+    # integer accumulation and post-group scaling semantics in Torch ops.
+    accumulators = (
+        activations.reshape(tokens, 1, groups, group_size).to(torch.int32)
+        * weights.reshape(1, out_features, groups, group_size).to(torch.int32)
+    ).sum(dim=-1, dtype=torch.int32)
+    output = (accumulators.float() * scales.unsqueeze(0) * activation_scales.unsqueeze(-1)).sum(dim=-1)
+    return output.view(*original_shape, out_features)
 
 
 class W4A8Linear(nn.Module):
@@ -78,6 +83,7 @@ class W4A8Linear(nn.Module):
         scales: torch.Tensor,
         bias: torch.Tensor | None = None,
         input_permutation: torch.Tensor | None = None,
+        output_dtype: torch.dtype | None = None,
     ) -> None:
         super().__init__()
         if packed_weight.ndim != 2 or scales.ndim != 2:
@@ -94,6 +100,7 @@ class W4A8Linear(nn.Module):
         self.register_buffer("weight_scales", scales)
         self.register_buffer("bias", None if bias is None else bias.float())
         self.register_buffer("input_permutation", input_permutation)
+        self.output_dtype = output_dtype
 
     @classmethod
     def from_float(cls, linear: nn.Linear, group_size: int = 128) -> "W4A8Linear":
@@ -112,6 +119,8 @@ class W4A8Linear(nn.Module):
         output = (accumulators.float() * self.weight_scales.unsqueeze(0) * activation_scales.unsqueeze(-1)).sum(dim=-1)
         if self.bias is not None:
             output = output + self.bias
+        if self.output_dtype is not None:
+            output = output.to(self.output_dtype)
         return output.view(*original_shape, self.packed_weight.shape[0])
 
 
@@ -130,15 +139,19 @@ class PackedW4A8ReferenceLinear(nn.Module):
         scales: torch.Tensor,
         bias: torch.Tensor | None = None,
         input_permutation: torch.Tensor | None = None,
+        output_dtype: torch.dtype | None = None,
     ) -> None:
         super().__init__()
         self.register_buffer("packed_weight", packed_weight)
         self.register_buffer("weight_scales", scales)
         self.register_buffer("bias", None if bias is None else bias.float())
         self.register_buffer("input_permutation", input_permutation)
+        self.output_dtype = output_dtype
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         output = w4a8_reference_linear(inputs, self.packed_weight, self.weight_scales, self.input_permutation)
         if self.bias is not None:
             output = output + self.bias
+        if self.output_dtype is not None:
+            output = output.to(self.output_dtype)
         return output.view(*inputs.shape[:-1], self.packed_weight.shape[0])
