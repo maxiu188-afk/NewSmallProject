@@ -150,6 +150,52 @@ Success requires `ISAMBARD_PHASE2_LAYER_GATE_PASSED` in the output and
 `passed: true` in `isambard-llama2-13b-f4-qproj-layer-smoke.json`. The job does
 not establish a packed full model, PPL, KV4, or performance result.
 
+### Batch-script path rule and current submission
+
+Slurm executes a spool copy of an `.sbatch` file. A batch script must therefore
+use `SLURM_SUBMIT_DIR` to locate the checkout; do not derive the project root
+solely from `BASH_SOURCE`. The checked-in layer-gate script follows this rule
+and prints these stage markers in its output:
+
+```text
+W4A8_LAYER_GATE_STAGE=module_load
+W4A8_LAYER_GATE_STAGE=inputs
+W4A8_LAYER_GATE_STAGE=source_manifest
+W4A8_LAYER_GATE_STAGE=preflight
+W4A8_LAYER_GATE_STAGE=kernel_smoke
+W4A8_LAYER_GATE_STAGE=layer_smoke
+W4A8_LAYER_GATE_STAGE=assert_result
+```
+
+The pre-repair jobs `5732906` and `5735242` stopped at `inputs` because they
+looked for the packed artifact under Slurm's spool directory. The repaired job
+`5739260` was submitted on 2026-07-21; it was pending at submission time. A
+pending job is not a failed GPU run and is not evidence of numerical success.
+
+## Prepared full-decoder gate (do not submit during the current service issue)
+
+The next implementation is checked in as
+`scripts/run_isambard_w4a8_full_model_gate.sbatch`. It streams all 280 GPTQ
+decoder linears to a sharded packed checkpoint, validates every shard, compares
+all decoder-layer outputs and logits between the packed oracle and CUDA path,
+and runs a short BF16-K/V generation smoke. It does not run PPL, KV4, timing,
+throughput, or memory measurements.
+
+Keep the existing selected-linear job and review it when Isambard is healthy.
+Before submitting the larger gate, synchronize the reviewed repository revision
+and ask Slurm to validate its request:
+
+```bash
+cd "$HOME/NewSmallProject"
+sbatch --test-only scripts/run_isambard_w4a8_full_model_gate.sbatch
+sbatch scripts/run_isambard_w4a8_full_model_gate.sbatch
+```
+
+The `--test-only` step must accept the requested 24-hour wall time; it has not
+been validated while the service is unhealthy. Success requires
+`ISAMBARD_PHASE2_FULL_MODEL_GATE_PASSED`. Detailed artifact and failure rules
+are in `docs/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
+
 ## Short interactive GPU diagnostic
 
 Use this only for a quick interactive diagnostic; it ends when the shell exits.

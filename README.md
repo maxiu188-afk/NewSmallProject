@@ -23,6 +23,11 @@ checks kept separate from real CUDA deployment and performance work.
   `PPL=5.8376` (same-run BF16 `5.0087`); the matched naive GPTQ F3 control is
   `PPL=8624.3509`. The component and calibration results are recorded in the
   [GPTQ ablation record](docs/LLAMA2_13B_GPTQ_ABLATION_CALIBRATION_RESULTS.md).
+- An owned packed-W4/A8 CUDA integer-accumulator path validated for the three
+  Llama-2-13B linear shapes, plus one formally GPTQ-packed `q_proj` integrated
+  through a fixed-token decoder-layer/logits gate on RTX 6000 Ada. The
+  all-280-linear checkpoint and correctness gate is prepared locally but has
+  not produced a GPU result.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
@@ -32,7 +37,10 @@ packed KV storage or a CUDA attention kernel. See
 [Llama-2-13B BF16 baseline](docs/LLAMA2_13B_BF16_BASELINE.md), the
 [Llama-2-13B RTN W4A4 result](docs/LLAMA2_13B_RTN_W4A4_RESULTS.md), the
 [Llama-2-13B GPTQ W4A4 result](docs/LLAMA2_13B_GPTQ_W4A4_RESULTS.md), and the
-[SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md).
+[SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md). The real
+deployment boundary and next gate are documented in the
+[W4A8 kernel record](docs/W4A8_CUDA_KERNEL_RESULTS.md) and
+[full-decoder runbook](docs/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md).
 
 ## Layout
 

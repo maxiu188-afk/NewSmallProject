@@ -45,3 +45,52 @@ class GPTQLinearTests(unittest.TestCase):
         expected = torch.nn.functional.linear(activations.float() * activation_scales, reconstructed)
         reference = w4a8_reference_linear(inputs, packed.packed_weight, packed.scales, packed.input_permutation)
         self.assertTrue(torch.allclose(reference, expected, atol=1e-5, rtol=1e-5))
+
+    def test_gptq_linear_capture_can_stream_through_callback(self):
+        import torch
+        from torch import nn
+
+        from repro.gptq import GPTQSettings, quantize_llama_weights_gptq
+
+        class Layer(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.proj = nn.Linear(8, 8, bias=False)
+
+            def forward(self, hidden_states, **_kwargs):
+                return (self.proj(hidden_states),)
+
+        class Backbone(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = nn.Embedding(32, 8)
+                self.layers = nn.ModuleList([Layer()])
+
+        class Config:
+            model_type = "llama"
+            hidden_size = 8
+            use_cache = False
+
+        class Model(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.config = Config()
+                self.model = Backbone()
+
+            def forward(self, input_ids, use_cache=False):
+                hidden = self.model.embed_tokens(input_ids)
+                return self.model.layers[0](hidden, use_cache=use_cache)
+
+        model = Model().float().eval()
+        streamed = []
+        summary = quantize_llama_weights_gptq(
+            model,
+            [torch.tensor([[1, 2, 3, 4]])],
+            GPTQSettings(bits=4, group_size=8),
+            capture_packed_linears=["model.layers.0.proj"],
+            packed_weight_callback=lambda name, packed: streamed.append((name, packed)),
+        )
+        self.assertEqual(summary["linear_layers"], 1)
+        self.assertEqual(len(streamed), 1)
+        self.assertEqual(streamed[0][0], "model.layers.0.proj")
+        self.assertEqual(streamed[0][1].packed_weight.shape, (8, 4))

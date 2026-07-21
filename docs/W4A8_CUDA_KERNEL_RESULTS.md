@@ -153,6 +153,21 @@ also records Transformers `5.14.1`, Datasets `5.0.0`, CUDA compiler `12.6`,
 and `ninja==1.11.1.4`. The exact Llama revision and WikiText-2 splits were
 verified from the local cache with outbound Hub access disabled.
 
-Slurm job `5732906` runs the preflight, kernel smoke, and layer gate in that
-order. At this document update it is pending on scheduler priority, so it is a
-reproducibility attempt rather than a completed Isambard result.
+The original jobs `5732906` and `5735242` stopped before CUDA because the
+Slurm spool copy broke source-relative project-root discovery. The repaired
+script uses `SLURM_SUBMIT_DIR`; job `5739260` was submitted on 2026-07-21 and
+remains a reproducibility attempt rather than a completed Isambard result until
+its output is reviewed.
+
+## Full-decoder gate preparation
+
+The next gate is implemented locally but has no GPU result. It streams all 280
+decoder-linear GPTQ captures to independent checksum-protected tensor shards,
+publishes a complete manifest only after the expected set is present, and can
+install those exact tensors through either the independent packed oracle or
+the owned CUDA W4A8 module. The planned numerical gate compares every decoder
+layer output and final logits before a short BF16-K/V generation smoke.
+
+This preparation does not upgrade the selected-linear result into a full-model
+claim. See `PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md` for the Isambard-primary
+execution contract and RunPod fallback commands.

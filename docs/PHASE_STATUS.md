@@ -7,7 +7,7 @@
 | 2 — Model equivalence | complete for local smoke scope | Framework-free one-token check passes with <=2.3e-16 error; two-layer PyTorch/Transformers random LLaMA passes with logits <=1.2e-07 and hidden states <=6.0e-07, with no model download |
 | 3 — Fake-quant accuracy | GPTQ F3/F4, component, and calibration study complete | Local F0–F5 checks plus a RunPod A40 matched SmolLM2-135M W4A4KV4 naive/QuaRot smoke completed. On Llama-2-13B WikiText-2, GPTQ naive F3 / complete F4 records PPL 8624.35 / 5.84; 32/64/128 calibration and cumulative-component rows are reviewed; the same-run BF16 F0 is 5.0087 |
 | 3b — Portable LLaMA pipeline | partial offline pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4KV4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, Q/K-after-RoPE, and 12 x 128 MLP checks |
-| 4 — CUDA/kernel correctness | W4A8 int4 GEMM, formal GPTQ-packed Llama linear export, and one selected `q_proj` layer/logits gate passed on RTX 6000 Ada | The owned W4A8 CUDA kernel exactly matches independent int32 references for `(5120,5120)`, `(13824,5120)`, and `(5120,13824)`. A 40-layer/280-linear F4 GPTQ run exported a self-describing act-order packed `q_proj`; the CUDA module agrees with its packed oracle to `5.66e-07`. The formal fixed-token decoder-layer and full-model-logits comparison then passed for that one replacement. Isambard-AI has a rebuilt ARM64 environment and an equivalent gate queued, but no Isambard GPU result yet. Full-model integration and KV4 remain separate gates. |
+| 4 — CUDA/kernel correctness | One selected GPTQ-packed `q_proj` layer/logits gate passed on RTX 6000 Ada; equivalent Isambard gate retained; full-decoder gate prepared locally but not run | The owned W4A8 CUDA kernel exactly matches independent int32 references for `(5120,5120)`, `(13824,5120)`, and `(5120,13824)`. A 40-layer/280-linear F4 GPTQ run exported a self-describing act-order packed `q_proj`; the CUDA module agrees with its packed oracle to `5.66e-07`, and the fixed-token layer/logits comparison passed for that one replacement. Isambard job `5739260` remains the pending portability attempt. Streaming checkpoint and all-280-linear correctness-gate code now passes local non-CUDA tests, but no full checkpoint or full-model GPU result exists. KV4 remains separate. |
 | 5 — Performance | not started | Requires a Phase-2 packed full-model path and matching numerical results; no timing or memory claim exists |
 | 6 — Presentation package | partial | Plan, audit, execution taxonomy, empirical Llama-2-13B accuracy records, W4A8 kernel report, and Isambard command reference are available; no deployment-performance table exists |
 
@@ -98,6 +98,70 @@ The corresponding Isambard GPU gate is submitted as Slurm job `5732906` and
 was pending for scheduler priority at the time of this update. A queued job is
 not evidence: no Isambard CUDA result, all-linear integration, generation
 smoke, KV4 result, PPL, timing, throughput, or memory claim is made here.
+
+## 2026-07-21 Isambard gate repair and current state
+
+The initial Isambard jobs `5732906` and `5735242` failed before any CUDA,
+model, or numerical work. Slurm copies an `.sbatch` script to its spool
+directory before execution; the script had derived `project_root` from
+`BASH_SOURCE`, and therefore looked for the checked export artifact under
+`/var/spool/slurmd/...` rather than in `NewSmallProject`. The logged missing
+input was the formal packed `q_proj` artifact, not a missing cache or a failed
+GPTQ export.
+
+`scripts/run_isambard_w4a8_layer_gate.sbatch` now takes the project root from
+`SLURM_SUBMIT_DIR` (with the source-relative location retained for direct
+execution). Its Slurm `--test-only` validation passed, and job `5739260` was
+submitted on 2026-07-21 at 09:26 UK time. The scheduler snapshot immediately
+after submission was `PENDING`, `Reason=None`, `StartTime=Unknown`; a separate
+test-only estimate indicated approximately 2026-07-25 11:28 as the earliest
+currently available allocation. This is scheduling information only, not a
+failure or a result.
+
+The batch log now emits one unambiguous stage marker for each boundary:
+`module_load`, `inputs`, `source_manifest`, `preflight`, `kernel_smoke`,
+`layer_smoke`, and `assert_result`. Consequently, any later failure can be
+attributed to a specific prerequisite, CUDA kernel build/execution, or
+fixed-token layer comparison without rebuilding the environment, re-downloading
+the model, or re-exporting the W4 artifact. A successful job still proves only
+the selected W4A8 `q_proj` replacement; all other linears and K/V remain BF16.
+
+## Quantization naming boundary
+
+The historic QuaRot fake-quant accuracy study is W4A4 (and F5 is W4A4KV4): it
+uses floating QDQ simulation. The Phase-2 job is instead W4A8 execution: it
+uses a 4-bit GPTQ-packed `q_proj` weight artifact and quantizes that layer's
+runtime input to int8 before the owned CUDA int32 accumulator. The layer gate
+currently consumes the historic F4 configuration file named
+`llama2_13b_wikitext2_quarot_w4a4_gptq.json` as its transformation/export
+provenance; that filename does not change the W4A8 execution path or turn the
+job into a W4A4 fake-quant result.
+
+## 2026-07-21 local full-decoder gate preparation
+
+The next Phase-2 implementation slice is ready for review locally without
+starting another GPU server. GPTQ capture can now stream each completed packed
+linear through a callback, and the full-checkpoint exporter writes one CPU
+`.pt` shard per transformed decoder linear. It publishes the self-describing
+`manifest.json` atomically only after all expected tensors exist. The loader
+checks every SHA-256, dtype, shape, input permutation, bias boundary, model
+linear name, source config, and model revision before replacement.
+
+The corresponding correctness script installs all indexed linears through the
+independent packed Torch oracle, captures all 40 decoder outputs plus final
+logits, converts the same buffers to the owned CUDA modules without reloading
+the model, repeats the fixed-token forward, and then runs a short finite-logit
+greedy-generation smoke with BF16 K/V. The checked-in Isambard batch entry
+keeps preflight, kernel, export, validation, full-model comparison, and final
+assertion in one staged job. RunPod uses the same scripts only as a fallback.
+
+On macOS, the focused Torch tests pass for streamed callback capture,
+checkpoint creation/load, deliberate checksum corruption rejection, exact
+linear-set enforcement, and reference-to-CUDA module conversion. This is code
+preparation only: the full exporter and numerical comparison require NVIDIA
+CUDA and have not run. Isambard remains the primary formal environment once
+its service is healthy; the existing selected-linear job is not cancelled by
+this preparation. See `PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
 
 ## Local dependency boundary
 
