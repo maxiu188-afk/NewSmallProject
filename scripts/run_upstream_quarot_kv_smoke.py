@@ -12,11 +12,8 @@ from pathlib import Path
 
 import torch
 
-from quarot.transformers.kv_cache import (
-    MultiLayerPagedKVCache4Bit,
-    asym_quantize_and_pack_i4,
-    unpack_i4_and_asym_dequantize,
-)
+import quarot.transformers.kv_cache as kv_cache_module
+from quarot.transformers.kv_cache import MultiLayerPagedKVCache4Bit, unpack_i4_and_asym_dequantize
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -49,10 +46,7 @@ def run() -> dict:
     torch.manual_seed(20260721)
     device = torch.device("cuda:0")
     batch, heads, head_dim = 1, 2, 128
-    # The pinned FlashInfer prefill kernel showed incomplete key writes for
-    # synthetic lengths below 16 on Ada.  Use its smallest validated tile here
-    # and retain the separate prefill=4 failure artifact as a known limitation.
-    prefill, page_size = 16, 16
+    prefill, page_size = 4, 4
     keys = torch.randn(batch, prefill + 1, heads, head_dim, device=device, dtype=torch.float16)
     values = torch.randn_like(keys)
     query = torch.randn(batch, 1, heads, head_dim, device=device, dtype=torch.float16)
@@ -60,7 +54,7 @@ def run() -> dict:
     cache = MultiLayerPagedKVCache4Bit(
         batch_size=batch,
         page_size=page_size,
-        max_seq_len=32,
+        max_seq_len=8,
         device=device,
         n_layers=1,
         num_heads=heads,
@@ -68,8 +62,24 @@ def run() -> dict:
         disable_quant=False,
         hadamard_dtype=None,
     )
-    cache.update(keys[:, :prefill], values[:, :prefill], 0, cache_kwargs={})
-    decode = cache.update(keys[:, prefill:], values[:, prefill:], 0, cache_kwargs={})
+    # Capture the exact packed tensors passed to FlashInfer. Re-quantizing the
+    # source afterward is not an exact oracle: the first interpreted and later
+    # optimized TorchScript executions can differ by one level at FP16 rounding
+    # boundaries even though their scales are identical.
+    captured = []
+    original_quantize = kv_cache_module.asym_quantize_and_pack_i4
+
+    def capture_quantize(tensor):
+        result = original_quantize(tensor)
+        captured.append(tuple(item.clone() for item in result))
+        return result
+
+    kv_cache_module.asym_quantize_and_pack_i4 = capture_quantize
+    try:
+        cache.update(keys[:, :prefill], values[:, :prefill], 0, cache_kwargs={})
+        decode = cache.update(keys[:, prefill:], values[:, prefill:], 0, cache_kwargs={})
+    finally:
+        kv_cache_module.asym_quantize_and_pack_i4 = original_quantize
     candidate = decode(query)
     torch.cuda.synchronize()
 
@@ -79,8 +89,12 @@ def run() -> dict:
     for token in range(prefill + 1):
         stored_k, dequant_k = _stored_token(cache, token, 0)
         stored_v, dequant_v = _stored_token(cache, token, 1)
-        expected_k, expected_k_scale, expected_k_zero = asym_quantize_and_pack_i4(keys[:, token])
-        expected_v, expected_v_scale, expected_v_zero = asym_quantize_and_pack_i4(values[:, token])
+        if token < prefill:
+            expected_k, expected_k_scale, expected_k_zero = (item[:, token] for item in captured[0])
+            expected_v, expected_v_scale, expected_v_zero = (item[:, token] for item in captured[1])
+        else:
+            expected_k, expected_k_scale, expected_k_zero = (item[:, 0] for item in captured[2])
+            expected_v, expected_v_scale, expected_v_zero = (item[:, 0] for item in captured[3])
         page = token // page_size
         offset = token % page_size
         params_k = cache.scales[page, 0, 0, :, offset, :]
@@ -135,7 +149,6 @@ def run() -> dict:
             "prefill_tokens": prefill,
             "appended_tokens": 1,
             "page_size": page_size,
-            "known_excluded_case": "prefill lengths below 16 are not covered; prefill=4 produced incomplete key-cache writes on this backend",
         },
         "checks": checks,
         "maximum_absolute_decode_error": float(absolute_error.max().item()),
