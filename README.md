@@ -42,8 +42,9 @@ packed KV storage or a CUDA attention kernel. See
 deployment boundary and next gate are documented in the
 [W4A8 kernel record](docs/W4A8_CUDA_KERNEL_RESULTS.md) and
 [full-decoder runbook](docs/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md). The
-prepared matched BF16/W4A8 measurement protocol is in the
-[performance runbook](docs/W4A8_PERFORMANCE_RUNBOOK.md); it has not run yet.
+matched BF16/W4A8 smoke and its negative acceleration result are described in
+the [performance runbook](docs/W4A8_PERFORMANCE_RUNBOOK.md) and current
+[phase status](docs/PHASE_STATUS.md).
 
 ## Layout
 
@@ -67,3 +68,16 @@ git -C QuaRot checkout 5008669b08c1f11f9b64d52d16fddd47ca754c5a
 See [the reproduction plan](QUAROT_REPRODUCTION_PLAN.md) for the two-track
 algorithm/deployment strategy and [the portable pipeline guide](docs/PORTABLE_PIPELINE.md)
 for local commands.
+
+## Real-deployment direction
+
+Current implementation work is split into two explicitly named routes:
+
+- faithful reproduction of the pinned upstream QuaRot W4A4 CUDA/e2e backend;
+- standard-layout offline QuaRot rotations followed by a low-bit format and
+  OpenAI-compatible serving path supported by stable vLLM.
+
+Stable vLLM does not currently support INT4-weight/INT8-activation W4A8 on
+NVIDIA GPUs, so the first serving format is W4A16 GPTQ on Ada/Hopper. This is
+QuaRot-style engineering and is not labelled as original QuaRot W4A4. See
+[the real-deployment roadmap](docs/QUAROT_REAL_DEPLOYMENT_ROADMAP.md).

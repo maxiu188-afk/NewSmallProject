@@ -8,8 +8,8 @@
 | 3 — Fake-quant accuracy | GPTQ F3/F4, component, and calibration study complete | Local F0–F5 checks plus a RunPod A40 matched SmolLM2-135M W4A4KV4 naive/QuaRot smoke completed. On Llama-2-13B WikiText-2, GPTQ naive F3 / complete F4 records PPL 8624.35 / 5.84; 32/64/128 calibration and cumulative-component rows are reviewed; the same-run BF16 F0 is 5.0087 |
 | 3b — Portable LLaMA pipeline | partial offline pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4KV4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, Q/K-after-RoPE, and 12 x 128 MLP checks |
 | 4 — CUDA/kernel correctness | Complete 280-linear W4A8 decoder gate passed on RTX 6000 Ada; Isambard portability remains pending | The owned kernel exactly matches int32 references for all three Llama linear shapes. The full sharded GPTQ checkpoint replaced all 280 decoder linears; all 40 fixed-token layer outputs and final logits matched the packed oracle with maximum error `0.0`, and BF16-K/V generation logits were finite. Embedding and `lm_head` remain BF16. Isambard job `5739260` is still only the selected-linear portability attempt; no Isambard full-decoder or KV4 result exists. |
-| 5 — Performance | benchmark code and frozen workload grids prepared locally; no GPU timing result | The matched QuaRot BF16/W4A8 harness covers representative linears, prefill, fixed-context one-token decode, end-to-end greedy generation, raw CUDA/wall samples, throughput, and peak memory. It is linked to the passed 280-linear correctness artifact, but neither the smoke nor formal benchmark has run. No speed or memory claim exists. |
-| 6 — Presentation package | partial | Plan, audit, execution taxonomy, empirical Llama-2-13B accuracy records, W4A8 kernel report, and Isambard command reference are available; no deployment-performance table exists |
+| 5 — Performance | owned W4A8 smoke complete; backend pivoted | On RTX 6000 Ada, packed W4A8 reduced peak allocated memory to about 28.4--28.8% of BF16 but was slower in every smoke workload. The long grid was stopped because it would only characterize a non-competitive correctness kernel. This is a negative performance result, not an acceleration claim. |
+| 6 — Presentation package | two-route deployment plan active | The presentation track now separates faithful upstream QuaRot W4A4 reproduction from offline QuaRot-style rotation plus a stable vLLM-supported format. GPU W4A8 is not currently supported by stable vLLM; W4A16 GPTQ is the first serving target. |
 
 ## 2026-07-16 implementation update
 
@@ -179,8 +179,31 @@ transform, run sequentially to avoid dual-model residency, and write every raw
 CUDA-event and synchronized-wall sample plus peak allocated/reserved memory.
 The packed oracle, model loading, checkpoint validation, and extension build
 are excluded from timing. Isambard remains the primary formal target; RunPod is
-the fallback. No performance run has occurred. See
-`W4A8_PERFORMANCE_RUNBOOK.md`.
+the fallback.
+
+The subsequent RTX 6000 Ada smoke completed with result SHA-256
+`29528757e7f843efb501df3c7d920cbcffe38af4d02e3916f93209f31b030989`.
+W4A8 peak allocated memory was about 28.4--28.8% of BF16, but its measured
+speedup ratios were below one: about `0.024x` for 16-token prefill, `0.294x`
+for fixed-context one-token decode, and `0.079x` for four-token generation.
+The formal grid was stopped because the correctness-oriented kernel is not a
+competitive performance backend. See `W4A8_PERFORMANCE_RUNBOOK.md`.
+
+## 2026-07-21 two-route real-deployment reset
+
+Deployment work now follows `QUAROT_REAL_DEPLOYMENT_ROADMAP.md`. Route A is a
+faithful build and execution of the pinned upstream W4A4/CUDA/e2e backend,
+starting with source, primitive, KV4, and one-layer gates on x86-64 NVIDIA
+CUDA. Route B keeps only offline-fusible rotations in a standard Llama
+checkpoint, then uses a format supported by stable vLLM.
+
+The current stable vLLM support matrix marks GPU W4A8 unsupported and W4A16
+GPTQ/AWQ/Marlin supported on Ada and Hopper. The selected first serving format
+is therefore group-128 GPTQ W4A16; no custom vLLM plugin or new CUDA kernel is
+planned. A tiny GQA Llama offline-rotation smoke already passes direct and
+save/reload equivalence with maximum logits error
+`3.5762786865234375e-07`, while retaining standard decoder `nn.Linear`
+modules. This is rotation-only evidence, not quantization or vLLM execution.
 
 ## Local dependency boundary
 

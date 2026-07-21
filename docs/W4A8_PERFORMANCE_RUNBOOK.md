@@ -1,5 +1,10 @@
 # W4A8 performance benchmark runbook
 
+> Status update (2026-07-21): the RTX 6000 Ada smoke completed, reduced peak
+> allocated memory to about 28.4--28.8% of BF16, and was slower in every timed
+> workload. The formal grid was stopped. This owned correctness kernel is no
+> longer the default deployment backend; see `QUAROT_REAL_DEPLOYMENT_ROADMAP.md`.
+
 ## Claim boundary
 
 This benchmark is permitted because the complete 280-linear W4A8 decoder path
