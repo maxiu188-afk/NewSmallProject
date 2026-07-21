@@ -1,0 +1,21 @@
+{
+  "benchmark_version": 1,
+  "pipeline_config": "configs/pipeline/llama2_13b_wikitext2_quarot_w4a4_gptq.json",
+  "checkpoint_manifest": "results/phase2-w4a8-full-checkpoint/manifest.json",
+  "correctness_result": "results/phase2-w4a8-full-model/runpod-full-model-smoke.json",
+  "seed": 0,
+  "modes": ["bf16", "w4a8"],
+  "linear": {
+    "targets": [
+      "model.layers.0.self_attn.attention.q_proj",
+      "model.layers.0.mlp.up_proj",
+      "model.layers.0.mlp.down_proj.linear"
+    ],
+    "token_counts": [1, 16, 128],
+    "warmup": 10,
+    "repeats": 30
+  },
+  "prefill": {"sequence_lengths": [16, 128, 512, 2048], "warmup": 3, "repeats": 10},
+  "decode": {"context_lengths": [16, 128, 512, 2048], "warmup": 3, "repeats": 20},
+  "generation": {"prompt_lengths": [16, 128, 512], "new_tokens": 32, "warmup": 2, "repeats": 5}
+}

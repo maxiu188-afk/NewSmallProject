@@ -7,8 +7,8 @@
 | 2 — Model equivalence | complete for local smoke scope | Framework-free one-token check passes with <=2.3e-16 error; two-layer PyTorch/Transformers random LLaMA passes with logits <=1.2e-07 and hidden states <=6.0e-07, with no model download |
 | 3 — Fake-quant accuracy | GPTQ F3/F4, component, and calibration study complete | Local F0–F5 checks plus a RunPod A40 matched SmolLM2-135M W4A4KV4 naive/QuaRot smoke completed. On Llama-2-13B WikiText-2, GPTQ naive F3 / complete F4 records PPL 8624.35 / 5.84; 32/64/128 calibration and cumulative-component rows are reviewed; the same-run BF16 F0 is 5.0087 |
 | 3b — Portable LLaMA pipeline | partial offline pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4KV4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, Q/K-after-RoPE, and 12 x 128 MLP checks |
-| 4 — CUDA/kernel correctness | One selected GPTQ-packed `q_proj` layer/logits gate passed on RTX 6000 Ada; equivalent Isambard gate retained; full-decoder gate prepared locally but not run | The owned W4A8 CUDA kernel exactly matches independent int32 references for `(5120,5120)`, `(13824,5120)`, and `(5120,13824)`. A 40-layer/280-linear F4 GPTQ run exported a self-describing act-order packed `q_proj`; the CUDA module agrees with its packed oracle to `5.66e-07`, and the fixed-token layer/logits comparison passed for that one replacement. Isambard job `5739260` remains the pending portability attempt. Streaming checkpoint and all-280-linear correctness-gate code now passes local non-CUDA tests, but no full checkpoint or full-model GPU result exists. KV4 remains separate. |
-| 5 — Performance | not started | Requires a Phase-2 packed full-model path and matching numerical results; no timing or memory claim exists |
+| 4 — CUDA/kernel correctness | Complete 280-linear W4A8 decoder gate passed on RTX 6000 Ada; Isambard portability remains pending | The owned kernel exactly matches int32 references for all three Llama linear shapes. The full sharded GPTQ checkpoint replaced all 280 decoder linears; all 40 fixed-token layer outputs and final logits matched the packed oracle with maximum error `0.0`, and BF16-K/V generation logits were finite. Embedding and `lm_head` remain BF16. Isambard job `5739260` is still only the selected-linear portability attempt; no Isambard full-decoder or KV4 result exists. |
+| 5 — Performance | benchmark code and frozen workload grids prepared locally; no GPU timing result | The matched QuaRot BF16/W4A8 harness covers representative linears, prefill, fixed-context one-token decode, end-to-end greedy generation, raw CUDA/wall samples, throughput, and peak memory. It is linked to the passed 280-linear correctness artifact, but neither the smoke nor formal benchmark has run. No speed or memory claim exists. |
 | 6 — Presentation package | partial | Plan, audit, execution taxonomy, empirical Llama-2-13B accuracy records, W4A8 kernel report, and Isambard command reference are available; no deployment-performance table exists |
 
 ## 2026-07-16 implementation update
@@ -162,6 +162,25 @@ preparation only: the full exporter and numerical comparison require NVIDIA
 CUDA and have not run. Isambard remains the primary formal environment once
 its service is healthy; the existing selected-linear job is not cancelled by
 this preparation. See `PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
+
+## 2026-07-21 local performance preparation
+
+The full-decoder RunPod correctness gate subsequently passed for all 280
+linears: all 40 captured layer outputs and final logits matched the independent
+packed oracle with maximum error `0.0`, and the BF16-K/V generation smoke had
+finite logits. The recovered result JSON has SHA-256
+`0a848e22ff1881ecd1ee76d829e3c39d43e2f9224892cdd1e61ada6be9b208d8`;
+the linked checkpoint manifest has SHA-256
+`caa12e485087e4bc5630c950e5b96041ba90e770cc40cdd7ae5defba64641e33`.
+
+Phase-3 benchmark code is now prepared locally and refuses to run without that
+passed evidence. BF16 and W4A8 use identical fixed inputs and the same QuaRot
+transform, run sequentially to avoid dual-model residency, and write every raw
+CUDA-event and synchronized-wall sample plus peak allocated/reserved memory.
+The packed oracle, model loading, checkpoint validation, and extension build
+are excluded from timing. Isambard remains the primary formal target; RunPod is
+the fallback. No performance run has occurred. See
+`W4A8_PERFORMANCE_RUNBOOK.md`.
 
 ## Local dependency boundary
 

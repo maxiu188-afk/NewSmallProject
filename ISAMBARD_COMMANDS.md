@@ -196,6 +196,24 @@ been validated while the service is unhealthy. Success requires
 `ISAMBARD_PHASE2_FULL_MODEL_GATE_PASSED`. Detailed artifact and failure rules
 are in `docs/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
 
+## Prepared Phase-3 benchmark (after Isambard correctness passes)
+
+Do not submit the performance job until Isambard has produced its own passed
+`isambard-full-model-smoke.json` for the 280-linear checkpoint. Once that
+prerequisite and service health are confirmed:
+
+```bash
+cd "$HOME/NewSmallProject"
+sbatch --test-only scripts/run_isambard_w4a8_benchmark.sbatch
+sbatch scripts/run_isambard_w4a8_benchmark.sbatch
+```
+
+The job compares the same QuaRot model in BF16 and W4A8 modes, runs the short
+benchmark grid before the frozen formal grid, and writes raw CUDA/wall samples,
+throughput, and peak memory. It does not benchmark KV4. Success requires
+`ISAMBARD_PHASE3_W4A8_BENCHMARK_PASSED`; see
+`docs/W4A8_PERFORMANCE_RUNBOOK.md` for timing boundaries.
+
 ## Short interactive GPU diagnostic
 
 Use this only for a quick interactive diagnostic; it ends when the shell exits.
@@ -214,7 +232,8 @@ export VENV_PATH="$HOME/.venvs/newsmallproject-w4a8"
 
 ## Scope reminder
 
-The recovered Phase-2 result validates a selected `q_proj` W4A8 replacement at
-decoder-layer and logits level. A complete packed model, PPL, KV4, and
-performance evidence remain separate future gates; do not claim them from the
-environment or cache setup alone.
+RunPod has validated all 280 decoder linears through the W4A8 fixed-token and
+generation gate, but that does not establish Isambard portability. On Isambard,
+the retained selected-`q_proj` job remains the first prerequisite, followed by
+its full-decoder gate. PPL, KV4, and performance evidence remain separate;
+never claim them from environment, cache, or queued-job status alone.

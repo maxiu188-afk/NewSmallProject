@@ -171,3 +171,22 @@ layer output and final logits before a short BF16-K/V generation smoke.
 This preparation does not upgrade the selected-linear result into a full-model
 claim. See `PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md` for the Isambard-primary
 execution contract and RunPod fallback commands.
+
+## Full-decoder RunPod correctness result
+
+The prepared gate then passed on the RTX 6000 Ada environment at project
+revision `5aa871341000306fb2aa78afc1a74c4ee1600aa7`. The sharded checkpoint
+contains exactly 280 checksum-indexed decoder linears. Its manifest SHA-256 is
+`caa12e485087e4bc5630c950e5b96041ba90e770cc40cdd7ae5defba64641e33`.
+
+For fixed input IDs of shape `[1,16]`, the owned CUDA path and independent
+packed oracle agreed at every one of the 40 decoder-layer boundaries and at
+the final `[1,16,32000]` logits. Every maximum and mean absolute error was
+`0.0`. A subsequent eight-token greedy smoke kept its BF16 K/V cache and had
+finite logits. The recovered result JSON has SHA-256
+`0a848e22ff1881ecd1ee76d829e3c39d43e2f9224892cdd1e61ada6be9b208d8`.
+
+This establishes fixed-workload execution correctness for a complete W4A8
+decoder with BF16 embedding, `lm_head`, and K/V. It does not establish PPL,
+KV4, speed, throughput, or memory savings. The next permitted work is the
+matched BF16/W4A8 measurement protocol in `W4A8_PERFORMANCE_RUNBOOK.md`.
