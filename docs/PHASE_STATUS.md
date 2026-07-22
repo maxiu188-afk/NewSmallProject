@@ -7,9 +7,9 @@
 | 2 — Model equivalence | complete for local smoke scope | Framework-free one-token check passes with <=2.3e-16 error; two-layer PyTorch/Transformers random LLaMA passes with logits <=1.2e-07 and hidden states <=6.0e-07, with no model download |
 | 3 — Fake-quant accuracy | GPTQ F3/F4, component, and calibration study complete | Local F0–F5 checks plus a RunPod A40 matched SmolLM2-135M W4A4KV4 naive/QuaRot smoke completed. On Llama-2-13B WikiText-2, GPTQ naive F3 / complete F4 records PPL 8624.35 / 5.84; 32/64/128 calibration and cumulative-component rows are reviewed; the same-run BF16 F0 is 5.0087 |
 | 3b — Portable LLaMA pipeline | partial offline pretrained smoke complete | Generic model/data/runtime configuration, larger synthetic GQA LLaMA equivalence, and W4A4KV4 QDQ smoke pass locally; pinned SmolLM2-135M executes offline with residual, V/O, Q/K-after-RoPE, and 12 x 128 MLP checks |
-| 4 — CUDA/kernel correctness | Complete 280-linear W4A8 decoder gate passed on RTX 6000 Ada; Isambard portability remains pending | The owned kernel exactly matches int32 references for all three Llama linear shapes. The full sharded GPTQ checkpoint replaced all 280 decoder linears; all 40 fixed-token layer outputs and final logits matched the packed oracle with maximum error `0.0`, and BF16-K/V generation logits were finite. Embedding and `lm_head` remain BF16. Isambard job `5739260` is still only the selected-linear portability attempt; no Isambard full-decoder or KV4 result exists. |
-| 5 — Performance | official W4A4KV4 benchmark complete on RTX 6000 Ada | The complete 280-linear upstream QuaRot W4A4 backend plus KV4 cache reduced model-resident allocated memory from 26.29 GB to 7.18 GB, but was slower than its matched upstream FP16 backend. At 2048+32 tokens it was 1.13x slower for prefill, 1.52x slower per decode token, and 1.42x slower end to end. This is a capacity result, not an acceleration claim. |
-| 6 — Presentation package | Route A demonstrated; Route B serving remains | Faithful upstream Llama-2-13B W4A4KV4 now loads, generates, and has matched latency/memory evidence. The separate QuaRot-style vLLM route still targets stable GPU W4A16 GPTQ, not original QuaRot W4A4. |
+| 4 — CUDA/kernel correctness | Complete 280-linear W4A8 decoder gate passed on RTX 6000 Ada; selected-linear Isambard portability passed | The owned kernel exactly matches int32 references for all three Llama linear shapes. The full sharded GPTQ checkpoint replaced all 280 decoder linears on RTX 6000 Ada; all 40 fixed-token layer outputs and final logits matched the packed oracle with maximum error `0.0`, and BF16-K/V generation logits were finite. Isambard job `5742443` independently passed the kernel and selected-`q_proj` layer/logits gate on GH200. No Isambard full-decoder or KV4 result exists. |
+| 5 — Performance | full-model extension and paper-aligned single-block run complete | The 280-linear full-model extension reduced model-resident allocated memory from 26.29 GB to 7.18 GB but was slower at batch one. In the paper-aligned Llama-2-7B single-block matrix on the same RTX 6000 Ada, W4A4KV4 completed 14/14 cases, accelerated paired 2048-token prefill by 1.53--1.68x, and reached 1.28x layer-e2e at batch 16/context 4096. FP16 completed 13/14 and OOMed at batch 64/sequence 2048; W4 completed that point at 16.86 GB peak. |
+| 6 — Presentation package | Route A complete; Route B serving follows | Faithful upstream Llama-2-13B W4A4KV4 full-model execution and the paper-protocol single-block matrix are both documented. The next implementation is QuaRot-style vLLM W4A16 on Isambard, with full-model offline inference and serving as the primary practical result and single-block timing as a diagnostic. |
 
 ## 2026-07-16 implementation update
 
@@ -223,6 +223,28 @@ allocated memory fell from 26.29 GB to 7.18 GB. Thus the faithful backend is a
 real low-bit, large memory-saving deployment on Ada, but not a speedup. See
 `OFFICIAL_QUAROT_W4A4_RESULTS.md` for scope, hashes, raw samples, and remaining
 accuracy boundary.
+
+## 2026-07-22 Isambard acceptance and single-block result
+
+Isambard job `5742443` completed with exit code `0:0` on one GH200. Its owned
+W4A8 kernel produced exact int32 accumulators and a maximum scaled FP32 error of
+`3.814697265625e-06`. For the fixed `[1,16]` Llama-2-13B input, the selected
+layer-0 `q_proj` CUDA replacement and the independent packed oracle matched at
+the decoder-layer output and final logits with maximum and mean errors `0.0`.
+This closes only the selected-linear Isambard portability gate; other linears
+and K/V remained BF16.
+
+The paper-aligned official QuaRot single-block run has now completed on RTX
+6000 Ada. The runner retained the upstream Llama-2-7B decoder layer, W4A4
+linears, KV4 cache, and official 3-warm-up / 10-step / 10-repeat structure. W4
+completed all 14 cases; FP16 completed 13 and retained one capacity OOM at
+batch 64/sequence 2048. W4 prefill speedup was 1.53--1.68x on the paired points,
+and batch-16/context-4096 layer-e2e speedup was 1.28x. See
+`OFFICIAL_QUAROT_SINGLE_BLOCK_RESULTS.md`.
+
+Route B is now next on Isambard: its vLLM W4A16 single-block result is
+diagnostic, while matched full-model offline inference and serving remain the
+primary practical evidence.
 
 ## Local dependency boundary
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -14,7 +15,8 @@ import torch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "QuaRot"))
+QUAROT_SOURCE = Path(os.environ.get("QUAROT_SOURCE", PROJECT_ROOT / "QuaRot")).resolve()
+sys.path.insert(0, str(QUAROT_SOURCE))
 
 import quarot  # noqa: E402
 from e2e.quantized_llama import modeling_llama  # noqa: E402
@@ -98,7 +100,7 @@ def run() -> dict:
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "revisions": {
             "project": _revision(PROJECT_ROOT),
-            "upstream_quarot": _revision(PROJECT_ROOT / "QuaRot"),
+            "upstream_quarot": _revision(QUAROT_SOURCE),
         },
         "runtime": {
             "gpu": torch.cuda.get_device_name(device),

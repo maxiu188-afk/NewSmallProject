@@ -33,6 +33,10 @@ checks kept separate from real CUDA deployment and performance work.
   projections executing as packed W4A4 and the paged K/V cache at 4 bits. On
   RTX 6000 Ada it reduced model-resident allocated memory from 26.29 GB to
   7.18 GB, but was slower than the matched upstream FP16 backend.
+- A completed paper-protocol-aligned Llama-2-7B single-decoder-block benchmark
+  on RTX 6000 Ada. W4A4KV4 completed all 14 formal cases, accelerated the paired
+  2048-token prefill points by 1.53--1.68x, and reached a 1.28x layer-e2e
+  speedup at batch 16/context 4096; FP16 OOMed only at batch 64/sequence 2048.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
@@ -51,7 +55,11 @@ matched BF16/W4A8 smoke and its negative acceleration result are described in
 the [performance runbook](docs/W4A8_PERFORMANCE_RUNBOOK.md) and current
 [phase status](docs/PHASE_STATUS.md). The faithful upstream load/generation,
 latency, and memory result is recorded in the
-[official W4A4 backend result](docs/OFFICIAL_QUAROT_W4A4_RESULTS.md).
+[official W4A4 backend result](docs/OFFICIAL_QUAROT_W4A4_RESULTS.md). The
+paper-aligned layer commands are in the
+[official single-block runbook](docs/OFFICIAL_QUAROT_SINGLE_BLOCK_RUNBOOK.md),
+and the accepted measurements are in the
+[single-block result](docs/OFFICIAL_QUAROT_SINGLE_BLOCK_RESULTS.md).
 
 ## Layout
 

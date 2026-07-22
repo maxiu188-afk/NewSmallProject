@@ -130,9 +130,9 @@ cat "w4a8-env-<JOBID>.err"
 job is waiting for its prerequisite to succeed. Check `sacct` before changing
 an existing experiment job.
 
-## Submit the Phase-2 W4A8 layer gate
+## Completed Phase-2 W4A8 layer gate
 
-This is the next formal GPU task. It runs an Isambard preflight, the owned CUDA
+This gate runs an Isambard preflight, the owned CUDA
 int32 kernel smoke, and the fixed-token Llama q_proj layer/logits comparison.
 It writes an input/source manifest plus three JSON reports under
 `results/phase2-w4a8-layer/`.
@@ -172,11 +172,15 @@ W4A8_LAYER_GATE_STAGE=assert_result
 ```
 
 The pre-repair jobs `5732906` and `5735242` stopped at `inputs` because they
-looked for the packed artifact under Slurm's spool directory. The repaired job
-`5739260` was submitted on 2026-07-21; it was pending at submission time. A
-pending job is not a failed GPU run and is not evidence of numerical success.
+looked for the packed artifact under Slurm's spool directory. Job `5739260`
+then reached `kernel_smoke` but selected the old system GCC and failed during
+extension compilation. The explicit GCC 13.2 repair ran as job `5742443` on
+2026-07-22 and completed with exit code `0:0`. It reached every stage marker,
+printed `ISAMBARD_PHASE2_LAYER_GATE_PASSED`, exactly matched int32
+accumulators, and reported `0.0` layer-output and logits error against the
+packed oracle. This is the accepted selected-linear Isambard result.
 
-## Prepared full-decoder gate (do not submit during the current service issue)
+## Prepared full-decoder gate (not the current priority)
 
 The next implementation is checked in as
 `scripts/run_isambard_w4a8_full_model_gate.sbatch`. It streams all 280 GPTQ
@@ -185,9 +189,12 @@ all decoder-layer outputs and logits between the packed oracle and CUDA path,
 and runs a short BF16-K/V generation smoke. It does not run PPL, KV4, timing,
 throughput, or memory measurements.
 
-Keep the existing selected-linear job and review it when Isambard is healthy.
-Before submitting the larger gate, synchronize the reviewed repository revision
-and ask Slurm to validate its request:
+The selected-linear prerequisite is now complete. The full-decoder job remains
+available, but it is not the current priority: the official single-block
+benchmark has completed on RTX 6000 Ada, and the active route now moves to
+vLLM W4A16 on Isambard with full-model serving as the primary result. If the
+larger owned W4A8 gate is intentionally resumed later, synchronize the reviewed
+repository revision and ask Slurm to validate its request:
 
 ```bash
 cd "$HOME/NewSmallProject"
@@ -237,7 +244,7 @@ export VENV_PATH="$HOME/.venvs/newsmallproject-w4a8"
 ## Scope reminder
 
 RunPod has validated all 280 decoder linears through the W4A8 fixed-token and
-generation gate, but that does not establish Isambard portability. On Isambard,
-the retained selected-`q_proj` job remains the first prerequisite, followed by
-its full-decoder gate. PPL, KV4, and performance evidence remain separate;
-never claim them from environment, cache, or queued-job status alone.
+generation gate. Isambard job `5742443` has separately validated the selected
+`q_proj` portability boundary, but not all 280 linears. PPL, KV4, and
+performance evidence remain separate; never claim them from environment,
+cache, or scheduler status alone.
