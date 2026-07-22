@@ -9,6 +9,7 @@ import gc
 import importlib.metadata as metadata
 import json
 import math
+import os
 from pathlib import Path
 import subprocess
 
@@ -71,6 +72,8 @@ def _pair(left: dict, right: dict) -> dict:
 def run(checkpoint_root: Path, config: dict) -> dict:
     if not torch.cuda.is_available():
         raise RuntimeError("GPU smoke requires an allocated CUDA device")
+    if os.environ.get("VLLM_USE_FLASHINFER_SAMPLER") != "0":
+        raise RuntimeError("Isambard smoke requires the native vLLM sampler fallback")
     tiny = config["tiny_smoke"]
     prompt = tiny["prompt_token_ids"]
     max_tokens = tiny["max_new_tokens"]
@@ -92,6 +95,7 @@ def run(checkpoint_root: Path, config: dict) -> dict:
         "cuda_runtime": torch.version.cuda,
         "gpu": torch.cuda.get_device_name(0),
         "compute_capability": list(torch.cuda.get_device_capability(0)),
+        "vllm_use_flashinfer_sampler": os.environ["VLLM_USE_FLASHINFER_SAMPLER"],
         "prompt_token_ids": prompt,
         "models": models,
         "comparisons": {

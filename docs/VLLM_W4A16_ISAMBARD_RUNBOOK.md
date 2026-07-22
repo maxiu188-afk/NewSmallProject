@@ -84,6 +84,11 @@ runs deterministic offline inference. Success requires both an exit code of
 `0:0` and `ISAMBARD_VLLM_W4A16_SMOKE_PASSED` in the output. The JSON report is
 written to `results/vllm-w4a16-isambard-smoke/`.
 
+The job sets `VLLM_USE_FLASHINFER_SAMPLER=0`. Isambard does not expose an
+NVCC-equipped CUDA 12.9 toolkit in the frozen runtime, so FlashInfer's sampling
+JIT cannot build there. This uses vLLM's native sampler fallback only; it does
+not replace the FlashAttention or W4A16 linear execution paths under test.
+
 Do not continuously poll a queued or running job. Check one scheduler snapshot,
 continue local implementation or documentation work, and inspect `sacct` plus
 the retained logs later.

@@ -24,6 +24,7 @@ export HF_HOME="${HOME}/.cache/huggingface"
 export HF_HUB_CACHE="${HF_HOME}"
 export HF_HUB_OFFLINE=1
 export VLLM_ENABLE_V1_MULTIPROCESSING=0
+export VLLM_USE_FLASHINFER_SAMPLER=0
 export TOKENIZERS_PARALLELISM=false
 
 echo "VLLM_SMOKE_STAGE=inputs"
@@ -73,12 +74,14 @@ echo "VLLM_SMOKE_STAGE=source_manifest"
 
 echo "VLLM_SMOKE_STAGE=runtime"
 "${serving_env}/bin/python" - <<'PY'
+import os
 import torch
 import vllm
 
 assert torch.__version__ == "2.11.0+cu129", torch.__version__
 assert torch.version.cuda == "12.9", torch.version.cuda
 assert vllm.__version__.partition("+")[0] == "0.25.1", vllm.__version__
+assert os.environ["VLLM_USE_FLASHINFER_SAMPLER"] == "0"
 assert torch.cuda.is_available()
 assert torch.cuda.get_device_capability(0) == (9, 0)
 print(torch.cuda.get_device_name(0))
