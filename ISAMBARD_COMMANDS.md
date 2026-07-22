@@ -233,6 +233,7 @@ Only the final GH200 import/load/inference smoke uses Slurm:
 
 ```bash
 cd "$HOME/NewSmallProject-vllm-ready"
+mkdir -p results/vllm-w4a16-isambard-smoke
 sbatch --test-only scripts/run_isambard_vllm_w4a16_smoke.sbatch
 sbatch scripts/run_isambard_vllm_w4a16_smoke.sbatch
 ```

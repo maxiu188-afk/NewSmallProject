@@ -8,8 +8,8 @@
 #SBATCH --nodes=1
 #SBATCH --gpus=1
 #SBATCH --time=00:20:00
-#SBATCH --output=%x-%j.out
-#SBATCH --error=%x-%j.err
+#SBATCH --output=results/vllm-w4a16-isambard-smoke/%x-%j.out
+#SBATCH --error=results/vllm-w4a16-isambard-smoke/%x-%j.err
 
 set -euo pipefail
 
