@@ -272,6 +272,15 @@ any CUDA compatibility claim is made. See `VLLM_W4A16_ISAMBARD_RUNBOOK.md`.
 The job records the exact source and checkpoint-manifest hashes at runtime and
 rejects a dirty checkout or a checkpoint generated from another revision.
 
+The corrected GH200 smoke was submitted as Isambard job `5749387` from source
+revision `61004179460c22925863c4246a8c558771e93c45`. Its initial scheduler
+snapshot was `PENDING`; `sbatch --test-only` estimated 2026-07-26, but that is
+not a guaranteed start time. There is no GPU result yet. An earlier submission,
+`5749383`, was cancelled before allocation with zero elapsed time after a
+pre-run audit found that its root-level Slurm logs would trip the clean-tree
+provenance guard. The corrected script writes those logs under the ignored
+results directory. Do not monitor the queued job continuously.
+
 ## Local dependency boundary
 
 Common development dependencies may be added when a concrete task requires
