@@ -246,6 +246,32 @@ Route B is now next on Isambard: its vLLM W4A16 single-block result is
 diagnostic, while matched full-model offline inference and serving remain the
 primary practical evidence.
 
+## 2026-07-22 vLLM W4A16 login-node preparation
+
+Route B now has a clean dedicated Isambard checkout and two persistent,
+isolated aarch64 environments. Serving uses the official vLLM `0.25.1+cu129`
+wheel with PyTorch `2.11.0+cu129`; quantization uses LLM Compressor `0.12.0`
+with the same PyTorch build. They are intentionally separate because vLLM and
+LLM Compressor pin compressed-tensors 0.17.0 and 0.17.1 respectively. Setup
+ran directly on the login node and did not submit a Slurm job.
+
+The login preflight passed with the expected architecture and package versions.
+It retains one warning from the official PyTorch aarch64 dependency:
+`nvidia-cusparselt-cu12==0.7.1` has an internal `manylinux2014_sbsa` tag that
+stock `pip check` does not recognize. The guard accepts only that exact
+package/version/tag combination; successful imports and a GPU smoke remain
+required.
+
+CPU-only LLM Compressor preparation produced deterministic BF16, unrotated
+W4A16, and offline-rotated W4A16 tiny Llama checkpoints. Each two-layer
+quantized checkpoint has 14 packed compressed-tensors linears with 4-bit
+weights and group size 128. This closes environment and metadata preparation
+only. The checked-in 20-minute GH200 job still has to load all three models
+through the same vLLM runtime and run deterministic offline inference before
+any CUDA compatibility claim is made. See `VLLM_W4A16_ISAMBARD_RUNBOOK.md`.
+The job records the exact source and checkpoint-manifest hashes at runtime and
+rejects a dirty checkout or a checkpoint generated from another revision.
+
 ## Local dependency boundary
 
 Common development dependencies may be added when a concrete task requires

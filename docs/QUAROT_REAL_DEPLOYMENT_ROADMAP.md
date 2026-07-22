@@ -61,8 +61,17 @@ completed the paper-aligned official QuaRot single-block result. A read-only
 check on 2026-07-21 confirmed `aarch64`, glibc 2.38, and `/usr/bin/apptainer`
 plus `/usr/bin/singularity`; the selected-linear W4A8 CUDA gate then passed on
 GH200 as job `5742443`. These facts establish usable CUDA allocation and
-container feasibility, but no vLLM image, W4A16 checkpoint, or serving result
-has yet passed.
+container feasibility.
+
+The 2026-07-22 login-node preparation now freezes the official vLLM
+`0.25.1+cu129` aarch64 wheel with PyTorch `2.11.0+cu129`, plus a separate LLM
+Compressor `0.12.0` environment. The serving and quantizer environments remain
+separate because they pin compressed-tensors 0.17.0 and 0.17.1 respectively.
+The login preflight passed, and deterministic BF16, unrotated W4A16, and
+offline-rotated W4A16 tiny checkpoints were generated on CPU. Both quantized
+checkpoints contain 14 group-128 4-bit linears in packed compressed-tensors
+format. This is preparation and metadata evidence only: no vLLM GPU load,
+inference, service, quality, or performance result has yet passed.
 
 The serving checkpoint may use the residual Hadamard and the paired per-head
 V/O Hadamard because these can be absorbed into standard Llama weights. It
@@ -149,9 +158,12 @@ one precision label.
 
 To reuse the persistent Isambard state, execute Route B in three server phases:
 
-1. **Platform and tiny smoke:** validate the approved Apptainer image, import
-   the frozen vLLM release on GH200, and load the BF16/unrotated-W4A16/rotated-
-   W4A16 tiny checkpoints through the same runtime.
+1. **Platform and tiny smoke:** validate the frozen official aarch64 wheel
+   environment, import the frozen vLLM release on GH200, and load the
+   BF16/unrotated-W4A16/rotated-
+   W4A16 tiny checkpoints through the same runtime. The login-node environment
+   and checkpoint preparation are complete; the short GH200 load/inference
+   smoke remains outstanding.
 2. **Pretrained checkpoint gate:** apply the frozen offline rotations, quantize
    rotated and unrotated checkpoints with one calibration set, verify metadata
    and fixed-token offline inference, then scale to Llama-2-13B only after the

@@ -95,4 +95,5 @@ Current implementation work is split into two explicitly named routes:
 Stable vLLM does not currently support INT4-weight/INT8-activation W4A8 on
 NVIDIA GPUs, so the first serving format is W4A16 GPTQ on Ada/Hopper. This is
 QuaRot-style engineering and is not labelled as original QuaRot W4A4. See
-[the real-deployment roadmap](docs/QUAROT_REAL_DEPLOYMENT_ROADMAP.md).
+[the real-deployment roadmap](docs/QUAROT_REAL_DEPLOYMENT_ROADMAP.md) and the
+[Isambard vLLM W4A16 runbook](docs/VLLM_W4A16_ISAMBARD_RUNBOOK.md).
