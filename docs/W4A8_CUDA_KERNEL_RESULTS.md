@@ -154,10 +154,14 @@ and `ninja==1.11.1.4`. The exact Llama revision and WikiText-2 splits were
 verified from the local cache with outbound Hub access disabled.
 
 The original jobs `5732906` and `5735242` stopped before CUDA because the
-Slurm spool copy broke source-relative project-root discovery. The repaired
-script uses `SLURM_SUBMIT_DIR`; job `5739260` was submitted on 2026-07-21 and
-remains a reproducibility attempt rather than a completed Isambard result until
-its output is reviewed.
+Slurm spool copy broke source-relative project-root discovery. Job `5739260`
+then reached `kernel_smoke` but failed because the system GCC was too old for
+PyTorch 2.9. The explicit GCC 13.2 repair ran as job `5742443` on 2026-07-22
+and completed with exit code `0:0` on one GH200. It produced exact int32
+accumulators, maximum scaled FP32 error `3.814697265625e-06`, and `0.0`
+maximum/mean errors for both the fixed-token decoder-layer output and final
+logits. This completes the selected-`q_proj` Isambard portability gate only;
+all other linears and K/V remained BF16.
 
 ## Full-decoder gate preparation
 

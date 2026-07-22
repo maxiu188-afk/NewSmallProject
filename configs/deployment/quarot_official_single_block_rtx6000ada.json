@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "experiment_id": "quarot-official-single-block-rtx6000ada",
+  "scope": "Paper-protocol-aligned single Llama-2 decoder-block performance using the pinned upstream QuaRot FP16 and W4A4KV4 backends; not full-model inference or an RTX 3090 numerical reproduction.",
+  "source": {
+    "upstream_commit": "5008669b08c1f11f9b64d52d16fddd47ca754c5a",
+    "model_id": "meta-llama/Llama-2-7b-hf",
+    "model_revision": "01c7f73d771dfac7d292323805ebc428287df4f9",
+    "required_compatibility_patches": [
+      "patches/quarot-sm89-build.patch",
+      "patches/quarot-transformers-4.38-cache.patch",
+      "patches/quarot-transformers-4.38-rope.patch"
+    ],
+    "expected_patched_paths": [
+      "e2e/quantized_llama/modeling_llama.py",
+      "quarot/transformers/kv_cache.py",
+      "setup.py"
+    ],
+    "expected_patched_sha256": {
+      "e2e/quantized_llama/modeling_llama.py": "dee2f59c9c74a2a4799402cfe91d8dfad8087eb0b25f8d9a1ae9aad04a488610",
+      "quarot/transformers/kv_cache.py": "cd6a3a7544ae47f31b4db05ac25532883720e3100ace25e5db09d60896fe4e31",
+      "setup.py": "31752374109751793e05a873137d849ca0472382175e1c322489deccca297a0e"
+    },
+    "expected_submodules": {
+      "third-party/cutlass": "ffa34e70756b0bc744e1dfcc115b5a991a68f132",
+      "third-party/fast-hadamard-transform": "4ea722e434e3d4f2a14522341959ebdbe62be2de",
+      "third-party/nvbench": "d8dced8a64d9ce305add92fa6d274fd49b569b7e"
+    }
+  },
+  "target": {
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "torch": "2.2.1+cu121",
+    "torch_cuda": "12.1",
+    "transformers": "4.38.0",
+    "flash_attn": "2.5.6"
+  },
+  "modes": [
+    "w4a4kv4",
+    "fp16"
+  ],
+  "protocols": {
+    "smoke": {
+      "warmup_steps": 1,
+      "bench_steps": 2,
+      "repetitions": 2
+    },
+    "official": {
+      "warmup_steps": 3,
+      "bench_steps": 10,
+      "repetitions": 10
+    }
+  },
+  "groups": [
+    {
+      "name": "smoke",
+      "protocol": "smoke",
+      "cases": [
+        {
+          "id": "smoke-b1-s128-d2",
+          "metrics": [
+            "prefill",
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 1,
+          "prefill_tokens": 128,
+          "decode_tokens": 2,
+          "seed": 20260722
+        }
+      ]
+    },
+    {
+      "name": "paper_prefill",
+      "protocol": "official",
+      "cases": [
+        {
+          "id": "paper-prefill-b1-s2048",
+          "metrics": [
+            "prefill"
+          ],
+          "batch_size": 1,
+          "prefill_tokens": 2048,
+          "decode_tokens": 0,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-prefill-b4-s2048",
+          "metrics": [
+            "prefill"
+          ],
+          "batch_size": 4,
+          "prefill_tokens": 2048,
+          "decode_tokens": 0,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-prefill-b16-s2048",
+          "metrics": [
+            "prefill"
+          ],
+          "batch_size": 16,
+          "prefill_tokens": 2048,
+          "decode_tokens": 0,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-prefill-b64-s2048",
+          "metrics": [
+            "prefill"
+          ],
+          "batch_size": 64,
+          "prefill_tokens": 2048,
+          "decode_tokens": 0,
+          "seed": 20260722
+        }
+      ]
+    },
+    {
+      "name": "paper_decode_memory",
+      "protocol": "official",
+      "cases": [
+        {
+          "id": "paper-decode-memory-b1-s256-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 1,
+          "prefill_tokens": 256,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b1-s512-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 1,
+          "prefill_tokens": 512,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b1-s1024-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 1,
+          "prefill_tokens": 1024,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b1-s2048-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 1,
+          "prefill_tokens": 2048,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b1-s4096-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 1,
+          "prefill_tokens": 4096,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b16-s256-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 16,
+          "prefill_tokens": 256,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b16-s512-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 16,
+          "prefill_tokens": 512,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b16-s1024-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 16,
+          "prefill_tokens": 1024,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b16-s2048-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 16,
+          "prefill_tokens": 2048,
+          "decode_tokens": 50,
+          "seed": 20260722
+        },
+        {
+          "id": "paper-decode-memory-b16-s4096-d50",
+          "metrics": [
+            "decode",
+            "e2e"
+          ],
+          "batch_size": 16,
+          "prefill_tokens": 4096,
+          "decode_tokens": 50,
+          "seed": 20260722
+        }
+      ]
+    }
+  ]
+}

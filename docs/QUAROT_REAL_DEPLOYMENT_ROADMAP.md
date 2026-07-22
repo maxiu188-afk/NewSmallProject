@@ -55,15 +55,14 @@ while GPTQ/AWQ/Marlin W4A16 is supported on Ada and Hopper. Consequently:
   output rather than the repository's owned checkpoint format.
 
 Both available GPU classes are plausible for this route: RTX 6000 Ada and
-GH200 satisfy the vLLM hardware/quantization matrix, and current vLLM publishes
-an `aarch64` wheel pattern plus GH200 container-build guidance. RunPod x86-64
-is still the lower-risk first smoke. Isambard requires a separate check of its
-allowed wheel/container mechanism before it can be called ready; hardware
-support alone is not an installation result. A read-only check on 2026-07-21
-confirmed `aarch64`, glibc 2.38, and `/usr/bin/apptainer` plus
-`/usr/bin/singularity` on the Isambard login node. This makes an official
-GH200 container smoke plausible, but no image pull, vLLM import, or GPU
-inference has yet passed there.
+GH200 satisfy the vLLM hardware/quantization matrix. Route B now selects
+Isambard GH200 as its formal platform after the RTX 6000 Ada RunPod session
+completed the paper-aligned official QuaRot single-block result. A read-only
+check on 2026-07-21 confirmed `aarch64`, glibc 2.38, and `/usr/bin/apptainer`
+plus `/usr/bin/singularity`; the selected-linear W4A8 CUDA gate then passed on
+GH200 as job `5742443`. These facts establish usable CUDA allocation and
+container feasibility, but no vLLM image, W4A16 checkpoint, or serving result
+has yet passed.
 
 The serving checkpoint may use the residual Hadamard and the paired per-head
 V/O Hadamard because these can be absorbed into standard Llama weights. It
@@ -127,15 +126,37 @@ come from the matched repeated protocol.
    GPU, and server flags. Record quality, TTFT, TPOT, request throughput, token
    throughput, and peak memory.
 
-## Immediate next run
+## Completed single-block result and immediate next run
 
 Route A's pinned source/build/primitive/KV gates, complete Llama-2-13B export,
-full-checkpoint generation smoke, and matched FP16/W4A4KV4 performance run have
-now completed on RTX 6000 Ada. The official backend reduces model-resident
-allocated memory from 26.29 GB to 7.18 GB but is slower at batch 1; see
-`OFFICIAL_QUAROT_W4A4_RESULTS.md`. A bounded PPL slice remains the next Route A
-accuracy gate if it is needed for the demonstration.
+full-checkpoint generation smoke, and matched FP16/W4A4KV4 full-model extension
+have completed on RTX 6000 Ada. That result reduces model-resident allocated
+memory from 26.29 GB to 7.18 GB but is slower at batch 1; it is not the
+single-transformer-block performance protocol reported by the paper.
 
-The next implementation run should therefore advance Route B's tiny
-three-checkpoint quantizer/vLLM smoke. Results from the two routes remain in
-separate directories and are never merged into one precision label.
+The pinned upstream Llama-2-7B single-block matrix has completed on the same
+RunPod RTX 6000 Ada platform. W4A4KV4 completed all 14 cases; FP16 completed 13
+and retained a capacity OOM at batch 64/sequence 2048. Paired 2048-token
+prefill speedup was 1.53--1.68x, while batch-16/context-4096 layer-e2e reached
+1.28x. The Ada result is protocol-aligned rather than numerically exact because
+the paper used RTX 3090. See `OFFICIAL_QUAROT_SINGLE_BLOCK_RESULTS.md`.
+
+Route B now advances on Isambard GH200. It will retain a single-block W4A16
+diagnostic, but the primary result remains the matched BF16 / unrotated W4A16 /
+offline-rotated W4A16 full-model vLLM inference and serving comparison. Results
+from the two routes remain in separate directories and are never merged into
+one precision label.
+
+To reuse the persistent Isambard state, execute Route B in three server phases:
+
+1. **Platform and tiny smoke:** validate the approved Apptainer image, import
+   the frozen vLLM release on GH200, and load the BF16/unrotated-W4A16/rotated-
+   W4A16 tiny checkpoints through the same runtime.
+2. **Pretrained checkpoint gate:** apply the frozen offline rotations, quantize
+   rotated and unrotated checkpoints with one calibration set, verify metadata
+   and fixed-token offline inference, then scale to Llama-2-13B only after the
+   smallest approved pretrained model passes.
+3. **Primary full-model measurement:** run matched offline and server workloads
+   for BF16, unrotated W4A16, and rotated W4A16; record quality, TTFT, TPOT,
+   request/token throughput, and peak memory. Run the single-block comparison
+   in the same environment as a diagnostic, not as the primary serving claim.

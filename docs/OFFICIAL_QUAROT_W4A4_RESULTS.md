@@ -15,6 +15,12 @@ upstream QuaRot FP16 model/cache implementation, W4A4KV4 reduced model-resident
 allocated GPU memory from 26.29 GB to 7.18 GB, but was slower in every measured
 workload.
 
+This is a full-model engineering extension. The QuaRot paper's performance
+figures and tables time one transformer block, so this result must not be
+presented as a reproduction of those numbers. The subsequent paper-aligned
+Llama-2-7B single-block RTX 6000 Ada run is recorded separately in
+`OFFICIAL_QUAROT_SINGLE_BLOCK_RESULTS.md`.
+
 ## Provenance and compatibility scope
 
 - Project revision used for the formal benchmark: `e23d4cba0659b0f2b88dcf332f102e4c8500c786`

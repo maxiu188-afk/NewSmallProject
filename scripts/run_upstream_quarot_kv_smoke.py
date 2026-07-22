@@ -7,16 +7,22 @@ import argparse
 import datetime as dt
 import json
 import math
+import os
 import subprocess
 from pathlib import Path
+import sys
 
 import torch
 
-import quarot.transformers.kv_cache as kv_cache_module
-from quarot.transformers.kv_cache import MultiLayerPagedKVCache4Bit, unpack_i4_and_asym_dequantize
-
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+QUAROT_SOURCE = Path(os.environ.get("QUAROT_SOURCE", PROJECT_ROOT / "QuaRot")).resolve()
+sys.path.insert(0, str(QUAROT_SOURCE))
+
+import quarot.transformers.kv_cache as kv_cache_module  # noqa: E402
+from quarot.transformers.kv_cache import (  # noqa: E402
+    MultiLayerPagedKVCache4Bit,
+    unpack_i4_and_asym_dequantize,
+)
 
 
 def _revision(path: Path) -> str:
@@ -134,7 +140,7 @@ def run() -> dict:
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "revisions": {
             "project": _revision(PROJECT_ROOT),
-            "upstream_quarot": _revision(PROJECT_ROOT / "QuaRot"),
+            "upstream_quarot": _revision(QUAROT_SOURCE),
         },
         "runtime": {
             "gpu": torch.cuda.get_device_name(device),
