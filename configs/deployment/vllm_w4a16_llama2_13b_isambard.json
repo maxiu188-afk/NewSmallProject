@@ -1,0 +1,47 @@
+{
+  "config_version": 1,
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "expected_decoder_linears": 280
+  },
+  "calibration": {
+    "dataset_id": "Salesforce/wikitext",
+    "dataset_subset": "wikitext-2-raw-v1",
+    "dataset_split": "train",
+    "dataset_revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "text_field": "text",
+    "samples": 128,
+    "sequence_length": 2048,
+    "max_rows": 100000,
+    "seed": 0
+  },
+  "quantization": {
+    "algorithm": "GPTQ",
+    "scheme": "W4A16",
+    "group_size": 128,
+    "targets": "Linear",
+    "ignore": ["lm_head"],
+    "format": "pack-quantized"
+  },
+  "rotation": {
+    "max_absolute_logit_error_tolerance": 0.25
+  },
+  "inference": {
+    "prompt": "The capital of France is",
+    "max_new_tokens": 8,
+    "max_model_len": 256,
+    "max_logprobs": 128,
+    "gpu_memory_utilization": 0.75
+  },
+  "runtime": {
+    "torch_version": "2.11.0+cu129",
+    "vllm_version": "0.25.1",
+    "llmcompressor_version": "0.12.0",
+    "artifact_subdir": "newsmallproject-vllm/llama2-13b-w4a16"
+  },
+  "scope": "Llama-2-13B BF16 versus matched unrotated and offline-rotated GPTQ W4A16 full-model correctness gate; not service performance"
+}

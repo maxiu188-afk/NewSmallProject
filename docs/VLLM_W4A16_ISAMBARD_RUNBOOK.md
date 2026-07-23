@@ -95,12 +95,49 @@ the retained logs later.
 
 ## Next gates
 
-1. Repeat offline rotation and matched calibration on the smallest approved
-   pretrained Llama checkpoint.
-2. Add fixed-token offline comparison and a one-request `/health`, `/v1/models`,
+The tiny GH200 gate passed as job `5751780`. The next gate goes directly to the
+pinned `meta-llama/Llama-2-13b-hf` revision already cached on Isambard; no
+SmolLM intermediate is used. BF16 uses the original snapshot, while unrotated
+and offline-rotated W4A16 use the same materialized 128 x 2048-token WikiText
+calibration set. The two compressed checkpoints live under the project
+filesystem rather than the nearly-full home quota.
+
+Prepare the shared calibration tokens directly on the login node:
+
+```bash
+cd "$HOME/NewSmallProject-vllm-ready"
+export HF_HOME="$HOME/.cache/huggingface"
+export HF_HUB_CACHE="$HF_HOME"
+export HF_HUB_OFFLINE=1
+export HF_DATASETS_OFFLINE=1
+export ARTIFACT_ROOT="${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4a16"
+mkdir -p "$ARTIFACT_ROOT"
+"$HOME/.venvs/newsmallproject-llmcompressor-0.12.0/bin/python" \
+  scripts/prepare_vllm_w4a16_llama2_calibration.py \
+  --config configs/deployment/vllm_w4a16_llama2_13b_isambard.json \
+  --output-dir "$ARTIFACT_ROOT/calibration-128x2048"
+```
+
+Only after the calibration manifest passes, submit the GPU export/inference
+gate:
+
+```bash
+mkdir -p results/vllm-w4a16-llama2-13b
+sbatch --test-only scripts/run_isambard_vllm_w4a16_llama2_13b_gate.sbatch
+sbatch scripts/run_isambard_vllm_w4a16_llama2_13b_gate.sbatch
+```
+
+The job is stage-resumable for completed exports and refuses to overwrite a
+partial checkpoint. Success requires 280 packed decoder linears in each W4A16
+checkpoint, bounded pre-quantization rotation error, successful vLLM inference
+for all three complete models, and
+`ISAMBARD_VLLM_W4A16_LLAMA2_13B_GATE_PASSED`.
+
+After that:
+
+1. Add a one-request `/health`, `/v1/models`,
    and deterministic completion service smoke.
-3. Scale only a passed workflow to Llama-2-13B.
-4. Measure matched BF16, unrotated W4A16, and rotated W4A16 full-model serving;
+2. Measure matched BF16, unrotated W4A16, and rotated W4A16 full-model serving;
    run the single-block W4A16 diagnostic in the same environment.
 
 No throughput, latency, quality, or full-model claim follows from the platform
