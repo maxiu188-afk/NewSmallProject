@@ -133,6 +133,40 @@ checkpoint, bounded pre-quantization rotation error, successful vLLM inference
 for all three complete models, and
 `ISAMBARD_VLLM_W4A16_LLAMA2_13B_GATE_PASSED`.
 
+### Job 5758738 inference-only recovery
+
+Job `5758738` completed both expensive full-model exports before failing in
+`offline_inference`. Each checkpoint contains 280 packed decoder linears and
+occupies 7.20 GB; the rotated pre-quantization BF16 logit error was 0.1875,
+within the frozen 0.25 tolerance. The BF16 vLLM engine also loaded and
+generated successfully.
+
+The failure was process lifetime rather than a checkpoint or W4A16 failure.
+The original inference driver created all three vLLM engines sequentially in
+one Python process. After the BF16 engine finished, the process still held a
+large V1-engine GPU reservation, so the unrotated W4A16 engine saw only
+24.58 GiB free, below its requested 71.25 GiB reservation.
+
+The repaired driver gives each model its own child process. Process exit
+releases CUDA and vLLM state before the next model starts. Reuse of the
+completed exports is allowed only when their recorded revision is an ancestor
+of the retry revision and all export-producing source files are byte-unchanged
+in Git. The retry job also rechecks report hashes, rotation tolerance, and all
+280 packed weights before inference:
+
+```bash
+cd "$HOME/NewSmallProject-vllm-ready"
+sbatch --test-only \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_inference_retry.sbatch
+sbatch scripts/run_isambard_vllm_w4a16_llama2_13b_inference_retry.sbatch
+```
+
+This job does not repeat calibration or quantization. Success requires exit
+code `0:0`, three per-model JSON files under
+`offline-inference-retry-models/`, and both
+`ISAMBARD_VLLM_W4A16_LLAMA2_13B_INFERENCE_RETRY_PASSED` and the overall gate
+marker in its output.
+
 After that:
 
 1. Add a one-request `/health`, `/v1/models`,
