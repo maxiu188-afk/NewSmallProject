@@ -1,0 +1,64 @@
+{
+  "config_version": 1,
+  "source_gate": {
+    "job_id": "5769503",
+    "required_marker": "ISAMBARD_VLLM_W4A16_LLAMA2_13B_GATE_PASSED",
+    "result": "results/vllm-w4a16-llama2-13b/offline-inference-retry.json",
+    "result_sha256": "3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10",
+    "expected_models": ["bf16", "unrotated_w4a16", "rotated_w4a16"]
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18000,
+    "dtype": "bfloat16",
+    "max_model_len": 512,
+    "max_num_seqs": 8,
+    "kv_cache_memory_bytes": 8589934592,
+    "seed": 0,
+    "generation_config": "vllm",
+    "enforce_eager": false,
+    "disable_log_stats": true,
+    "ready_timeout_seconds": 600,
+    "stop_timeout_seconds": 60
+  },
+  "smoke": {
+    "prompt": "The capital of France is",
+    "temperature": 0.0,
+    "max_tokens": 8,
+    "ignore_eos": true
+  },
+  "benchmark": {
+    "backend": "vllm",
+    "endpoint": "/v1/completions",
+    "dataset_name": "random",
+    "seed": 0,
+    "input_length": 256,
+    "output_length": 64,
+    "num_prompts": 64,
+    "num_warmups": 4,
+    "request_rate": "inf",
+    "ignore_eos": true,
+    "save_detailed": true,
+    "percentile_metrics": ["ttft", "tpot", "itl", "e2el"],
+    "metric_percentiles": [50, 90, 99],
+    "cases": [
+      {
+        "name": "latency_c1",
+        "max_concurrency": 1
+      },
+      {
+        "name": "throughput_c8",
+        "max_concurrency": 8
+      }
+    ]
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "torch_version": "2.11.0+cu129",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [9, 0],
+    "vllm_use_flashinfer_sampler": "0"
+  },
+  "scope": "Matched Llama-2-13B BF16, unrotated W4A16, and offline-rotated W4A16 OpenAI-compatible service smoke and serving benchmark on one Isambard GH200"
+}

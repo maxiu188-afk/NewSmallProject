@@ -167,12 +167,65 @@ code `0:0`, three per-model JSON files under
 `ISAMBARD_VLLM_W4A16_LLAMA2_13B_INFERENCE_RETRY_PASSED` and the overall gate
 marker in its output.
 
-After that:
+Job `5769503` completed this recovery in 2 minutes 58 seconds with exit code
+`0:0`. BF16, unrotated W4A16, and rotated W4A16 all loaded through vLLM
+0.25.1+cu129 on one GH200 and returned the same eight greedy tokens. Across
+the 122 shared first-token logprob entries, the maximum absolute errors against
+BF16 were 0.65765 for unrotated W4A16 and 0.37806 for rotated W4A16. This is
+accepted full-model offline inference evidence, not quality or performance
+evidence.
 
-1. Add a one-request `/health`, `/v1/models`,
-   and deterministic completion service smoke.
-2. Measure matched BF16, unrotated W4A16, and rotated W4A16 full-model serving;
-   run the single-block W4A16 diagnostic in the same environment.
+## Service smoke and dependent formal benchmark
+
+The service stage uses the separate serving configuration at
+`configs/deployment/vllm_w4a16_llama2_13b_serving_isambard.json`; the accepted
+export configuration remains byte-unchanged. The smoke starts a fresh
+OpenAI-compatible server for each complete model, checks `/health` and
+`/v1/models`, and sends one deterministic eight-token `/v1/completions`
+request. It also requires GPU memory to return to the pre-server baseline
+before starting the next model.
+
+The formal benchmark is submitted with an `afterok` dependency on the smoke.
+It additionally parses the smoke JSON and requires the same Git revision, so a
+missing, failed, or stale smoke cannot authorize measurement:
+
+```bash
+cd "$HOME/NewSmallProject-vllm-ready"
+mkdir -p results/vllm-w4a16-serving-llama2-13b
+sbatch --test-only \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_service_smoke.sbatch
+sbatch --test-only \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_serving_benchmark.sbatch
+
+smoke_job="$(
+  sbatch --parsable \
+    scripts/run_isambard_vllm_w4a16_llama2_13b_service_smoke.sbatch
+)"
+sbatch --dependency="afterok:${smoke_job}" \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_serving_benchmark.sbatch
+```
+
+Both jobs reuse the accepted inference result from job `5769503` only after
+checking its SHA-256, ancestry, runtime, model paths, and unchanged
+inference-producing source files.
+
+The matched benchmark uses random 256-token inputs and forced 64-token outputs:
+64 measured requests plus four warmups at concurrency 1 and concurrency 8.
+Every model/case pair gets a fresh server. Server flags, random seed, tokenizer,
+requests, and an explicit 8 GiB KV cache are identical. The result retains
+client-side TTFT, TPOT, ITL, E2E, request throughput, output/total-token
+throughput, p50/p90/p99 values, detailed raw requests, and sampled GPU memory.
+The fixed KV allocation prevents vLLM's automatic cache sizing from hiding
+model-memory differences.
+
+Smoke success requires
+`ISAMBARD_VLLM_W4A16_LLAMA2_13B_SERVICE_SMOKE_PASSED`. Formal success requires
+`ISAMBARD_VLLM_W4A16_LLAMA2_13B_SERVING_BENCHMARK_PASSED`. Benchmark duration
+and Slurm elapsed time include server startup and teardown and are not reported
+as request latency.
+
+After the full-model measurement, run the single-block W4A16 comparison in the
+same environment as a diagnostic rather than the primary result.
 
 No throughput, latency, quality, or full-model claim follows from the platform
 or tiny smoke gates.
