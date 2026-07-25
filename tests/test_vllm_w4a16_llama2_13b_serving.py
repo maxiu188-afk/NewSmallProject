@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import socket
 import sys
 import tempfile
 import unittest
@@ -130,6 +131,14 @@ class VllmW4A16LlamaServingTests(unittest.TestCase):
             mock.patch.object(MODULE.subprocess, "run", return_value=completed),
         ):
             self.assertEqual(MODULE._gpu_memory_used_mib(), 20)
+
+    def test_port_probe_checks_for_a_listener_instead_of_binding(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen()
+            port = listener.getsockname()[1]
+            self.assertFalse(MODULE._port_is_free("127.0.0.1", port))
+        self.assertTrue(MODULE._port_is_free("127.0.0.1", port))
 
 
 if __name__ == "__main__":

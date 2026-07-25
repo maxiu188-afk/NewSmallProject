@@ -224,6 +224,15 @@ Smoke success requires
 and Slurm elapsed time include server startup and teardown and are not reported
 as request latency.
 
+The first service submission, job `5777529`, completed the BF16 health, model
+listing, and deterministic completion requests before the orchestration code
+misclassified TCP `TIME_WAIT` state as an active listener when preparing the
+second server. The server and engine had shut down normally; no W4A16 model had
+started, and this was not a vLLM, checkpoint, API, or GPU-memory failure. The
+port guard now checks whether a listener accepts a connection instead of
+attempting to bind the recently used port. Its dependent benchmark job
+`5777531` was cancelled after Slurm marked the dependency as never satisfiable.
+
 After the full-model measurement, run the single-block W4A16 comparison in the
 same environment as a diagnostic rather than the primary result.
 

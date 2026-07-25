@@ -124,11 +124,8 @@ def _request_json(
 
 def _port_is_free(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
-        try:
-            candidate.bind((host, port))
-        except OSError:
-            return False
-    return True
+        candidate.settimeout(1.0)
+        return candidate.connect_ex((host, port)) != 0
 
 
 def _log_tail(path: Path, lines: int = 80) -> str:
