@@ -19,7 +19,8 @@ The BF16 baseline completed on 2026-07-17 with model revision
 `b08601e04326c79dfdd32d625aee71d232d685c3`. It scored mean NLL
 `1.6111028514668504` and PPL `5.008331629066348` over 331,614 next-token
 targets (162 sequences of length 2048). The full result and its evaluation
-boundary are recorded in [LLAMA2_13B_BF16_BASELINE.md](LLAMA2_13B_BF16_BASELINE.md).
+boundary are recorded in
+[LLAMA2_13B_BF16_BASELINE.md](../fake_quant/LLAMA2_13B_BF16_BASELINE.md).
 
 ## Server preparation and authentication
 
@@ -112,7 +113,7 @@ identical pinned model/data/evaluation fields: F3 naive RTN W4A4 scored PPL
 `8719.677539`, while F4 QuaRot RTN W4A4 scored `12.460633`. The matched BF16
 reference in these runs scored `5.008573`. Full provenance, numerical
 boundaries, and the saved result locations are in
-[LLAMA2_13B_RTN_W4A4_RESULTS.md](LLAMA2_13B_RTN_W4A4_RESULTS.md).
+[LLAMA2_13B_RTN_W4A4_RESULTS.md](../fake_quant/LLAMA2_13B_RTN_W4A4_RESULTS.md).
 
 ## GPTQ implementation and gate
 

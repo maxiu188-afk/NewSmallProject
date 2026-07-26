@@ -1,0 +1,220 @@
+% !TeX program = xelatex
+\documentclass[11pt,a4paper]{ctexart}
+
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+\setlist[itemize]{leftmargin=2em,itemsep=0.25em,topsep=0.35em}
+\setlist[enumerate]{leftmargin=2em,itemsep=0.35em,topsep=0.35em}
+\renewcommand{\arraystretch}{1.15}
+
+\title{QuaRot低比特量化复现与部署阶段性汇报}
+\author{}
+\date{2026年7月26日}
+
+\begin{document}
+
+\maketitle
+\vspace{-2.5em}
+
+\section*{总体进展}
+
+目前已经完成三层递进验证：首先，fake quant实验表明QuaRot变换能够显著改善
+Llama-2-13B在4-bit量化下的精度；其次，官方QuaRot后端的单个decoder block测试
+表明低比特计算在较大的prefill和高batch、长上下文场景中可以获得速度优势；最后，
+完整模型测试证明真实W4A4KV4部署能够大幅降低显存占用，但旧版官方kernel在
+RTX 6000 Ada的batch-1服务场景中仍慢于FP16。最终，Isambard GH200上的稳定vLLM
+W4A16完整模型服务测试同时获得显存、吞吐和TPOT/E2E收益；W4A8则保留为正确性与
+底层kernel研究路线。
+
+\section{Fake quant：验证算法精度}
+
+正式实验采用\texttt{Llama-2-13B}和WikiText-2测试集，共评估331,614个
+next-token预测目标。权重量化和激活量化均为4 bit，K/V cache在本组实验中保持
+16 bit。主要结果如下。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}llr@{}}
+    \toprule
+    配置 & 方法说明 & PPL \\
+    \midrule
+    BF16基线 & W16A16KV16 & 5.0087 \\
+    Naive RTN & W4A4，无旋转 & 8719.6775 \\
+    QuaRot RTN & W4A4，完整旋转 & 12.4606 \\
+    Naive GPTQ & W4A4，无旋转 & 8624.3509 \\
+    QuaRot + GPTQ & W4A4，完整旋转 & \textbf{5.8376} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Llama-2-13B的WikiText-2 fake quant结果。}
+\end{table}
+
+结果说明，直接进行4-bit量化会导致模型精度崩溃，GPTQ本身也不能挽救未旋转的
+naive模型。QuaRot变换是低比特精度得以保持的关键：RTN条件下PPL从8719.68
+降至12.46；结合GPTQ后进一步降至5.84，与BF16基线仅相差约0.83。
+
+在32、64和128条校准序列下，完整QuaRot + GPTQ的PPL分别为5.8679、
+5.8478和5.8376，说明该结果对当前校准规模较稳定。现有component结果是沿固定
+路径逐步累加的比较，而不是独立remove-one或全因子消融，因此只能说明完整路径
+如何逐步恢复精度，不能据此独立归因某一旋转组件的因果贡献。
+
+需要注意的是，这些结果属于浮点QDQ形式的fake quant，用于证明算法精度，不能
+据此声称已经实现packed低比特存储、整数kernel、KV4、显存下降或推理加速。
+
+\section{官方端到端单block结果}
+
+官方QuaRot W4A4KV4后端在一张RTX 6000 Ada上完成了Llama-2-7B单个
+decoder block的论文协议对齐测试。测试保留官方3次warm-up、每次10个timed
+call、共10次重复的结构。W4A4KV4完成全部14个配置；FP16完成13个配置，并在
+batch 64、sequence length 2048时因超过48\,GB显存而OOM。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}p{0.38\linewidth}p{0.24\linewidth}p{0.28\linewidth}@{}}
+    \toprule
+    场景 & W4相对FP16速度 & 主要结论 \\
+    \midrule
+    2048-token prefill，batch 1/4/16
+      & 1.67/1.68/1.53$\times$
+      & 三个配对点均加速 \\
+    Batch 1 decode，context 256--4096
+      & 0.58--0.66$\times$
+      & 小batch decode仍较慢 \\
+    Batch 16，context 4096，decode-50
+      & 1.03$\times$
+      & 长上下文下出现交叉点 \\
+    Batch 16，context 4096，block E2E
+      & 1.28$\times$
+      & prefill加50次decode整体加速 \\
+    \bottomrule
+  \end{tabular}
+  \caption{官方QuaRot单block关键性能结果。比值大于1表示W4更快。}
+\end{table}
+
+所有配对场景中，W4A4KV4均减少峰值显存，显存优势约为1.87--3.32倍。在最大的
+prefill配置中，FP16发生OOM，而W4A4KV4以16.86\,GB峰值显存完成测试。
+
+该结果说明低比特kernel的收益与矩阵形状密切相关：在prefill以及高batch、长上下文
+场景中，权重和KV cache的带宽节省可以抵消量化开销；在batch-1自回归decode中，
+小矩阵计算和kernel launch开销仍占主导。该实验只对应论文采用的单transformer
+block性能范围，不等同于完整模型速度或模型质量。原论文使用RTX 3090，因此这里是
+协议对齐，而不是论文表格数值的严格复现。
+
+\section{官方完整模型结果}
+
+官方后端已经成功加载并运行完整Llama-2-13B checkpoint。40层中的280个decoder
+projection全部使用真实packed 4-bit权重和整数累加CUDA kernel，激活为A4，paged
+K/V cache为KV4。固定token生成测试通过了packed权重、scale、有限logit、cache长度
+和重复生成一致性检查。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lrrl@{}}
+    \toprule
+    指标 & FP16 & W4A4KV4 & 结论 \\
+    \midrule
+    模型常驻显存 & 26.29\,GB & 7.18\,GB & 减少72.7\% \\
+    2048-token prefill & 392.51\,ms & 441.70\,ms & W4慢1.13$\times$ \\
+    Decode & 52.28\,ms/token & 79.51\,ms/token & W4慢1.52$\times$ \\
+    2048+32端到端 & 2076.90\,ms & 2945.97\,ms & W4慢1.42$\times$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Llama-2-13B官方完整模型的显存和batch-1性能结果。}
+\end{table}
+
+因此，完整模型结果应表述为\textbf{明确的容量收益，但不是当前GPU上的batch-1速度
+收益}。旧版官方后端面向较早的CUDA和模型栈，量化、packing、整数GEMM和反量化
+仍包含多个kernel；在batch-1 decode中，这些额外开销超过了低比特权重带宽节省。
+
+当前尚未完成官方packed checkpoint的完整PPL评估，因此不能把前述fake quant的
+PPL直接作为官方部署后端的质量结果。后续如需完整的精度闭环，可以补充一个有界的
+WikiText-2 PPL测试。
+
+\section{vLLM W4A8与W4A16结果}
+
+\subsection*{W4A8：保留正确性路线}
+
+项目自研的packed-W4/A8 CUDA路径已经完成全部280个Llama-2-13B decoder linear
+的正确性验证：固定输入下40层边界和最终logit均与独立packed oracle一致，最大误差
+为0，短生成结果有限。该路径将模型峰值显存降低到BF16的约28\%，但当前kernel的
+速度明显低于BF16，只适合作为正确性kernel，而不是服务后端。并且该结果中的
+embedding、\texttt{lm\_head}、attention非线性和K/V cache仍为BF16。
+
+按照项目冻结的vLLM支持范围，NVIDIA GPU上的W4A8目前不是稳定的原生服务格式。
+因此本阶段不开发额外的vLLM plugin或新的完整CUDA kernel；如果后续vLLM原生支持
+成熟，再重新评估W4A8服务路线。
+
+\subsection*{W4A16：完整模型服务主结果}
+
+实际服务路线采用“离线QuaRot-style旋转 + group-128 GPTQ W4A16 + 稳定版
+vLLM”。checkpoint保持标准Transformers结构和compressed-tensors格式，不引入
+在线MLP Hadamard、post-RoPE Q/K wrapper、自定义attention或KV4。因此，该路线称为
+\textbf{QuaRot-style W4A16}，而不是原始QuaRot W4A4KV4。
+
+Isambard GH200上的完整证据链已经通过，包括tiny checkpoint GPU smoke、
+Llama-2-13B固定token离线推理、OpenAI兼容服务smoke、正式服务benchmark，以及依赖
+smoke的真实vLLM layer-0诊断。正式服务测试使用256-token输入、强制64-token输出、
+4次warm-up和64个测量请求；每个模型和concurrency组合均启动新server，并固定8\,GiB
+KV cache。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lrrrr@{}}
+    \toprule
+    模型/并发 & 请求/s & p50 TTFT/ms & p50 TPOT/ms & p50 E2E/ms \\
+    \midrule
+    BF16 / 1 & 1.760 & 21.114 & 8.684 & 568.249 \\
+    普通W4A16 / 1 & 2.718 & 22.242 & 5.488 & 368.019 \\
+    旋转W4A16 / 1 & 2.699 & 22.860 & 5.510 & 370.313 \\
+    BF16 / 8 & 11.374 & 104.698 & 9.507 & 703.522 \\
+    普通W4A16 / 8 & 15.543 & 108.642 & 6.438 & 513.606 \\
+    旋转W4A16 / 8 & 15.612 & 107.608 & 6.456 & 514.416 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Llama-2-13B在GH200上的完整模型vLLM服务结果。}
+\end{table}
+
+两个W4A16 checkpoint均把ready GPU memory从34,099\,MiB降至16,125\,MiB，
+减少52.7\%。相对BF16，请求吞吐在concurrency 1提升1.53--1.54倍，在
+concurrency 8提升1.37倍；p50 E2E降低26.9--35.2\%，p50 TPOT降低
+32.1--36.8\%。TTFT基本接近BF16但略高。普通与离线旋转W4A16的服务性能几乎
+相同，因此不能声称旋转本身带来部署速度优势。
+
+\subsection*{W4A16：真实单block诊断}
+
+同环境诊断通过\texttt{LLM.apply\_model()}在真实
+\texttt{LlamaDecoderLayer}的layer 0前后记录CUDA event。完整模型仍然执行以提供
+真实attention metadata和KV cache，但为保证Python hook生效，该实验使用
+\texttt{enforce\_eager=true}，不能与前述编译模式服务数字直接互换。
+
+BF16单层参数为605.0\,MiB，W4A16为156.0\,MiB，减少74.2\%；vLLM实际选择
+\texttt{MacheteLinearKernel}。W4A16相对BF16的中位速度随形状变化约为
+0.96--1.05倍：多数decode和中等prefill快约1--5\%，但batch 8、2048-token
+prefill慢约3--4\%。旋转与未旋转版本之间同样没有稳定性能差异。这个结果用于解释
+真实packed layer路径，主要实践结论仍来自完整模型服务测试。
+
+\section*{阶段性结论}
+
+现阶段已经形成三层结论：QuaRot在fake quant协议下可以把4-bit量化精度恢复到接近
+BF16；官方W4A4KV4后端证明了真实低比特执行的容量收益以及特定单block形状上的
+速度优势，但旧版完整模型batch-1路径仍慢；稳定vLLM W4A16则在GH200完整模型服务
+中同时获得约53\% ready显存下降、1.37--1.54倍请求吞吐和更低TPOT/E2E。
+
+离线旋转没有改变W4A16部署性能。其潜在价值应通过单独的部署checkpoint质量协议
+验证，而不能由性能结果推断。目前固定token推理已经通过，但尚无W4A16 checkpoint
+的WikiText-2 PPL或下游任务结果；fake quant PPL也不能替代这项质量证据。
+
+\end{document}

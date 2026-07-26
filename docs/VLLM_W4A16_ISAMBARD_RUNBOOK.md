@@ -294,5 +294,28 @@ Smoke success requires
 requires
 `ISAMBARD_VLLM_W4A16_LLAMA2_13B_SINGLE_BLOCK_BENCHMARK_PASSED`.
 
+The hook smoke, job `5784966`, completed in 1 minute 23 seconds with exit code
+`0:0`. Its dependent formal job, `5784967`, completed in 4 minutes 44 seconds
+with exit code `0:0`; the retained manifest records
+`afterok:5784966`, clean revision
+`3733d4c1daf38f8de3ebe7e1075800a9d8bd86fb`, and the accepted serving-result
+hash.
+
+The formal result passed all eight cases for all three models. The real vLLM
+layer contained 605.0 MiB of parameters in BF16 and 156.0 MiB in each W4A16
+variant, a 74.2% reduction. Median W4A16/BF16 layer speed ranged from 0.96x for
+the largest B8 x 2048 prefill to 1.05x for B1 x 2048 prefill; decode cases
+ranged from 1.01x to 1.04x. Rotation did not show a stable timing advantage.
+The accepted result SHA-256 is
+`0a5e9658c3a2205b6e2465472f81bd004370ba7b4db1c46f07123fe3a538c5cb`.
+
+vLLM logged that W4A16 selected `MacheteLinearKernel`. The optional DeepGEMM
+probe could not find a CUDA toolkit, but it was not the selected W4 execution
+path. Child-process shutdown also emitted a non-fatal NCCL cleanup warning;
+all result assertions and Slurm exit codes passed.
+
+The consolidated measurements and evidence boundaries are in
+[`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md).
+
 No throughput, latency, quality, or full-model claim follows from the platform
 or tiny smoke gates.

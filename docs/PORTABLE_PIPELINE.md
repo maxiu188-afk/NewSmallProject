@@ -42,7 +42,8 @@ pretrained result is accepted. It is fake quantization only: it neither packs
 the cache nor replaces floating-point attention with an integer kernel.
 
 The current newer-runtime API smoke (Python 3.11, PyTorch 2.13, Transformers 5)
-is recorded in `MODERN_RUNTIME_SMOKE.md`; the server still requires its separate
+is recorded in `archive/smokes/MODERN_RUNTIME_SMOKE.md`; the server still
+requires its separate
 Linux CUDA-extension compatibility gate.
 
 ## Preparing a pretrained model safely

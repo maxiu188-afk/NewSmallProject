@@ -173,7 +173,8 @@ the owned CUDA W4A8 module. The planned numerical gate compares every decoder
 layer output and final logits before a short BF16-K/V generation smoke.
 
 This preparation does not upgrade the selected-linear result into a full-model
-claim. See `PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md` for the Isambard-primary
+claim. See `archive/runbooks/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md` for the
+Isambard-primary
 execution contract and RunPod fallback commands.
 
 ## Full-decoder RunPod correctness result
@@ -193,4 +194,5 @@ finite logits. The recovered result JSON has SHA-256
 This establishes fixed-workload execution correctness for a complete W4A8
 decoder with BF16 embedding, `lm_head`, and K/V. It does not establish PPL,
 KV4, speed, throughput, or memory savings. The next permitted work is the
-matched BF16/W4A8 measurement protocol in `W4A8_PERFORMANCE_RUNBOOK.md`.
+matched BF16/W4A8 measurement protocol in
+`archive/runbooks/W4A8_PERFORMANCE_RUNBOOK.md`.
