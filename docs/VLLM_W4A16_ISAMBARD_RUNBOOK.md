@@ -233,8 +233,66 @@ port guard now checks whether a listener accepts a connection instead of
 attempting to bind the recently used port. Its dependent benchmark job
 `5777531` was cancelled after Slurm marked the dependency as never satisfiable.
 
-After the full-model measurement, run the single-block W4A16 comparison in the
-same environment as a diagnostic rather than the primary result.
+The corrected service smoke, job `5780629`, completed with exit code `0:0`.
+Its dependent formal benchmark, job `5780631`, also completed with exit code
+`0:0`. All six model/case groups completed 64 of 64 requests with no failures,
+using exactly 256 input and 64 output tokens. The accepted result SHA-256 is
+`2a683b38be4831f24897bb3d8660d3f0277c3a0c914aaebb5b8511f2f357a39a`.
+
+| Model | Concurrency | Requests/s | p50 TTFT (ms) | p50 TPOT (ms) | p50 E2E (ms) | Ready GPU memory (MiB) |
+|---|---:|---:|---:|---:|---:|---:|
+| BF16 | 1 | 1.760 | 21.114 | 8.684 | 568.249 | 34,099 |
+| BF16 | 8 | 11.374 | 104.698 | 9.507 | 703.522 | 34,099 |
+| Unrotated W4A16 | 1 | 2.718 | 22.242 | 5.488 | 368.019 | 16,125 |
+| Unrotated W4A16 | 8 | 15.543 | 108.642 | 6.438 | 513.606 | 16,125 |
+| Rotated W4A16 | 1 | 2.699 | 22.860 | 5.510 | 370.313 | 16,125 |
+| Rotated W4A16 | 8 | 15.612 | 107.608 | 6.456 | 514.416 | 16,125 |
+
+These are the primary deployment results. Both W4A16 checkpoints roughly halve
+resident model-plus-cache memory and improve batch-one and concurrency-eight
+request throughput in this matched configuration. Rotation does not produce a
+material serving-performance separation from unrotated W4A16.
+
+## Dependent single-block diagnostic
+
+The follow-up measures the real vLLM `LlamaDecoderLayer` at
+`model.model.layers[0]`, not a reimplemented PyTorch block. The full model still
+executes so vLLM supplies the real attention metadata and KV cache. Forward
+hooks installed through `LLM.apply_model()` record CUDA events around layer 0;
+each checkpoint runs in a fresh child process so vLLM and GPU resources are
+released between variants.
+
+This diagnostic deliberately sets `enforce_eager=true`, because Python hooks
+must not be bypassed by a compiled graph. Its numbers therefore explain the
+layer path but are not directly interchangeable with the compiled full-model
+serving benchmark above.
+
+The smoke runs the packed unrotated W4A16 layer with one prefill and one short
+decode case. The formal job requires both an `afterok` Slurm dependency and a
+passing smoke JSON from the same Git revision. It compares BF16, unrotated
+W4A16, and rotated W4A16 across batch sizes 1 and 8, prompt lengths 256 and
+2048, and separate prefill and 16-step decode measurements:
+
+```bash
+cd "$HOME/NewSmallProject-vllm-ready"
+mkdir -p results/vllm-w4a16-single-block-llama2-13b
+sbatch --test-only \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_single_block_smoke.sbatch
+sbatch --test-only \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_single_block_benchmark.sbatch
+
+smoke_job="$(
+  sbatch --parsable \
+    scripts/run_isambard_vllm_w4a16_llama2_13b_single_block_smoke.sbatch
+)"
+sbatch --dependency="afterok:${smoke_job}" \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_single_block_benchmark.sbatch
+```
+
+Smoke success requires
+`ISAMBARD_VLLM_W4A16_LLAMA2_13B_SINGLE_BLOCK_SMOKE_PASSED`. Formal success
+requires
+`ISAMBARD_VLLM_W4A16_LLAMA2_13B_SINGLE_BLOCK_BENCHMARK_PASSED`.
 
 No throughput, latency, quality, or full-model claim follows from the platform
 or tiny smoke gates.
