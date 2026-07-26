@@ -1,0 +1,49 @@
+{
+  "config_version": 1,
+  "platform": {
+    "name": "Isambard-AI",
+    "account": "brics.u6rt",
+    "partition": "workq",
+    "architecture": "aarch64",
+    "gpu": "NVIDIA GH200",
+    "compute_capability": "9.0"
+  },
+  "runtime": {
+    "python_module": "cray-python/3.11.7",
+    "python_version": "3.11.7",
+    "torch_version": "2.11.0+cu129",
+    "vllm_version": "0.25.1",
+    "vllm_wheel": "vllm-0.25.1+cu129-cp38-abi3-manylinux_2_28_aarch64.whl",
+    "vllm_wheel_sha256": "bdffbe35b2c1ab8f2a9dcc337b657261d9b192c92c217e5a2f98a8835fe78daa",
+    "llmcompressor_version": "0.12.0",
+    "llmcompressor_wheel_sha256": "e17675737f41861391ee833265e3b96785feace4b96cf099df61119829a00f4d",
+    "compressed_tensors_serving": "0.17.0",
+    "compressed_tensors_quantizer": "0.17.1",
+    "serving_env": "$HOME/.venvs/newsmallproject-vllm-0.25.1",
+    "quantizer_env": "$HOME/.venvs/newsmallproject-llmcompressor-0.12.0"
+  },
+  "quantization": {
+    "format": "compressed-tensors",
+    "algorithm": "GPTQ",
+    "scheme": "W4A16",
+    "group_size": 128,
+    "targets": "Linear",
+    "ignore": ["lm_head"]
+  },
+  "tiny_smoke": {
+    "seed": 0,
+    "vocab_size": 128,
+    "hidden_size": 128,
+    "intermediate_size": 256,
+    "num_hidden_layers": 2,
+    "num_attention_heads": 4,
+    "num_key_value_heads": 2,
+    "max_position_embeddings": 128,
+    "calibration_samples": 8,
+    "calibration_sequence_length": 32,
+    "prompt_token_ids": [1, 7, 11, 19, 23, 31, 41, 47],
+    "max_new_tokens": 4,
+    "checkpoints": ["bf16", "unrotated-w4a16", "rotated-w4a16"]
+  },
+  "scope": "Platform and tiny-checkpoint gate only; not pretrained-model quality, service performance, or full-model evidence"
+}

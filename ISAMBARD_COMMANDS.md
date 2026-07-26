@@ -205,7 +205,49 @@ sbatch scripts/run_isambard_w4a8_full_model_gate.sbatch
 The `--test-only` step must accept the requested 24-hour wall time; it has not
 been validated while the service is unhealthy. Success requires
 `ISAMBARD_PHASE2_FULL_MODEL_GATE_PASSED`. Detailed artifact and failure rules
-are in `docs/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
+are in `docs/archive/runbooks/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
+
+## Completed vLLM W4A16 route
+
+The vLLM route uses the clean `$HOME/NewSmallProject-vllm-ready` checkout and two
+dedicated environments. Preserve the older `$HOME/NewSmallProject` checkout
+and its accepted W4A8 artifacts.
+
+Environment setup and tiny-checkpoint preparation run directly on the login
+node; do not submit them to Slurm:
+
+```bash
+cd "$HOME/NewSmallProject-vllm-ready"
+bash scripts/setup_isambard_vllm_env.sh
+
+export VLLM_ENV="$HOME/.venvs/newsmallproject-vllm-0.25.1"
+export QUANTIZER_ENV="$HOME/.venvs/newsmallproject-llmcompressor-0.12.0"
+"$VLLM_ENV/bin/python" scripts/check_isambard_vllm_env.py \
+  --output "$HOME/.cache/newsmallproject-vllm/preflight/login-preflight.json"
+CUDA_VISIBLE_DEVICES="" "$QUANTIZER_ENV/bin/python" \
+  scripts/prepare_vllm_w4a16_tiny_checkpoints.py \
+  --output-dir "$HOME/.cache/newsmallproject-vllm/tiny-checkpoints"
+```
+
+Only the final GH200 import/load/inference smoke uses Slurm:
+
+```bash
+cd "$HOME/NewSmallProject-vllm-ready"
+mkdir -p results/vllm-w4a16-isambard-smoke
+sbatch --test-only scripts/run_isambard_vllm_w4a16_smoke.sbatch
+sbatch scripts/run_isambard_vllm_w4a16_smoke.sbatch
+```
+
+Success requires `ISAMBARD_VLLM_W4A16_SMOKE_PASSED`. Do not treat the tiny
+smoke as pretrained-model, service-performance, or full-model evidence. The
+detailed workflow is in `docs/VLLM_W4A16_ISAMBARD_RUNBOOK.md`.
+
+The route has since completed the full Llama-2-13B evidence chain. Accepted
+jobs are `5769503` for fixed-token offline inference, `5780629` and `5780631`
+for service smoke and matched serving, and `5784966` and `5784967` for the
+dependent real-layer hook smoke and formal single-block diagnostic. The
+primary serving result and diagnostic boundary are summarized in
+`docs/VLLM_W4A16_RESULTS.md`.
 
 ## Prepared Phase-3 benchmark (after Isambard correctness passes)
 
@@ -223,7 +265,7 @@ The job compares the same QuaRot model in BF16 and W4A8 modes, runs the short
 benchmark grid before the frozen formal grid, and writes raw CUDA/wall samples,
 throughput, and peak memory. It does not benchmark KV4. Success requires
 `ISAMBARD_PHASE3_W4A8_BENCHMARK_PASSED`; see
-`docs/W4A8_PERFORMANCE_RUNBOOK.md` for timing boundaries.
+`docs/archive/runbooks/W4A8_PERFORMANCE_RUNBOOK.md` for timing boundaries.
 
 ## Short interactive GPU diagnostic
 

@@ -61,8 +61,16 @@ completed the paper-aligned official QuaRot single-block result. A read-only
 check on 2026-07-21 confirmed `aarch64`, glibc 2.38, and `/usr/bin/apptainer`
 plus `/usr/bin/singularity`; the selected-linear W4A8 CUDA gate then passed on
 GH200 as job `5742443`. These facts establish usable CUDA allocation and
-container feasibility, but no vLLM image, W4A16 checkpoint, or serving result
-has yet passed.
+container feasibility.
+
+The 2026-07-22 login-node preparation froze the official vLLM
+`0.25.1+cu129` aarch64 wheel with PyTorch `2.11.0+cu129`, plus a separate LLM
+Compressor `0.12.0` environment. The serving and quantizer environments remain
+separate because they pin compressed-tensors 0.17.0 and 0.17.1 respectively.
+The full evidence chain has since passed on GH200: tiny checkpoint execution,
+Llama-2-13B export and fixed-token inference, service smoke, matched serving,
+and a dependent real-layer diagnostic. The two complete W4A16 checkpoints each
+contain 280 packed decoder linears.
 
 The serving checkpoint may use the residual Hadamard and the paired per-head
 V/O Hadamard because these can be absorbed into standard Llama weights. It
@@ -126,7 +134,7 @@ come from the matched repeated protocol.
    GPU, and server flags. Record quality, TTFT, TPOT, request throughput, token
    throughput, and peak memory.
 
-## Completed single-block result and immediate next run
+## Completed deployment results
 
 Route A's pinned source/build/primitive/KV gates, complete Llama-2-13B export,
 full-checkpoint generation smoke, and matched FP16/W4A4KV4 full-model extension
@@ -139,24 +147,21 @@ RunPod RTX 6000 Ada platform. W4A4KV4 completed all 14 cases; FP16 completed 13
 and retained a capacity OOM at batch 64/sequence 2048. Paired 2048-token
 prefill speedup was 1.53--1.68x, while batch-16/context-4096 layer-e2e reached
 1.28x. The Ada result is protocol-aligned rather than numerically exact because
-the paper used RTX 3090. See `OFFICIAL_QUAROT_SINGLE_BLOCK_RESULTS.md`.
+the paper used RTX 3090. See `OFFICIAL_QUAROT_RESULTS.md`.
 
-Route B now advances on Isambard GH200. It will retain a single-block W4A16
-diagnostic, but the primary result remains the matched BF16 / unrotated W4A16 /
-offline-rotated W4A16 full-model vLLM inference and serving comparison. Results
-from the two routes remain in separate directories and are never merged into
-one precision label.
+Route B has completed on Isambard GH200. In the primary matched serving
+benchmark, both W4A16 checkpoints reduced ready GPU memory from 34,099 to
+16,125 MiB. Relative to BF16, request throughput improved by 1.53--1.54x at
+concurrency 1 and 1.37x at concurrency 8; p50 E2E fell by 26.9--35.2%.
+Unrotated and offline-rotated W4A16 had effectively the same deployment
+performance.
 
-To reuse the persistent Isambard state, execute Route B in three server phases:
+The dependent eager-mode layer-0 diagnostic found a 74.2% parameter-byte
+reduction, while median speed ranged from 0.96x to 1.05x versus BF16 depending
+on shape. It confirms execution of the real packed vLLM layer but does not
+replace the compiled full-model result.
 
-1. **Platform and tiny smoke:** validate the approved Apptainer image, import
-   the frozen vLLM release on GH200, and load the BF16/unrotated-W4A16/rotated-
-   W4A16 tiny checkpoints through the same runtime.
-2. **Pretrained checkpoint gate:** apply the frozen offline rotations, quantize
-   rotated and unrotated checkpoints with one calibration set, verify metadata
-   and fixed-token offline inference, then scale to Llama-2-13B only after the
-   smallest approved pretrained model passes.
-3. **Primary full-model measurement:** run matched offline and server workloads
-   for BF16, unrotated W4A16, and rotated W4A16; record quality, TTFT, TPOT,
-   request/token throughput, and peak memory. Run the single-block comparison
-   in the same environment as a diagnostic, not as the primary serving claim.
+The remaining boundary is deployed-checkpoint quality. Fixed-token inference
+passed, but no W4A16 WikiText-2 PPL or downstream-task result has been measured.
+Results from Routes A and B remain separately named and must not be merged into
+one precision or performance label. See `VLLM_W4A16_RESULTS.md`.

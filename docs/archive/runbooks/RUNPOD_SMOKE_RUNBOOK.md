@@ -39,7 +39,7 @@ See `RUNPOD_FAKE_QUANT_RESULTS.md` for exact versions and metrics.
 3. Inspect the JSON file. It must identify GPU model/count, compute capability,
    driver, CUDA compiler, Python, current package versions, and the upstream
    commit. Keep it unchanged as evidence.
-4. Apply [the CUDA/PyTorch compatibility policy](CUDA_PYTORCH_COMPATIBILITY_POLICY.md):
+4. Apply [the CUDA/PyTorch compatibility policy](../../CUDA_PYTORCH_COMPATIBILITY_POLICY.md):
    record both `nvcc --version` and `torch.version.cuda`, then select a matched
    `cu128` or `cu130` environment. The CUDA value shown by `nvidia-smi` alone
    is insufficient for a custom extension build.

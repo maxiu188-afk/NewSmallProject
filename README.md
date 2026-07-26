@@ -22,7 +22,7 @@ checks kept separate from real CUDA deployment and performance work.
   `train` calibration contract. The completed QuaRot F4 GPTQ result is
   `PPL=5.8376` (same-run BF16 `5.0087`); the matched naive GPTQ F3 control is
   `PPL=8624.3509`. The component and calibration results are recorded in the
-  [GPTQ ablation record](docs/LLAMA2_13B_GPTQ_ABLATION_CALIBRATION_RESULTS.md).
+  [consolidated fake-quant record](docs/FAKE_QUANT_RESULTS.md).
 - An owned packed-W4/A8 CUDA integer-accumulator path validated for the three
   Llama-2-13B linear shapes, plus one formally GPTQ-packed `q_proj` integrated
   through a fixed-token decoder-layer/logits gate on RTX 6000 Ada. The complete
@@ -37,29 +37,27 @@ checks kept separate from real CUDA deployment and performance work.
   on RTX 6000 Ada. W4A4KV4 completed all 14 formal cases, accelerated the paired
   2048-token prefill points by 1.53--1.68x, and reached a 1.28x layer-e2e
   speedup at batch 16/context 4096; FP16 OOMed only at batch 64/sequence 2048.
+- A completed Llama-2-13B vLLM W4A16 serving study on Isambard GH200. Relative
+  to BF16, both packed W4A16 checkpoints cut ready GPU memory by 52.7%,
+  improved request throughput by 1.37--1.54x, and reduced p50 E2E by
+  26.9--35.2%. A dependent real-vLLM layer-0 diagnostic found shape-dependent
+  0.96--1.05x speed and 74.2% fewer parameter bytes.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
 evidence. Those historic W4A4KV4 rows remain algorithmic simulations, while
 the separate official-backend result uses packed weights and the upstream
-4-bit CUDA K/V cache. See
-[phase status](docs/PHASE_STATUS.md), the
-[Llama-2-13B BF16 baseline](docs/LLAMA2_13B_BF16_BASELINE.md), the
-[Llama-2-13B RTN W4A4 result](docs/LLAMA2_13B_RTN_W4A4_RESULTS.md), the
-[Llama-2-13B GPTQ W4A4 result](docs/LLAMA2_13B_GPTQ_W4A4_RESULTS.md), and the
-[SmolLM2 fake-quant record](docs/LOCAL_SMOLLM2_135M_FAKE_QUANT.md). The real
-deployment boundary and next gate are documented in the
-[W4A8 kernel record](docs/W4A8_CUDA_KERNEL_RESULTS.md) and
-[full-decoder runbook](docs/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md). The
-matched BF16/W4A8 smoke and its negative acceleration result are described in
-the [performance runbook](docs/W4A8_PERFORMANCE_RUNBOOK.md) and current
-[phase status](docs/PHASE_STATUS.md). The faithful upstream load/generation,
-latency, and memory result is recorded in the
-[official W4A4 backend result](docs/OFFICIAL_QUAROT_W4A4_RESULTS.md). The
-paper-aligned layer commands are in the
-[official single-block runbook](docs/OFFICIAL_QUAROT_SINGLE_BLOCK_RUNBOOK.md),
-and the accepted measurements are in the
-[single-block result](docs/OFFICIAL_QUAROT_SINGLE_BLOCK_RESULTS.md).
+4-bit CUDA K/V cache. See the [documentation index](docs/README.md) and current
+[phase status](docs/PHASE_STATUS.md) first. Algorithmic accuracy evidence is
+consolidated in the [fake-quant result](docs/FAKE_QUANT_RESULTS.md); faithful
+upstream full-model and single-block deployment evidence is consolidated in
+the [official QuaRot result](docs/OFFICIAL_QUAROT_RESULTS.md). The owned
+packed-W4/A8 path remains documented in the
+[W4A8 kernel record](docs/W4A8_CUDA_KERNEL_RESULTS.md). The practical serving
+evidence is consolidated in the
+[vLLM W4A16 result](docs/VLLM_W4A16_RESULTS.md). Completed runbooks and detailed
+source records remain available under
+[`docs/archive/`](docs/archive/README.md).
 
 ## Layout
 
@@ -67,7 +65,7 @@ and the accepted measurements are in the
 - `configs/`: model, data, runtime, rotation, and quantization configurations;
 - `scripts/`: portable entry points;
 - `tests/`: local correctness tests;
-- `docs/`: experiment scope, results, and environment notes;
+- `docs/`: current documentation index, results, runbooks, and archived notes;
 - `QuaRot/`: local upstream reference checkout, deliberately ignored by Git.
 
 ## Upstream reference
@@ -86,7 +84,7 @@ for local commands.
 
 ## Real-deployment direction
 
-Current implementation work is split into two explicitly named routes:
+The completed deployment study keeps two explicitly named routes:
 
 - faithful reproduction of the pinned upstream QuaRot W4A4 CUDA/e2e backend;
 - standard-layout offline QuaRot rotations followed by a low-bit format and
@@ -95,4 +93,5 @@ Current implementation work is split into two explicitly named routes:
 Stable vLLM does not currently support INT4-weight/INT8-activation W4A8 on
 NVIDIA GPUs, so the first serving format is W4A16 GPTQ on Ada/Hopper. This is
 QuaRot-style engineering and is not labelled as original QuaRot W4A4. See
-[the real-deployment roadmap](docs/QUAROT_REAL_DEPLOYMENT_ROADMAP.md).
+[the real-deployment roadmap](docs/QUAROT_REAL_DEPLOYMENT_ROADMAP.md) and the
+[Isambard vLLM W4A16 result](docs/VLLM_W4A16_RESULTS.md).

@@ -1,0 +1,116 @@
+{
+  "config_version": 1,
+  "source_gate": {
+    "service_smoke_job_id": "5780629",
+    "serving_benchmark_job_id": "5780631",
+    "serving_benchmark_result": "results/vllm-w4a16-serving-llama2-13b/serving-benchmark.json",
+    "serving_benchmark_sha256": "2a683b38be4831f24897bb3d8660d3f0277c3a0c914aaebb5b8511f2f357a39a",
+    "expected_models": ["bf16", "unrotated_w4a16", "rotated_w4a16"]
+  },
+  "engine": {
+    "dtype": "bfloat16",
+    "block_index": 0,
+    "max_model_len": 2112,
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 16384,
+    "kv_cache_memory_bytes": 17179869184,
+    "seed": 20260726,
+    "enforce_eager": true,
+    "enable_prefix_caching": false,
+    "skip_tokenizer_init": true,
+    "disable_log_stats": true
+  },
+  "smoke": {
+    "models": ["unrotated_w4a16"],
+    "warmup_requests": 1,
+    "repetitions": 2,
+    "cases": [
+      {
+        "name": "smoke-prefill-b1-s128",
+        "phase": "prefill",
+        "batch_size": 1,
+        "prompt_tokens": 128,
+        "decode_steps": 0
+      },
+      {
+        "name": "smoke-decode-b1-s128-d2",
+        "phase": "decode",
+        "batch_size": 1,
+        "prompt_tokens": 128,
+        "decode_steps": 2
+      }
+    ]
+  },
+  "formal": {
+    "models": ["bf16", "unrotated_w4a16", "rotated_w4a16"],
+    "warmup_requests": 2,
+    "repetitions": 10,
+    "cases": [
+      {
+        "name": "prefill-b1-s256",
+        "phase": "prefill",
+        "batch_size": 1,
+        "prompt_tokens": 256,
+        "decode_steps": 0
+      },
+      {
+        "name": "prefill-b1-s2048",
+        "phase": "prefill",
+        "batch_size": 1,
+        "prompt_tokens": 2048,
+        "decode_steps": 0
+      },
+      {
+        "name": "prefill-b8-s256",
+        "phase": "prefill",
+        "batch_size": 8,
+        "prompt_tokens": 256,
+        "decode_steps": 0
+      },
+      {
+        "name": "prefill-b8-s2048",
+        "phase": "prefill",
+        "batch_size": 8,
+        "prompt_tokens": 2048,
+        "decode_steps": 0
+      },
+      {
+        "name": "decode-b1-s256-d16",
+        "phase": "decode",
+        "batch_size": 1,
+        "prompt_tokens": 256,
+        "decode_steps": 16
+      },
+      {
+        "name": "decode-b1-s2048-d16",
+        "phase": "decode",
+        "batch_size": 1,
+        "prompt_tokens": 2048,
+        "decode_steps": 16
+      },
+      {
+        "name": "decode-b8-s256-d16",
+        "phase": "decode",
+        "batch_size": 8,
+        "prompt_tokens": 256,
+        "decode_steps": 16
+      },
+      {
+        "name": "decode-b8-s2048-d16",
+        "phase": "decode",
+        "batch_size": 8,
+        "prompt_tokens": 2048,
+        "decode_steps": 16
+      }
+    ]
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "torch_version": "2.11.0+cu129",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [9, 0],
+    "vllm_use_flashinfer_sampler": "0"
+  },
+  "scope": "Diagnostic CUDA-event timing of the real vLLM Llama-2-13B layer 0 inside full-model execution; primary evidence remains the matched full-model serving benchmark"
+}

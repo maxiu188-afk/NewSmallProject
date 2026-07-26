@@ -13,6 +13,10 @@ from typing import Any, Dict
 import torch
 from torch import nn
 
+from repro.structured_hadamard import (
+    normalized_structured_hadamard_matrix,
+    supports_structured_hadamard,
+)
 from repro.torch_smoke import normalized_hadamard_matrix
 
 
@@ -29,8 +33,30 @@ def _fuse_norm_scale(norm: nn.Module, linears: tuple[nn.Linear, ...]) -> None:
     scale = norm.weight.detach().clone()
     with torch.no_grad():
         for linear in linears:
-            linear.weight.mul_(scale)
+            fused = linear.weight.float() * scale.float()
+            linear.weight.copy_(fused.to(linear.weight.dtype))
         norm.weight.fill_(1)
+
+
+def _residual_rotation(
+    size: int, dtype: torch.dtype, device: torch.device
+) -> tuple[torch.Tensor, str]:
+    if size > 0 and not size & (size - 1):
+        return normalized_hadamard_matrix(size, dtype, device), "walsh"
+    if supports_structured_hadamard(size):
+        return normalized_structured_hadamard_matrix(size, dtype, device), "structured"
+    raise ValueError(
+        "offline residual rotation requires a power-of-two or supported structured Hadamard size"
+    )
+
+
+def _copy_matmul_(target: torch.Tensor, *factors: torch.Tensor) -> None:
+    work = factors[0].float()
+    for factor in factors[1:]:
+        work = work @ factor.float()
+    if work.shape != target.shape and work.numel() == target.numel():
+        work = work.reshape(target.shape)
+    target.copy_(work.to(target.dtype))
 
 
 def _untie_output_head_if_needed(model: nn.Module) -> bool:
@@ -80,9 +106,10 @@ def apply_offline_llama_rotation(model: nn.Module, *, rotate_values: bool = True
         raise ValueError("offline V/O rotation requires a power-of-two head_dim")
 
     parameter = next(model.parameters())
-    dtype, device = parameter.dtype, parameter.device
-    residual = normalized_hadamard_matrix(hidden_size, dtype, device)
-    head = normalized_hadamard_matrix(head_dim, dtype, device)
+    device = parameter.device
+    compute_dtype = torch.float32
+    residual, residual_kind = _residual_rotation(hidden_size, compute_dtype, device)
+    head = normalized_hadamard_matrix(head_dim, compute_dtype, device)
     q_head_block = torch.block_diag(*([head] * num_q_heads))
     kv_head_block = torch.block_diag(*([head] * num_kv_heads))
 
@@ -98,31 +125,54 @@ def apply_offline_llama_rotation(model: nn.Module, *, rotate_values: bool = True
         )
     _fuse_norm_scale(model.model.norm, (model.lm_head,))
 
-    model.model.embed_tokens.weight.copy_(model.model.embed_tokens.weight @ residual)
-    model.lm_head.weight.copy_(model.lm_head.weight @ residual)
+    _copy_matmul_(model.model.embed_tokens.weight, model.model.embed_tokens.weight, residual)
+    _copy_matmul_(model.lm_head.weight, model.lm_head.weight, residual)
     for layer in model.model.layers:
         attention, mlp = layer.self_attn, layer.mlp
         for linear in (attention.q_proj, attention.k_proj, mlp.up_proj, mlp.gate_proj):
-            linear.weight.copy_(linear.weight @ residual)
+            _copy_matmul_(linear.weight, linear.weight, residual)
 
         if rotate_values:
-            attention.v_proj.weight.copy_(kv_head_block @ attention.v_proj.weight @ residual)
-            attention.o_proj.weight.copy_(residual.T @ attention.o_proj.weight @ q_head_block)
+            _copy_matmul_(
+                attention.v_proj.weight,
+                kv_head_block,
+                attention.v_proj.weight,
+                residual,
+            )
+            _copy_matmul_(
+                attention.o_proj.weight,
+                residual.T,
+                attention.o_proj.weight,
+                q_head_block,
+            )
             if attention.v_proj.bias is not None:
-                attention.v_proj.bias.copy_(kv_head_block @ attention.v_proj.bias)
+                _copy_matmul_(
+                    attention.v_proj.bias,
+                    kv_head_block,
+                    attention.v_proj.bias.unsqueeze(1),
+                )
         else:
-            attention.v_proj.weight.copy_(attention.v_proj.weight @ residual)
-            attention.o_proj.weight.copy_(residual.T @ attention.o_proj.weight)
+            _copy_matmul_(attention.v_proj.weight, attention.v_proj.weight, residual)
+            _copy_matmul_(attention.o_proj.weight, residual.T, attention.o_proj.weight)
         if attention.o_proj.bias is not None:
-            attention.o_proj.bias.copy_(residual.T @ attention.o_proj.bias)
+            _copy_matmul_(
+                attention.o_proj.bias,
+                residual.T,
+                attention.o_proj.bias.unsqueeze(1),
+            )
 
-        mlp.down_proj.weight.copy_(residual.T @ mlp.down_proj.weight)
+        _copy_matmul_(mlp.down_proj.weight, residual.T, mlp.down_proj.weight)
         if mlp.down_proj.bias is not None:
-            mlp.down_proj.bias.copy_(residual.T @ mlp.down_proj.bias)
+            _copy_matmul_(
+                mlp.down_proj.bias,
+                residual.T,
+                mlp.down_proj.bias.unsqueeze(1),
+            )
 
     return {
         "applied": True,
         "kind": "offline_fused_residual_hadamard",
+        "residual_hadamard_kind": residual_kind,
         "model_type": "llama",
         "hidden_size": hidden_size,
         "head_dim": head_dim,
