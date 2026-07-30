@@ -99,13 +99,28 @@ execute through the accepted vLLM environment. Generated calibration and
 rotation artifacts live under a separate
 `${PROJECTDIR}/${USER}/newsmallproject-spinquant/` root.
 
-The job requires a clean checkout, exports a writable job-specific temporary
+The smoke job requires a clean checkout, exports a writable job-specific temporary
 directory before importing PyTorch, runs with Hugging Face and Datasets in
 offline mode, hashes every controlling source/config file, and refuses partial
 or overwritten artifacts. Calibration reuse additionally requires the exact
 project revision, calibration-config hash, model-config hash, pinned model
 definition, and pinned dataset definition. The job has been prepared and
-locally validated but has not yet been accepted on a GH200.
+locally validated.
+
+The one-step GH200 smoke passed as Isambard job `5841874` in 3 minutes 47
+seconds with exit code `0:0`. It consumed eight 2048-token calibration
+sequences, produced a non-zero maximum rotation gradient of `0.285095`, and
+retained maximum R1/R2 orthogonality errors of `1.31e-6` and `5.96e-7` during
+training. The accepted 102.5 MiB SafeTensors artifact has SHA256
+`48e3d10e0a62dd6c78d4e5ff507ec387105c5f11771aa71fc70a4fb6588f9abb`.
+This establishes full-model execution only, not learned-rotation quality.
+
+The formal entry point is
+`scripts/run_isambard_spinquant_llama2_13b_100step.sbatch`. It requests six
+hours based on the observed one-step runtime and validates the completed smoke
+result plus every smoke controlling-source hash before training. Success
+requires all 100 loss and non-zero gradient records, bounded orthogonality,
+the expected R1/R2 shapes, and a checksummed SafeTensors artifact.
 
 Run it with:
 
@@ -133,6 +148,10 @@ python scripts/spinquant/train_llama_rotations.py \
 sbatch --test-only \
   scripts/run_isambard_spinquant_llama2_13b_1step_smoke.sbatch
 sbatch scripts/run_isambard_spinquant_llama2_13b_1step_smoke.sbatch
+
+sbatch --test-only \
+  scripts/run_isambard_spinquant_llama2_13b_100step.sbatch
+sbatch scripts/run_isambard_spinquant_llama2_13b_100step.sbatch
 ```
 
 ## Next stages
