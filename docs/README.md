@@ -15,6 +15,8 @@ but it is not the current project plan.
   official-backend full-model and paper-aligned single-block results.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
   full-model serving result and same-environment layer-0 diagnostic.
+- [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): independent SpinQuant fake-quant
+  implementation status, clean-room boundary, and staged reproduction plan.
 - [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md):
   two-route deployment decision and completed vLLM W4A16 evidence chain.
 - [`QUAROT_PROGRESS_REPORT_ZH.tex`](QUAROT_PROGRESS_REPORT_ZH.tex): concise

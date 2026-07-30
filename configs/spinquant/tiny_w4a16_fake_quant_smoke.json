@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "label": "independent tiny SpinQuant R1/R2 W4A16 fake-quant smoke",
+  "seed": 0,
+  "model": {
+    "kind": "synthetic_linear_value_output_pairs",
+    "hidden_size": 8,
+    "head_dim": 4,
+    "num_layers": 2,
+    "samples": 64
+  },
+  "quantization": {
+    "weight_bits": 4,
+    "activation_bits": 16,
+    "key_bits": 16,
+    "value_bits": 16,
+    "runtime_form": "floating_qdq_with_ste"
+  },
+  "optimization": {
+    "steps": 40,
+    "learning_rate": 0.02,
+    "schedule": "linear_to_zero",
+    "cayley_method": "fixed_point",
+    "fixed_point_steps": 5
+  },
+  "scope": "mechanism smoke only; no pretrained model, dataset, GPTQ, packed kernel, or deployment claim"
+}
