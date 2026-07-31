@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "label": "Llama-2-13B SpinQuant no-had W4A16 one-step rotation smoke",
+  "label": "Llama-2-13B SpinQuant no-had paper-aligned W16A8 rotation training",
   "seed": 0,
   "model": {
     "id": "meta-llama/Llama-2-13b-hf",
@@ -11,26 +11,28 @@
     "trust_remote_code": false
   },
   "calibration": {
-    "config": "configs/spinquant/llama2_13b_rotation_calibration_8_smoke.json",
-    "samples": 8,
+    "config": "configs/spinquant/llama2_13b_rotation_calibration_800.json",
+    "samples": 800,
     "sequence_length": 2048,
     "seed": 0
   },
   "quantization": {
-    "scheme": "W4A16",
-    "rotation_objective": "weight_qdq",
-    "weight_bits": 4,
-    "activation_bits": 16,
+    "scheme": "W16A8KV16",
+    "rotation_objective": "activation_qdq",
+    "weight_bits": 16,
+    "activation_bits": 8,
     "key_bits": 16,
     "value_bits": 16,
-    "weight_group_size": 128,
+    "weight_group_size": -1,
     "weight_symmetric": true,
     "activation_symmetric": false,
+    "activation_clipping": false,
+    "activation_granularity": "per_token_last_axis",
     "quantize_lm_head": false,
-    "runtime_form": "floating_qdq_with_ste"
+    "runtime_form": "floating_activation_qdq_with_ste"
   },
   "optimization": {
-    "steps": 1,
+    "steps": 100,
     "gradient_accumulation_steps": 8,
     "learning_rate": 1.5,
     "schedule": "linear_to_zero",
@@ -43,5 +45,5 @@
     "attention_implementation": "sdpa",
     "single_process": true
   },
-  "scope": "same-protocol full-model execution smoke only; no quality, GPTQ, packing, or deployment claim"
+  "scope": "SpinQuant no-had paper-aligned R1/R2 W16A8 activation-only training; post-learning GPTQ and evaluation are separate gates"
 }

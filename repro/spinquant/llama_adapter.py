@@ -396,6 +396,15 @@ def apply_spinquant_llama_training_adapter(
         "weight_bits": spec.weight_bits,
         "activation_bits": spec.activation_bits,
         "weight_group_size": spec.weight_group_size,
+        "weight_runtime_form": (
+            "floating_qdq_with_ste" if spec.weight_bits < 16 else "unquantized"
+        ),
+        "activation_runtime_form": (
+            "floating_qdq_with_ste"
+            if spec.activation_bits < 16
+            else "unquantized"
+        ),
+        "activation_granularity": "per_token_last_axis",
         "online_rotation_scope": "training_only",
         "transformers_model_source_copied": False,
     }

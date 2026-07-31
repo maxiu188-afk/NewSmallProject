@@ -9,7 +9,7 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | Independent R1/R2/Cayley implementation passed locally; one-step job 5841874 and formal 800-sample/100-step Llama-2-13B W4A16 training job 5842047 passed on GH200; matched held-out PPL gate prepared | Training evidence only until BF16/unrotated/fixed-R1R2/learned-R1R2 fakequant PPL completes; no GPTQ, downstream accuracy, packing, or deployment evidence |
+| SpinQuant fake quant | Deployment-aligned `no_had` R1/R2 training and matched Llama-2-13B held-out PPL passed on GH200; learned W4A16 reached 5.0937 versus unrotated 5.1763, fixed random-Hadamard R1/R2 5.7078, and BF16 5.0087 | Complete for the implemented offline-fused group-128 RTN-QDQ path; paper-aligned A8/A4 learning, post-learning GPTQ, `had` R3/R4, downstream accuracy, packing, and deployment remain separate gates |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
@@ -47,19 +47,22 @@ eight-case single-block comparison. W4A16 reduced layer-0 parameter bytes by
 0.96--1.05x versus BF16. This diagnostic used eager execution and is not a
 replacement for the compiled serving result.
 
-The remaining scientific boundary is deployed-checkpoint quality. The
+The remaining QuaRot scientific boundary is deployed-checkpoint quality. Its
 fixed-token offline gate establishes bounded execution correctness, but this
-phase has not measured W4A16 WikiText-2 PPL or a downstream task. Rotation did
-not materially change serving or layer timing, so any rotation benefit must be
-evaluated through a separate quality protocol rather than inferred from
-performance.
+phase has not measured WikiText-2 PPL or a downstream task on the packed W4A16
+checkpoint. Rotation did not materially change serving or layer timing, so any
+rotation benefit must be evaluated through a separate quality protocol rather
+than inferred from performance.
 
-The new SpinQuant work is isolated under its own implementation, configuration,
+The SpinQuant work is isolated under its own implementation, configuration,
 script, and test directories. It does not modify the completed QuaRot pipeline
-or the remote vLLM checkout. The independent adapter now executes the installed
-Transformers Llama forward with GQA and tied embeddings, but its accepted
-evidence remains local random-model mechanism testing; see
-[`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md).
+or the remote vLLM checkout. Jobs `5841874` and `5842047` accepted one-step and
+100-step full-model rotation training; dependent jobs `5847440` and `5847441`
+then accepted the matched held-out fake-quant PPL gate. Learned offline R1/R2
+reached PPL 5.0937, compared with 5.1763 unrotated and 5.7078 for the fixed
+random-Hadamard R1/R2 mechanism baseline. See
+[`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md) for protocol and claim boundaries
+and [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md) for the next stages.
 
 See [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md) for the accepted metrics,
 [`VLLM_W4A16_ISAMBARD_RUNBOOK.md`](VLLM_W4A16_ISAMBARD_RUNBOOK.md) for the

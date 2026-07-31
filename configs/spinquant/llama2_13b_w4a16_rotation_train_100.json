@@ -18,6 +18,7 @@
   },
   "quantization": {
     "scheme": "W4A16",
+    "rotation_objective": "weight_qdq",
     "weight_bits": 4,
     "activation_bits": 16,
     "key_bits": 16,

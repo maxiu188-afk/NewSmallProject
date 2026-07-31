@@ -84,11 +84,10 @@ and activation/KV precision at 16 bits. The runner rejects CPU execution,
 unpinned model snapshots, calibration shape drift, architecture drift, and
 zero/non-finite rotation gradients.
 
-This formal configuration and runner have not been executed on CUDA. A
-same-revision one-step smoke must pass before the 100-step job is submitted.
 The paired smoke configurations retain sequence length 2048 and all model,
 quantization, runtime, and optimizer settings; they reduce only the calibration
-set from 800 to 8 sequences and the optimizer updates from 100 to 1.
+set from 800 to 8 sequences and the optimizer updates from 100 to 1. The
+same-revision smoke and formal CUDA runs have now passed on Isambard GH200.
 
 The Isambard one-step entry point is
 `scripts/run_isambard_spinquant_llama2_13b_1step_smoke.sbatch`. It uses the
@@ -128,9 +127,9 @@ the first/last ten-step mean losses were `1.73751` and `1.57174`, and the best
 update loss was `1.34794` at step 94. The final R1/R2 training orthogonality
 errors were `1.34e-6` and `5.96e-7`. The accepted rotation SafeTensors SHA256
 is `303c614f425ea5d37e138643dd52a2410a4747fda7e3038587c93a2db05a57fe`.
-This is training evidence only; quality still requires held-out evaluation.
+This training artifact subsequently passed the matched held-out evaluation.
 
-The next quality gate uses
+The accepted quality gate uses
 `scripts/run_isambard_spinquant_llama2_13b_fake_quant_ppl.sbatch`. It compares
 BF16, unrotated W4A16, fixed QuaRot-style R1/R2 W4A16, and learned SpinQuant
 R1/R2 W4A16. All four cases use the same pinned Llama-2-13B snapshot and the
@@ -138,6 +137,16 @@ same retained 162 x 2048 WikiText-2 test token artifact as the deployed QuaRot
 PPL study. R1/R2 are fused into standard Llama parameters before one-time
 group-128 W4 floating QDQ; no online rotation wrapper, GPTQ, packing, integer
 kernel, or deployment backend is involved.
+
+The reduced smoke job `5847440` completed with exit code `0:0` in 2 minutes 29
+seconds. The dependent formal job `5847441` completed with exit code `0:0` in
+3 minutes 25 seconds and evaluated 162 sequences with 331,614 scored tokens.
+The matched PPL results were BF16 `5.0087`, unrotated W4A16 `5.1763`, fixed
+random-Hadamard R1/R2 W4A16 `5.7078`, and learned SpinQuant R1/R2 W4A16
+`5.0937`. The learned rotations reduced PPL by 1.60% relative to unrotated W4
+and by 10.76% relative to the fixed R1/R2 mechanism baseline. See
+[`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md) for hashes and evidence
+boundaries.
 
 Run it with:
 
@@ -178,15 +187,26 @@ sbatch --dependency=afterok:<smoke-job> \
 
 ## Next stages
 
-1. Materialize and validate the pinned WikiText-2 artifact in the GPU
-   environment, then run a same-revision one-step 13B training smoke before
-   the 100-step job.
-2. Reproduce the Llama-2-7B fake-quant matrix for `SpinQuant_no_had` and
-   `SpinQuant_had`, followed by the matched Llama-2-13B comparison.
-3. Keep paper-protocol results separate from the same-token QuaRot comparison.
+1. Reproduce the paper-aligned `SpinQuant_no_had` fake-quant protocol: learn
+   rotations with activation QDQ and 16-bit weights, then apply GPTQ W4.
+2. Reproduce the `SpinQuant_had` fake-quant path with online Hadamard R3/R4 for
+   low-bit activation/KV studies. Do not carry those online transforms into the
+   requested W4A16 deployment path.
+3. Keep paper-protocol results separate from the completed same-token,
+   deployment-aligned RTN-QDQ comparison.
 4. For real deployment, retain only offline-fusible learned R1/R2, apply
    group-128 GPTQ W4A16, and reuse the standard compressed-tensors/vLLM route.
 
-The SpinQuant fake-quant stages do not depend on the queued deployed-checkpoint
-PPL job. A failure in that job would block only the later reuse of the vLLM
-quality gate, not R1/R2 development or fake-quant experiments.
+The first part of stage 1 is now prepared. The W16A8 smoke/formal configs make
+the rotation objective explicit as `activation_qdq`, require unquantized
+16-bit weights, and use unclipped asymmetric per-token A8 floating QDQ. A
+local tiny-Llama mechanism test confirmed non-zero R1/R2 gradients and the
+expected weight/activation runtime forms. The isolated GH200 one-step entry
+point is
+`scripts/run_isambard_spinquant_llama2_13b_w16a8_1step_smoke.sbatch`; it is not
+yet CUDA evidence until that job completes and its artifact is accepted.
+
+The SpinQuant fake-quant stages remain independent of the completed QuaRot
+deployment checkout and artifacts. The later SpinQuant deployment gate can
+reuse the accepted vLLM procedure without modifying the completed QuaRot
+branch.

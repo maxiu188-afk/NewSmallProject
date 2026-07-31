@@ -15,6 +15,31 @@ from repro.spinquant.rotations import SpinQuantRotations
 from repro.spinquant.stiefel import CayleySGD
 
 
+def _validate_rotation_objective(quantization: Mapping[str, Any]) -> str:
+    """Validate the quantized network used to learn the rotations."""
+
+    objective = str(quantization.get("rotation_objective", ""))
+    if objective not in {"weight_qdq", "activation_qdq"}:
+        raise ValueError(
+            "quantization.rotation_objective must be weight_qdq or activation_qdq"
+        )
+    weight_bits = int(quantization["weight_bits"])
+    activation_bits = int(quantization["activation_bits"])
+    if objective == "weight_qdq" and weight_bits >= 16:
+        raise ValueError("weight_qdq rotation learning requires sub-16-bit weights")
+    if objective == "activation_qdq":
+        if weight_bits != 16 or activation_bits >= 16:
+            raise ValueError(
+                "activation_qdq rotation learning requires 16-bit weights and "
+                "sub-16-bit activations"
+            )
+        if bool(quantization.get("activation_clipping", False)):
+            raise ValueError(
+                "paper-aligned activation_qdq currently requires unclipped min-max QDQ"
+            )
+    return objective
+
+
 def train_llama_rotations(
     model: nn.Module,
     sequences: Sequence[Sequence[int]],
@@ -23,6 +48,7 @@ def train_llama_rotations(
     """Train only R1/R2 using causal-LM loss and fixed calibration tokens."""
 
     quantization = config["quantization"]
+    rotation_objective = _validate_rotation_objective(quantization)
     optimization = config["optimization"]
     steps = int(optimization["steps"])
     accumulation = int(optimization["gradient_accumulation_steps"])
@@ -122,6 +148,7 @@ def train_llama_rotations(
             "R1/R2 fake-quant rotation optimization only; "
             "no GPTQ, evaluation, packing, kernel, or deployment claim"
         ),
+        "rotation_objective": rotation_objective,
         "adapter": adapter,
         "optimizer_steps": steps,
         "gradient_accumulation_steps": accumulation,
