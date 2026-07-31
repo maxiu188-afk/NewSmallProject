@@ -92,6 +92,57 @@ class SpinQuantOfflineTests(unittest.TestCase):
         self.assertEqual(result["quantized_decoder_linears"], 14)
         self.assertFalse(result["quantized_lm_head"])
 
+    def test_asymmetric_a8_quantizes_decoder_inputs_only(self):
+        import torch
+
+        from repro.qdq import qdq_last_axis
+        from repro.spinquant.offline import (
+            fake_quantize_llama_decoder_activations,
+        )
+
+        model = self._model().eval()
+        input_ids = torch.tensor([[1, 4, 9, 16, 25, 36, 49, 64]])
+        baseline_inputs = []
+        observed_inputs = []
+        decoder = model.model.layers[0].self_attn.q_proj
+        baseline_handle = decoder.register_forward_pre_hook(
+            lambda _module, inputs: baseline_inputs.append(inputs[0].detach().clone())
+        )
+        try:
+            with torch.inference_mode():
+                model(input_ids=input_ids, use_cache=False)
+        finally:
+            baseline_handle.remove()
+
+        with fake_quantize_llama_decoder_activations(
+            model,
+            bits=8,
+            symmetric=False,
+        ) as summary:
+            self.assertEqual(len(decoder._forward_pre_hooks), 1)
+            self.assertEqual(len(model.lm_head._forward_pre_hooks), 0)
+            observed_handle = decoder.register_forward_pre_hook(
+                lambda _module, inputs: observed_inputs.append(inputs[0].detach().clone())
+            )
+            try:
+                with torch.inference_mode():
+                    model(input_ids=input_ids, use_cache=False)
+            finally:
+                observed_handle.remove()
+
+        self.assertEqual(summary["quantized_decoder_linears"], 14)
+        self.assertEqual(summary["activation_bits"], 8)
+        self.assertFalse(summary["activation_symmetric"])
+        self.assertFalse(summary["quantized_lm_head"])
+        self.assertEqual(len(baseline_inputs), 1)
+        self.assertEqual(len(observed_inputs), 1)
+        expected = qdq_last_axis(baseline_inputs[0], 8, symmetric=False)
+        torch.testing.assert_close(observed_inputs[0], expected)
+
+        # The context must remove every temporary hook after evaluation.
+        self.assertEqual(len(decoder._forward_pre_hooks), 0)
+        self.assertEqual(len(model.lm_head._forward_pre_hooks), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

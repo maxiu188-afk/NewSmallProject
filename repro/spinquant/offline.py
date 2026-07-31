@@ -7,7 +7,8 @@ installed Transformers Llama forward rather than copied model source.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable
+from contextlib import contextmanager
+from typing import Any, Dict, Iterable, Iterator
 
 import torch
 from torch import Tensor, nn
@@ -196,6 +197,50 @@ def _decoder_linears(model: nn.Module) -> Iterable[nn.Linear]:
         yield layer.mlp.gate_proj
         yield layer.mlp.up_proj
         yield layer.mlp.down_proj
+
+
+@contextmanager
+def fake_quantize_llama_decoder_activations(
+    model: nn.Module,
+    *,
+    bits: int = 8,
+    symmetric: bool = False,
+) -> Iterator[Dict[str, Any]]:
+    """Apply per-token activation QDQ before the seven decoder linears.
+
+    This is an inference-time floating QDQ mechanism. It deliberately excludes
+    the embedding and ``lm_head`` and does not install any rotation module.
+    """
+
+    if bits < 2 or bits >= 16:
+        raise ValueError("decoder activation fake quantization requires bits in [2, 15]")
+    linears = list(_decoder_linears(model))
+    expected = int(model.config.num_hidden_layers) * 7
+    if len(linears) != expected or not all(isinstance(linear, nn.Linear) for linear in linears):
+        raise ValueError("decoder activation QDQ requires seven standard linears per layer")
+
+    def quantize_input(_module: nn.Module, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
+        if not inputs or not isinstance(inputs[0], Tensor):
+            raise ValueError("decoder linear did not receive a tensor input")
+        quantized = qdq_last_axis(inputs[0], bits, symmetric=symmetric)
+        return (quantized,) + inputs[1:]
+
+    handles = [linear.register_forward_pre_hook(quantize_input) for linear in linears]
+    summary = {
+        "applied": True,
+        "runtime_form": "floating_qdq_forward_pre_hook",
+        "activation_bits": bits,
+        "activation_symmetric": symmetric,
+        "activation_clipping": False,
+        "activation_granularity": "per_token_last_axis",
+        "quantized_decoder_linears": len(linears),
+        "quantized_lm_head": False,
+    }
+    try:
+        yield summary
+    finally:
+        for handle in handles:
+            handle.remove()
 
 
 @torch.inference_mode()
