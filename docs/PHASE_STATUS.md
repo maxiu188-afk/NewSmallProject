@@ -9,7 +9,7 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | The first no-had W4A8 chain completed, then an activation audit found that its `o_proj` A8 granularity differed from the paper protocol; corrected smoke 5854268 and dependent 100-step training 5854269 are submitted | Only the corrected SpinQuant no-had fake-quant chain is being redone; QuaRot, W4A16, data, A4/`had` R3/R4, packing, and deployment remain separate |
+| SpinQuant fake quant | Corrected no-had W16A8 learning jobs 5854268/5854269 passed; the dependent corrected GPTQ W4A8 PPL smoke 5854890 and formal 5854891 are queued | Only the corrected SpinQuant no-had fake-quant chain is being redone; QuaRot, W4A16, data, A4/`had` R3/R4, packing, and deployment remain separate |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
@@ -79,12 +79,13 @@ reached PPL 5.0937, compared with 5.1763 unrotated and 5.7078 for the fixed
 random-Hadamard R1/R2 mechanism baseline. This W4A16 result is retained as a
 weight-only ablation, not the paper deployment target.
 
-Paper-aligned activation-only rotation learning also completed. Job `5848060`
-passed the one-step W16A8 smoke, and job `5848547` completed all 100 formal
-updates in 2 hours 9 minutes 15 seconds with finite losses and non-zero
-rotation gradients. The accepted learned rotations now feed the submitted
-post-learning GPTQ and no-had W4A8 fake-quant gates. Their results remain
-pending acceptance. See
+The first activation-only rotation chain was superseded after the A8 audit
+found a paper-protocol mismatch at `o_proj`. Corrected job `5854268` passed the
+one-step W16A8 smoke, and corrected job `5854269` completed all 100 formal
+updates in 2 hours 12 minutes 9 seconds with finite losses and non-zero
+rotation gradients. Its checksummed rotation now feeds corrected GPTQ W4A8
+PPL smoke `5854890` and dependent formal job `5854891`; those quality results
+remain pending acceptance. See
 [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md) for protocol and claim boundaries
 and [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md) for the next stages.
 

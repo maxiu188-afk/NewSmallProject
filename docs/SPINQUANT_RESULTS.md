@@ -22,8 +22,8 @@ deployment performance.
 | Formal rotation learning | `5842047` | `COMPLETED (0:0)`, 2h17m51s | 800 sequences, 100 finite-loss updates, 100 non-zero gradient records |
 | Matched PPL smoke | `5847440` | `COMPLETED (0:0)`, 2m29s | All four evaluation paths completed on the reduced token set |
 | Matched PPL formal | `5847441` | `COMPLETED (0:0)`, 3m25s | 162 sequences and 331,614 scored tokens; result status `passed` |
-| Paper-aligned W16A8 learning smoke | `5848060` | `COMPLETED (0:0)`, 3m05s | Eight 2048-token sequences; non-zero R1/R2 gradients; activation-QDQ runtime form accepted |
-| Paper-aligned W16A8 formal learning | `5848547` | `COMPLETED (0:0)`, 2h09m15s | 800 sequences, 100 finite-loss updates, 100 non-zero gradient records; accepted rotation artifact |
+| Corrected paper-aligned W16A8 learning smoke | `5854268` | `COMPLETED (0:0)`, 2m47s | Eight 2048-token sequences; paper-aligned A8 coverage assertions and non-zero R1/R2 gradients accepted |
+| Corrected paper-aligned W16A8 formal learning | `5854269` | `COMPLETED (0:0)`, 2h12m09s | 800 sequences, 100 finite-loss updates, 100 non-zero gradient records; accepted corrected rotation artifact |
 
 The first four jobs used project revision
 `5d610b152434ffb04bd405be37aa172114dd6216`. The formal PPL job reused the
@@ -85,23 +85,27 @@ matched evaluation of the implemented W4A16 weight-only path, but it is not a
 literal reproduction of the paper's full fake-quant matrix and must not be
 compared directly with a paper-table PPL as if the protocols were identical.
 
-The W16A8 activation-only learning objective has now completed both Isambard
-gates. Smoke job `5848060` passed in 3 minutes 5 seconds. Formal job `5848547`
-passed in 2 hours 9 minutes 15 seconds using 800 x 2048 calibration tokens and
-100 updates; all losses and rotation-gradient records were finite and every
-gradient record was non-zero. Its first/last ten-step mean losses were
-`1.651698` and `1.561623`, with a best loss of `1.32231` at step 94. Final
-R1/R2 orthogonality errors were `1.3709e-6` and `5.96e-7`. The accepted
-rotation tensor SHA256 is
-`62cbc73e26d8993f068331e924c19738a40bc89813e680316d1978df3d452fda`;
-the formal result SHA256 is
-`11a71e105b93640763886e9dbc165feb37e96adffd1a0cf9ebcdc42113d6097e`.
-This remains rotation-learning evidence only.
+An activation audit subsequently found that the first W16A8 chain did not use
+the paper-aligned grouped-A8 treatment for `o_proj`, so jobs `5848060` and
+`5848547` are superseded for the no-had quality claim. Corrected smoke job
+`5854268` and formal job `5854269` use dynamic asymmetric per-token A8, include
+zero for ungrouped operators, and use group size 128 for `o_proj`. The formal
+job passed in 2 hours 12 minutes 9 seconds using 800 x 2048 calibration tokens
+and 100 updates. Its first/last ten-step mean losses were `1.651692` and
+`1.561438`, with a best loss of `1.322814` at step 94. Final R1/R2
+orthogonality errors were `1.6689e-6` and `7.1526e-7`. The corrected rotation
+tensor SHA256 is
+`ac08587f537b37be176cdd8ed6ab2137bc2b287e0e9f1e7a1e9aa9fb3ed31c4a`;
+its manifest SHA256 is
+`b52466ef3eed8a97e859fed1c5593fc6fd7591e16ed1b20599235fc2a1aec695`,
+and the formal result SHA256 is
+`fc17656fe9d2684ccd4e96859c3e8d4f48a909be7e72ffd46b8f5c013fbe43e9`.
+This remains rotation-learning evidence only; corrected PPL is pending.
 
 The remaining stages are:
 
-1. finish the paper-aligned `no_had` fake-quant protocol by applying
-   post-learning GPTQ W4 to the accepted W16A8-trained rotations, then evaluate
+1. accept smoke job `5854890` and dependent formal job `5854891`, which apply
+   post-learning GPTQ W4 to the corrected W16A8-trained rotations and evaluate
    the no-had W4A8KV16 path on matched held-out tokens;
 2. reproduce the `had` fake-quant path with R3/R4 for low-bit activation/KV
    experiments, while keeping it out of the offline-only deployment path;
