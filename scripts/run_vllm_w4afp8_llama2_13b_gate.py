@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run fresh-process vLLM load/inference for four W4AFP8 study variants."""
+"""Run fresh-process vLLM load/inference for selected W4AFP8 variants."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from safetensors import safe_open
 
 from repro.vllm_w4afp8 import (  # noqa: E402
     EXPECTED_VARIANTS,
+    QUAROT_VARIANTS,
     validate_checkpoint_quantization_config,
     validate_no_runtime_g_idx,
 )
@@ -31,7 +32,16 @@ from scripts.run_vllm_w4a16_llama2_13b_gate import (  # noqa: E402
 )
 
 
-def _parse_models(values: list[str]) -> dict[str, Path]:
+VARIANT_SETS = {
+    "quarot": QUAROT_VARIANTS,
+    "joint": EXPECTED_VARIANTS,
+}
+
+
+def _parse_models(
+    values: list[str],
+    expected_variants: tuple[str, ...] = EXPECTED_VARIANTS,
+) -> dict[str, Path]:
     models: dict[str, Path] = {}
     for value in values:
         if "=" not in value:
@@ -43,8 +53,8 @@ def _parse_models(values: list[str]) -> dict[str, Path]:
         if not (path / "config.json").is_file():
             raise FileNotFoundError(path / "config.json")
         models[name] = path
-    if tuple(models) != EXPECTED_VARIANTS:
-        raise ValueError(f"model order must be {EXPECTED_VARIANTS}")
+    if tuple(models) != expected_variants:
+        raise ValueError(f"model order must be {expected_variants}")
     return models
 
 
@@ -75,11 +85,15 @@ def run(
     config_path: Path,
     models: dict[str, Path],
     worker_output_dir: Path,
+    expected_variants: tuple[str, ...] = EXPECTED_VARIANTS,
 ) -> dict[str, Any]:
     if os.environ.get("VLLM_USE_FLASHINFER_SAMPLER") != "0":
         raise RuntimeError("Isambard gate requires the native vLLM sampler fallback")
-    if tuple(models) != EXPECTED_VARIANTS:
-        raise ValueError(f"model order must be {EXPECTED_VARIANTS}")
+    if tuple(models) != expected_variants:
+        raise ValueError(f"model order must be {expected_variants}")
+    variant_set = next(
+        name for name, variants in VARIANT_SETS.items() if variants == expected_variants
+    )
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -112,7 +126,12 @@ def run(
         raise RuntimeError("vLLM workers returned inconsistent runtime metadata")
     return {
         "status": "passed",
-        "scope": config["scope"],
+        "variant_set": variant_set,
+        "scope": (
+            config["scope"]
+            if expected_variants == EXPECTED_VARIANTS
+            else "QuaRot-only W4AFP8 export/load correctness gate; no SpinQuant, PPL, or performance claim"
+        ),
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "project_revision": _revision(),
         "runtime": json.loads(runtimes.pop()),
@@ -122,7 +141,7 @@ def run(
         "models": results,
         "comparisons": {
             f"{name}_vs_bf16": _compare(results[name], results["bf16"])
-            for name in EXPECTED_VARIANTS[1:]
+            for name in expected_variants[1:]
         },
     }
 
@@ -134,6 +153,7 @@ def main() -> int:
     parser.add_argument("--worker-name")
     parser.add_argument("--worker-model", type=Path)
     parser.add_argument("--prompt-token-ids")
+    parser.add_argument("--variant-set", choices=tuple(VARIANT_SETS), default="joint")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     config_path = args.config.resolve()
@@ -158,8 +178,9 @@ def main() -> int:
     result = run(
         config=config,
         config_path=config_path,
-        models=_parse_models(args.model),
+        models=_parse_models(args.model, VARIANT_SETS[args.variant_set]),
         worker_output_dir=args.output.resolve().parent / f"{args.output.stem}-models",
+        expected_variants=VARIANT_SETS[args.variant_set],
     )
     _write_json(args.output.resolve(), result)
     print(json.dumps(result, indent=2, sort_keys=True))

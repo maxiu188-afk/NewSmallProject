@@ -2,17 +2,13 @@
 
 ## Current state
 
-The real-deployment path is prepared locally but **not submitted**. This work
-does not affect the running SpinQuant fake-quant chain because:
+The QuaRot-only real-deployment gate is ready to submit independently. This
+work does not affect the running corrected SpinQuant fake-quant chain because:
 
-- the Isambard checkout used by jobs `5850956` and `5850958` remains at its
-  original revision;
-- no remote checkout pull, environment mutation, artifact write, or Slurm
-  submission has been performed for W4AFP8;
+- it uses a separate Isambard checkout and Slurm allocation;
 - W4AFP8 uses a separate
   `${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4afp8/` artifact root;
-- the existing SpinQuant rotation artifact is read-only and is initially
-  labelled as an INT8-trained-to-FP8 transfer diagnostic;
+- the QuaRot-only mode neither reads nor exports a SpinQuant rotation;
 - fake-quant configs, outputs, and job scripts are unchanged.
 
 The prepared path covers all later evidence gates:
@@ -37,53 +33,26 @@ Official references:
 - [LLM Compressor repository and W4AFP8 examples](https://github.com/vllm-project/llm-compressor)
 - [vLLM repository](https://github.com/vllm-project/vllm)
 
-## Deferred execution sequence
+## QuaRot execution sequence
 
-Do not run these commands until the fake-quant jobs are accepted.
-
-1. Verify jobs `5850956` and `5850958`, freeze their result hashes, then update
-   the Isambard checkout to the accepted W4AFP8 preparation revision.
-2. Materialize a same-revision calibration artifact in the new W4AFP8 root:
-
-   ```bash
-   ~/.venvs/newsmallproject-llmcompressor-0.12.0/bin/python \
-     scripts/prepare_vllm_w4a16_llama2_calibration.py \
-     --config configs/deployment/vllm_w4afp8_llama2_13b_isambard.json \
-     --output-dir \
-       "$PROJECTDIR/$USER/newsmallproject-vllm/llama2-13b-w4afp8/calibration-128x2048"
-   ```
-
-3. Run a scheduler preflight and then the export/load gate:
+1. Run a scheduler preflight and then the isolated export/load gate. The job
+   materializes the same-revision calibration artifact before export:
 
    ```bash
    sbatch --test-only \
-     scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch
-   sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch
+     scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch quarot
+   sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch quarot
    ```
 
-4. Inspect the terminal state, exit code, stage markers, capability report,
-   three export reports, offline-inference result, and checkpoint provenance.
+2. Inspect the terminal state, exit code, stage markers, capability report,
+   two export reports, offline-inference result, and checkpoint provenance.
    Only after acceptance, replace the pending `source_gate` fields in the PPL
    and serving configs with the gate job ID, relative result paths, and SHA-256
    hashes.
-5. Commit and pull that bounded provenance update, then run PPL smoke before
-   formal PPL:
-
-   ```bash
-   ppl_smoke=$(sbatch --parsable \
-     scripts/run_isambard_vllm_w4afp8_llama2_13b_ppl.sbatch smoke)
-   sbatch --dependency="afterok:${ppl_smoke}" \
-     scripts/run_isambard_vllm_w4afp8_llama2_13b_ppl.sbatch formal
-   ```
-
-6. Run service smoke before the full serving benchmark:
-
-   ```bash
-   serving_smoke=$(sbatch --parsable \
-     scripts/run_isambard_vllm_w4afp8_llama2_13b_serving.sbatch smoke)
-   sbatch --dependency="afterok:${serving_smoke}" \
-     scripts/run_isambard_vllm_w4afp8_llama2_13b_serving.sbatch benchmark
-   ```
+3. After Gate 1 acceptance, freeze its paths and hashes into QuaRot-only PPL
+   and serving configs, then submit smoke before each formal job. The currently
+   prepared PPL and serving configs still describe the later four-model joint
+   study and must not be submitted against a three-model QuaRot gate.
 
 The main PPL and serving jobs depend on accepted smoke results. They do not use
 smoke outcomes to change the formal protocol.

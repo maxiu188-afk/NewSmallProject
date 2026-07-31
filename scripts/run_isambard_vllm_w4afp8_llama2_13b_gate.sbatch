@@ -1,10 +1,7 @@
 #!/bin/bash
-# Prepared only: do not submit until the current SpinQuant fake-quant chain is accepted.
-# Before submission, materialize calibration with the same checked-out revision:
-#   ~/.venvs/newsmallproject-llmcompressor-0.12.0/bin/python \
-#     scripts/prepare_vllm_w4a16_llama2_calibration.py \
-#     --config configs/deployment/vllm_w4afp8_llama2_13b_isambard.json \
-#     --output-dir "$PROJECTDIR/$USER/newsmallproject-vllm/llama2-13b-w4afp8/calibration-128x2048"
+# Export/load gate for a QuaRot-only or later joint W4AFP8 study.
+# Run the isolated QuaRot gate as:
+#   sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch quarot
 #SBATCH --job-name=vllm-13b-w4afp8-gate
 #SBATCH --account=brics.u6rt
 #SBATCH --partition=workq
@@ -15,6 +12,12 @@
 #SBATCH --error=results/vllm-w4afp8-llama2-13b/%x-%j.err
 
 set -euo pipefail
+
+variant_set="${1:-}"
+if [[ "${variant_set}" != "quarot" && "${variant_set}" != "joint" ]]; then
+    echo "usage: sbatch $0 {quarot|joint}" >&2
+    exit 2
+fi
 
 echo "VLLM_W4AFP8_STAGE=module_load"
 module load cray-python/3.11.7
@@ -51,14 +54,16 @@ export TOKENIZERS_PARALLELISM=false
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 echo "VLLM_W4AFP8_STAGE=inputs"
-for required in \
-    "${serving_env}/bin/python" \
-    "${quantizer_env}/bin/python" \
-    "${config}" \
-    "${model_snapshot}/config.json" \
-    "${calibration_dir}/manifest.json" \
-    "${calibration_dir}/dataset" \
-    "${rotation_manifest}"; do
+required_inputs=(
+    "${serving_env}/bin/python"
+    "${quantizer_env}/bin/python"
+    "${config}"
+    "${model_snapshot}/config.json"
+)
+if [[ "${variant_set}" == "joint" ]]; then
+    required_inputs+=("${rotation_manifest}")
+fi
+for required in "${required_inputs[@]}"; do
     if [[ ! -e "${required}" ]]; then
         echo "VLLM_W4AFP8_MISSING_INPUT=${required}" >&2
         exit 1
@@ -73,8 +78,40 @@ if [[ -n "${git_status}" ]]; then
 fi
 mkdir -p "${artifact_root}" "${results_dir}"
 
+echo "VLLM_W4AFP8_STAGE=calibration"
+if [[ ! -e "${calibration_dir}" ]]; then
+    "${quantizer_env}/bin/python" \
+        "${project_root}/scripts/prepare_vllm_w4a16_llama2_calibration.py" \
+        --config "${config}" \
+        --output-dir "${calibration_dir}"
+elif [[ ! -f "${calibration_dir}/manifest.json" || \
+        ! -d "${calibration_dir}/dataset" ]]; then
+    echo "VLLM_W4AFP8_PARTIAL_CALIBRATION=${calibration_dir}" >&2
+    exit 1
+fi
+"${quantizer_env}/bin/python" - \
+    "${calibration_dir}/manifest.json" "${config}" "${git_revision}" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+
+manifest_path = Path(sys.argv[1])
+config_path = Path(sys.argv[2])
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+digest = hashlib.sha256(config_path.read_bytes()).hexdigest()
+assert manifest["status"] == "passed", manifest
+assert manifest["project_revision"] == sys.argv[3], manifest
+assert manifest["config_sha256"] == digest, manifest
+assert manifest["dataset"]["materialized_samples"] == 128, manifest
+assert manifest["dataset"]["sequence_length"] == 2048, manifest
+print("VLLM_W4AFP8_CALIBRATION_ACCEPTED")
+PY
+
 echo "VLLM_W4AFP8_STAGE=source_manifest"
 {
+    printf 'variant_set=%s\n' "${variant_set}"
     printf 'git_revision=%s\n' "${git_revision}"
     printf 'git_status=clean\n'
     printf 'artifact_root=%s\n' "${artifact_root}"
@@ -82,15 +119,20 @@ echo "VLLM_W4AFP8_STAGE=source_manifest"
         "${config}" \
         "${project_root}/repro/vllm_w4afp8.py" \
         "${project_root}/repro/offline_llama_rotation.py" \
-        "${project_root}/repro/spinquant/artifacts.py" \
-        "${project_root}/repro/spinquant/offline.py" \
         "${project_root}/scripts/audit_vllm_w4afp8_backend.py" \
         "${project_root}/scripts/export_vllm_w4afp8_llama2_13b.py" \
+        "${project_root}/scripts/prepare_vllm_w4a16_llama2_calibration.py" \
         "${project_root}/scripts/run_vllm_w4afp8_llama2_13b_gate.py" \
         "${project_root}/scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch" \
-        "${calibration_dir}/manifest.json" \
-        "${rotation_manifest}"
+        "${calibration_dir}/manifest.json"
 } > "${results_dir}/source-manifest-${SLURM_JOB_ID}.txt"
+if [[ "${variant_set}" == "joint" ]]; then
+    sha256sum \
+        "${project_root}/repro/spinquant/artifacts.py" \
+        "${project_root}/repro/spinquant/offline.py" \
+        "${rotation_manifest}" \
+        >> "${results_dir}/source-manifest-${SLURM_JOB_ID}.txt"
+fi
 
 echo "VLLM_W4AFP8_STAGE=capability_audit"
 capability_report="${results_dir}/backend-capability-${SLURM_JOB_ID}.json"
@@ -162,25 +204,34 @@ validate_or_export \
     quarot_w4afp8 \
     "${quarot_dir}" \
     "${results_dir}/quarot-export.json"
-validate_or_export \
-    spinquant_w4afp8 \
-    "${spinquant_dir}" \
-    "${results_dir}/spinquant-transfer-export.json" \
-    --rotation-manifest "${rotation_manifest}"
+if [[ "${variant_set}" == "joint" ]]; then
+    validate_or_export \
+        spinquant_w4afp8 \
+        "${spinquant_dir}" \
+        "${results_dir}/spinquant-transfer-export.json" \
+        --rotation-manifest "${rotation_manifest}"
+fi
 
 echo "VLLM_W4AFP8_STAGE=offline_inference"
-gate_result="${results_dir}/offline-inference-${SLURM_JOB_ID}.json"
-"${serving_env}/bin/python" \
-    "${project_root}/scripts/run_vllm_w4afp8_llama2_13b_gate.py" \
-    --config "${config}" \
-    --model "bf16=${model_snapshot}" \
-    --model "unrotated_w4afp8=${unrotated_dir}" \
-    --model "quarot_w4afp8=${quarot_dir}" \
-    --model "spinquant_w4afp8=${spinquant_dir}" \
+gate_result="${results_dir}/${variant_set}-offline-inference-${SLURM_JOB_ID}.json"
+gate_command=(
+    "${serving_env}/bin/python"
+    "${project_root}/scripts/run_vllm_w4afp8_llama2_13b_gate.py"
+    --variant-set "${variant_set}"
+    --config "${config}"
+    --model "bf16=${model_snapshot}"
+    --model "unrotated_w4afp8=${unrotated_dir}"
+    --model "quarot_w4afp8=${quarot_dir}"
     --output "${gate_result}"
+)
+if [[ "${variant_set}" == "joint" ]]; then
+    gate_command+=(--model "spinquant_w4afp8=${spinquant_dir}")
+fi
+"${gate_command[@]}"
 
 echo "VLLM_W4AFP8_STAGE=assert_result"
-"${serving_env}/bin/python" - "${capability_report}" "${gate_result}" "${git_revision}" <<'PY'
+"${serving_env}/bin/python" - \
+    "${capability_report}" "${gate_result}" "${git_revision}" "${variant_set}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -188,18 +239,17 @@ from pathlib import Path
 capability, gate = [
     json.loads(Path(path).read_text(encoding="utf-8")) for path in sys.argv[1:3]
 ]
-expected = {
-    "bf16",
-    "unrotated_w4afp8",
-    "quarot_w4afp8",
-    "spinquant_w4afp8",
-}
+variant_set = sys.argv[4]
+expected = {"bf16", "unrotated_w4afp8", "quarot_w4afp8"}
+if variant_set == "joint":
+    expected.add("spinquant_w4afp8")
 assert capability["status"] == "passed", capability
 assert {row["kernel"] for row in capability["selections"]} == {
     "CutlassW4A8LinearKernel"
 }, capability
 assert gate["status"] == "passed", gate
 assert gate["project_revision"] == sys.argv[3], gate
+assert gate["variant_set"] == variant_set, gate
 assert set(gate["models"]) == expected, gate
 for name in expected - {"bf16"}:
     checkpoint = gate["models"][name]["checkpoint"]
@@ -207,3 +257,7 @@ for name in expected - {"bf16"}:
     assert checkpoint["runtime_g_idx_tensors"] == 0, checkpoint
 print("ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_GATE_PASSED")
 PY
+
+if [[ "${variant_set}" == "quarot" ]]; then
+    echo "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_QUAROT_GATE_PASSED"
+fi

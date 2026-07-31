@@ -12,6 +12,7 @@ EXPECTED_VARIANTS = (
     "quarot_w4afp8",
     "spinquant_w4afp8",
 )
+QUAROT_VARIANTS = EXPECTED_VARIANTS[:3]
 EXPECTED_KERNEL = "CutlassW4A8LinearKernel"
 EXPECTED_SCHEME = "CompressedTensorsW4A8Fp8"
 

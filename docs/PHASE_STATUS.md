@@ -9,7 +9,7 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | Historical offline-fused W4A16 training/PPL passed; paper-aligned W16A8 activation-only smoke 5848060 and formal training 5848547 passed; no-had W4A8 smoke 5850956 and dependent formal 5850958 are submitted and awaiting acceptance | Rotation learning is complete; no W4A8 evaluation result is accepted yet; A4/`had` R3/R4, downstream accuracy, packing, and deployment remain separate gates |
+| SpinQuant fake quant | The first no-had W4A8 chain completed, then an activation audit found that its `o_proj` A8 granularity differed from the paper protocol; corrected smoke 5854268 and dependent 100-step training 5854269 are submitted | Only the corrected SpinQuant no-had fake-quant chain is being redone; QuaRot, W4A16, data, A4/`had` R3/R4, packing, and deployment remain separate |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
@@ -42,8 +42,9 @@ joint, hardware-aligned W4AFP8 route for both QuaRot and SpinQuant on GH200.
 It requires deployed-checkpoint PPL plus matched full-model serving performance;
 the existing fake-quant evaluator cannot establish W4AFP8 accuracy. Its local
 export, backend-audit, deployed-PPL, and serving paths are prepared and tested
-statically, but no Isambard checkout update, export, or Slurm submission has
-started. See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
+statically. The isolated QuaRot-only export/load gate can now run in parallel;
+SpinQuant W4AFP8 remains deferred until corrected rotation provenance is frozen.
+See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
 ## Latest accepted result

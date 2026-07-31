@@ -3,22 +3,21 @@
 ## Decision and sequence
 
 This is a hardware-aligned extension for Isambard GH200, not a relabelling of
-the papers' INT8-activation experiments. Its local path is prepared; remote
-execution is **planned, not started**.
+the papers' INT8-activation experiments. The QuaRot-only export/load gate can
+now proceed independently while the corrected SpinQuant no-had fake-quant
+chain runs in its own checkout and artifact root.
 
-The order is fixed:
+The first SpinQuant no-had chain (`5850956` -> `5850958`) was accepted and is
+retained as an old-QDQ baseline. The active order is now fixed:
 
-1. accept the current SpinQuant `no_had` W4A8 fake-quant smoke/formal chain
-   (`5850956` -> `5850958`);
-2. freeze its artifacts, hashes, held-out PPL, and claim boundary;
-3. only then sync the prepared path to Isambard and submit the joint W4AFP8 work;
-4. evaluate both deployed-checkpoint quality and full-model serving performance
-   for QuaRot and SpinQuant.
+1. run the isolated BF16/unrotated/QuaRot W4AFP8 export/load gate;
+2. evaluate QuaRot deployed-checkpoint quality and serving performance;
+3. complete the corrected SpinQuant no-had fake-quant chain independently;
+4. add SpinQuant W4AFP8 only after its corrected rotation provenance is frozen.
 
-Local W4AFP8 preparation may proceed while the current fake-quant chain is
-unfinished, but it must remain isolated from the Isambard checkout, artifacts,
-environments, and jobs used by that chain. No W4AFP8 export or Slurm job is
-started yet. The current W4A8 fake-quant result will answer the paper-aligned
+The QuaRot work remains isolated from the Isambard checkout, artifacts,
+environments, and jobs used by the SpinQuant redo. The existing W4A8
+fake-quant result answers the paper-aligned
 INT8 quality question only. It cannot be reused, converted, or extrapolated
 into a W4AFP8 accuracy result because FP8 changes the activation quantizer,
 error distribution, calibration/learning objective, and executed kernel.
@@ -136,10 +135,10 @@ The final claims are bounded as follows:
 - `acceleration`: only matched full-model serving evidence from the selected
   W4AFP8 backend.
 
-## Current non-actions
+## Current execution boundary
 
-The export, deployed-PPL, and full-model service paths are now prepared in the
-local repository and documented in
-[`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md). Until jobs `5850956`
-and `5850958` are accepted, no checkpoint export, environment mutation, remote
-checkout update, new Slurm submission, or continuous monitoring is authorized.
+The QuaRot-only Gate 1 path is authorized and isolated. It exports only the
+unrotated control and QuaRot-style W4AFP8 checkpoint, then loads BF16 plus those
+two checkpoints in fresh vLLM processes. SpinQuant export remains deferred;
+the old INT8-trained rotation is not frozen into this gate. Deployed PPL and
+serving still require the accepted gate result and hashes before submission.
