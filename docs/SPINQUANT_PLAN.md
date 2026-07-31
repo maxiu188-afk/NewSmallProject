@@ -185,16 +185,22 @@ sbatch --dependency=afterok:<smoke-job> \
   scripts/run_isambard_spinquant_llama2_13b_fake_quant_ppl.sbatch formal
 ```
 
-## Corrected deployment target
+## Paper-aligned fake-quant target and deployment decision
 
-The SpinQuant deployment target is corrected from W4A16 to the paper's
-`SpinQuant_no_had` W4A8 route. The first deployment gate will use W4A8KV16:
+The paper-aligned SpinQuant quality target is corrected from W4A16 to the
+paper's `SpinQuant_no_had` W4A8 route. The current fake-quant gate uses
+W4A8KV16:
 
 - learn R1/R2 with W16 weights and dynamic per-token asymmetric A8 QDQ;
 - fuse R1/R2 into ordinary Llama weights offline;
 - apply group-128 GPTQ W4 after rotation learning;
 - retain A8 execution at inference, with KV left at 16 bits initially;
 - do not add online Hadamard R3/R4 to this no-had deployment path.
+
+After this fake-quant gate is accepted, the GH200 real-deployment target is
+W4AFP8 rather than INT8 W4A8. That deployment is a hardware-aligned extension,
+must be evaluated independently, and includes both QuaRot and SpinQuant. See
+[`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md).
 
 The completed W4A16 SpinQuant experiment is retained as a matched weight-only
 ablation. The completed QuaRot-style W4A16 vLLM deployment remains valid for
@@ -206,15 +212,17 @@ deployment.
 | Area | Difficulty | Assessment |
 |---|---|---|
 | Fake-quant algorithm and evaluation | Low to medium | Offline R1/R2 fusion, A8 QDQ, GPTQ primitives, and the formal learned rotations already exist. The main work is composing post-learning GPTQ with the W4A8 evaluation path and adding provenance/quality gates; rotation retraining is not required. |
-| Compressed checkpoint export | Medium | The existing W4A16 LLM Compressor exporter must emit group-128 W4 plus dynamic per-token A8 metadata and validate loader coverage and runtime form. |
-| GH200 vLLM correctness smoke | Medium | Current vLLM can recognize the compressed-tensors W4A8 scheme, but a fresh-process checkpoint load, fixed-token output gate, and selected-kernel/runtime-form audit are still required. |
-| GH200 accelerated W4A8 serving | High / currently uncertain | Stable vLLM's hardware table does not list INT4-weight/INT8-activation support on Hopper. The installed vLLM 0.25.1 W4A8 metadata path delegates to mixed-precision kernel selection; its Hopper CUTLASS W4A8 kernel is FP8-activation-only, so an INT8 checkpoint may load without providing real A8 acceleration. |
+| W4AFP8 compressed-checkpoint export | Medium | The existing W4A16 exporter must emit group-128 W4 plus dynamic per-token FP8 metadata, omit unsupported runtime `g_idx`, and validate loader coverage and runtime form. |
+| GH200 vLLM W4AFP8 correctness smoke | Medium | Fresh-process loading, fixed-token output, selected-kernel/runtime-form, FP8-scale, and packed-linear coverage gates are required before quality or timing. |
+| GH200 accelerated W4AFP8 serving | Medium / gated | The installed Hopper path appears promising, but acceleration is not accepted until logs prove the intended W4AFP8 kernel and the matched full-model benchmark beats the BF16 reference. |
+| FP8-targeted SpinQuant rotations | Medium | Existing W16A8 rotations may be screened as transfer evidence. The accepted endpoint needs an FP8-objective validation and may require matched FP8-targeted rotation learning. |
 | Custom NVIDIA W4A8 backend | High | The repository's owned W4A8 CUDA code is correctness-oriented and previously slow. Turning it into full-model serving requires an optimized kernel and vLLM integration, which is a separate backend project. |
 | Official alternative backend | Medium, but different scope | The official [ExecuTorch Llama example](https://github.com/pytorch/executorch/blob/main/examples/models/llama/README.md) provides a reusable SpinQuant-style W4A8 route for supported Arm/mobile Llama models. It can be evaluated separately, but it does not validate Llama-2-13B serving on GH200. |
 
-Therefore the fake-quant route is a contained change, while production-speed
-W4A8 on GH200 is not a drop-in replacement for the completed W4A16 route. The
-backend decision must follow, not precede, the fake-quant quality result.
+Therefore the fake-quant route remains a contained paper-aligned study, while
+production-speed INT8 W4A8 on GH200 is not the selected follow-up. W4AFP8 is
+the planned hardware-aligned route, but its quality and speed remain unproven
+until the deployed-checkpoint gates pass.
 
 Assessment sources: the locally supplied `Spin.pdf` paper (deployment
 discussion and Table 1), the stable vLLM
@@ -226,16 +234,18 @@ claim boundary for NVIDIA INT4 x INT8 acceleration.
 
 ## Next stages
 
-1. Complete the paper-aligned `SpinQuant_no_had` fake-quant protocol by applying
-   post-learning GPTQ W4 to the accepted W16A8-trained rotations and evaluating
-   W4A8KV16 on the matched held-out tokens.
-2. Reproduce the `SpinQuant_had` fake-quant path with online Hadamard R3/R4 for
-   low-bit activation/KV studies. Do not carry those online transforms into the
-   no-had W4A8 deployment path.
-3. Keep paper-protocol results separate from the completed same-token W4A16
-   RTN-QDQ comparison.
-4. Export group-128 GPTQ W4 plus dynamic per-token A8 metadata. Treat official
-   vLLM load/correctness and confirmed Hopper A8 acceleration as separate gates.
+1. Finish and accept the already submitted paper-aligned `SpinQuant_no_had`
+   fake-quant chain (`5850956` -> `5850958`): apply post-learning GPTQ W4 to
+   the accepted W16A8-trained rotations and evaluate W4A8KV16 on the matched
+   held-out tokens.
+2. Freeze that result as INT8 W4A8 floating-QDQ evidence. It is not evidence for
+   FP8 activation quality or real deployment performance.
+3. After, and only after, the current chain is accepted, start the joint QuaRot
+   and SpinQuant W4AFP8 deployment plan in
+   [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md). Both methods must
+   pass deployed-checkpoint PPL and matched full-model serving benchmarks.
+4. Keep `SpinQuant_had` with online R3/R4 as a separate paper extension. It is
+   not a prerequisite for the offline-only W4AFP8 deployment route.
 
 The rotation-learning part of stage 1 has passed both full-model gates. The
 W16A8 smoke/formal configs make the rotation objective explicit as
@@ -254,12 +264,14 @@ first/last ten-step mean losses were `1.651698` and `1.561623`; the best loss
 was `1.32231` at step 94. Final R1/R2 orthogonality errors were `1.3709e-6`
 and `5.96e-7`. The accepted rotation tensor SHA256 is
 `62cbc73e26d8993f068331e924c19738a40bc89813e680316d1978df3d452fda`.
-Completion remains training evidence only; post-learning GPTQ, W4A8
-fake-quant evaluation, checkpoint export, and backend validation are separate
-gates.
+Completion remains training evidence only. The post-learning GPTQ W4A8
+fake-quant smoke/formal jobs `5850956` and `5850958` have been submitted as a
+same-revision dependency chain, but no result is accepted until their artifacts
+and full held-out metrics are validated. Checkpoint export and backend
+validation remain later, separate gates.
 
 The SpinQuant fake-quant stages remain independent of the completed QuaRot
-deployment checkout and artifacts. The later SpinQuant deployment work can
+deployment checkout and artifacts. The later joint W4AFP8 deployment work can
 reuse the accepted vLLM process and provenance gates without modifying the
-completed QuaRot branch, but it cannot reuse the W4A16 checkpoint format as
-evidence of A8 execution.
+completed QuaRot evidence, but it cannot reuse W4A16 or INT8 W4A8 fake-quant
+results as W4AFP8 accuracy evidence.

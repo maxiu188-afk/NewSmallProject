@@ -21,8 +21,11 @@ but it is not the current project plan.
 - [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): independent SpinQuant fake-quant
   implementation status, clean-room boundary, W4A8 migration assessment, and
   staged reproduction plan.
+- [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): deferred joint
+  QuaRot/SpinQuant GH200 deployment plan, including deployed-checkpoint quality
+  and matched full-model acceleration gates.
 - [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md):
-  two-route deployment decision and completed vLLM W4A16 evidence chain.
+  completed QuaRot routes plus the planned joint W4AFP8 extension.
 - [`QUAROT_PROGRESS_REPORT_ZH.tex`](QUAROT_PROGRESS_REPORT_ZH.tex): concise
   Chinese progress report for XeLaTeX/Overleaf.
 

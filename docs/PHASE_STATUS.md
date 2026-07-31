@@ -9,7 +9,7 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | Historical offline-fused W4A16 training/PPL passed; paper-aligned W16A8 activation-only smoke 5848060 and formal training 5848547 also passed on GH200 | Rotation learning is complete; post-learning GPTQ, no-had W4A8 fake-quant evaluation, A4/`had` R3/R4, downstream accuracy, packing, and deployment remain separate gates |
+| SpinQuant fake quant | Historical offline-fused W4A16 training/PPL passed; paper-aligned W16A8 activation-only smoke 5848060 and formal training 5848547 passed; no-had W4A8 smoke 5850956 and dependent formal 5850958 are submitted and awaiting acceptance | Rotation learning is complete; no W4A8 evaluation result is accepted yet; A4/`had` R3/R4, downstream accuracy, packing, and deployment remain separate gates |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
@@ -32,12 +32,17 @@ reported as **QuaRot-style W4A16**, not original QuaRot W4A4KV4, because it
 omits online MLP/QK transforms and the custom KV4 cache.
 
 This W4A16 decision applies to the completed QuaRot workstream only. The
-SpinQuant paper's real-deployment `no_had` route is W4A8, with offline-fused
-R1/R2 and activation quantization retained at inference. The first revised
-SpinQuant deployment target is therefore W4A8KV16. Fake-quant integration is a
-low-to-medium change, but accelerated INT4-weight/INT8-activation serving on
-GH200 is a separate high-risk backend gate: stable vLLM does not currently
-list this combination as supported on Hopper.
+SpinQuant paper's real-deployment `no_had` route remains W4A8, with
+offline-fused R1/R2 and activation quantization retained at inference. Its
+current INT8 W4A8 fake-quant chain is completed first as paper-aligned quality
+evidence.
+
+After that chain is accepted, the next real-deployment study changes to a
+joint, hardware-aligned W4AFP8 route for both QuaRot and SpinQuant on GH200.
+It requires deployed-checkpoint PPL plus matched full-model serving performance;
+the existing fake-quant evaluator cannot establish W4AFP8 accuracy. No W4AFP8
+implementation or submission starts before the current jobs finish. See
+[`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md).
 
 ## Latest accepted result
 
@@ -74,8 +79,9 @@ weight-only ablation, not the paper deployment target.
 Paper-aligned activation-only rotation learning also completed. Job `5848060`
 passed the one-step W16A8 smoke, and job `5848547` completed all 100 formal
 updates in 2 hours 9 minutes 15 seconds with finite losses and non-zero
-rotation gradients. The accepted learned rotations now feed the remaining
-post-learning GPTQ and no-had W4A8 fake-quant gates. See
+rotation gradients. The accepted learned rotations now feed the submitted
+post-learning GPTQ and no-had W4A8 fake-quant gates. Their results remain
+pending acceptance. See
 [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md) for protocol and claim boundaries
 and [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md) for the next stages.
 
