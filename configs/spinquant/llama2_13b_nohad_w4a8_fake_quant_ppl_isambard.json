@@ -12,11 +12,11 @@
     "trust_remote_code": false
   },
   "learned_rotation": {
-    "training_job_id": "5848547",
-    "project_revision": "8b14f58932f176a4000fbd77f80a3c2e05438a13",
-    "training_result_sha256": "11a71e105b93640763886e9dbc165feb37e96adffd1a0cf9ebcdc42113d6097e",
-    "rotation_manifest_sha256": "e17764396d00d15749c301ef6a72529fcefd916455fc52a425b498b93a548bac",
-    "rotation_safetensors_sha256": "62cbc73e26d8993f068331e924c19738a40bc89813e680316d1978df3d452fda"
+    "training_job_id": "5854269",
+    "project_revision": "94ac5fd4e0e993100655baa0328a3de6b6058ace",
+    "training_result_sha256": "fc17656fe9d2684ccd4e96859c3e8d4f48a909be7e72ffd46b8f5c013fbe43e9",
+    "rotation_manifest_sha256": "b52466ef3eed8a97e859fed1c5593fc6fd7591e16ed1b20599235fc2a1aec695",
+    "rotation_safetensors_sha256": "ac08587f537b37be176cdd8ed6ab2137bc2b287e0e9f1e7a1e9aa9fb3ed31c4a"
   },
   "gptq_calibration": {
     "manifest_sha256": "626b34af46a3d9bd45844e582557c68f5d458ffcfcacafe841e100f5035ac59a",

@@ -21,7 +21,7 @@ class SpinQuantW4A8PplTests(unittest.TestCase):
         config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
         _validate_config(config)
         self.assertEqual(tuple(config["evaluation"]["cases"]), EXPECTED_CASES)
-        self.assertEqual(config["learned_rotation"]["training_job_id"], "5848547")
+        self.assertEqual(config["learned_rotation"]["training_job_id"], "5854269")
         self.assertEqual(config["gptq_calibration"]["samples"], 128)
         self.assertEqual(config["gptq_calibration"]["sequence_length"], 2048)
         self.assertEqual(config["quantization"]["scheme"], "W4A8KV16")
