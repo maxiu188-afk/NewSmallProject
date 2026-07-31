@@ -211,6 +211,7 @@ echo "SPINQUANT_NOHAD_W4A8_PPL_STAGE=source_manifest"
         "${config}" \
         "${project_root}/repro/gptq.py" \
         "${project_root}/repro/qdq.py" \
+        "${project_root}/repro/spinquant/activation_qdq.py" \
         "${project_root}/repro/spinquant/artifacts.py" \
         "${project_root}/repro/spinquant/offline.py" \
         "${project_root}/repro/spinquant/rotations.py" \
@@ -270,7 +271,11 @@ for name, model in result["models"].items():
     assert activation["quantized_decoder_linears"] == 280, model
     assert activation["activation_bits"] == 8, model
     assert activation["activation_symmetric"] is False, model
-    assert activation["activation_granularity"] == "per_token_last_axis", model
+    assert activation["activation_ungrouped_include_zero"] is True, model
+    assert activation["activation_o_proj_group_size"] == 128, model
+    assert activation["activation_granularity"] == (
+        "per_token_last_axis_o_proj_grouped"
+    ), model
     assert activation["quantized_lm_head"] is False, model
     if name == "spinquant_nohad_w4a8":
         assert preparation["rotation"]["online_rotation_modules"] == 0, model

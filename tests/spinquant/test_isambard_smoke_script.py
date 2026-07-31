@@ -38,6 +38,14 @@ class SpinQuantIsambardSmokeScriptTests(unittest.TestCase):
         self.assertIn('training["rotation_objective"] == "activation_qdq"', text)
         self.assertIn('training["adapter"]["weight_bits"] == 16', text)
         self.assertIn('training["adapter"]["activation_bits"] == 8', text)
+        self.assertIn(
+            'training["adapter"]["activation_o_proj_group_size"] == 128',
+            text,
+        )
+        self.assertIn(
+            'training["adapter"]["activation_ungrouped_include_zero"] is True',
+            text,
+        )
         self.assertIn("maximum_orthogonality_error=1e-4", text)
         self.assertIn(
             "ISAMBARD_SPINQUANT_LLAMA2_13B_W16A8_1STEP_SMOKE_PASSED",

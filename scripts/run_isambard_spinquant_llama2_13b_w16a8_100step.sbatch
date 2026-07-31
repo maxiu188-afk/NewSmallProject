@@ -16,6 +16,16 @@
 
 set -euo pipefail
 
+smoke_job="${1:-}"
+if [[ ! "${smoke_job}" =~ ^[0-9]+$ ]]; then
+    echo "usage: sbatch --dependency=afterok:<smoke-job> $0 <smoke-job>" >&2
+    exit 2
+fi
+if [[ "${SLURM_JOB_DEPENDENCY:-}" != afterok:* ]]; then
+    echo "SPINQUANT_13B_W16A8_FORMAL_REQUIRES_AFTEROK_DEPENDENCY" >&2
+    exit 2
+fi
+
 echo "SPINQUANT_13B_W16A8_FORMAL_STAGE=module_load"
 module load cray-python/3.11.7
 
@@ -27,7 +37,6 @@ training_config="${project_root}/configs/spinquant/llama2_13b_w16a8_rotation_tra
 model_snapshot="${HOME}/.cache/huggingface/models--meta-llama--Llama-2-13b-hf/snapshots/5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1"
 artifact_root="${SPINQUANT_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-spinquant/llama2-13b-paper-nohad-w16a8}"
 results_dir="${project_root}/results/spinquant-isambard-llama2-13b"
-smoke_job="5848060"
 smoke_result="${results_dir}/spinquant-13b-w16a8-1step-${smoke_job}.json"
 smoke_source_manifest="${results_dir}/spinquant-13b-w16a8-1step-${smoke_job}-source-manifest.txt"
 
@@ -98,7 +107,11 @@ assert training["adapter"]["weight_bits"] == 16, training
 assert training["adapter"]["activation_bits"] == 8, training
 assert training["adapter"]["weight_runtime_form"] == "unquantized", training
 assert training["adapter"]["activation_runtime_form"] == "floating_qdq_with_ste", training
-assert training["adapter"]["activation_granularity"] == "per_token_last_axis", training
+assert training["adapter"]["activation_granularity"] == (
+    "per_token_last_axis_o_proj_grouped"
+), training
+assert training["adapter"]["activation_o_proj_group_size"] == 128, training
+assert training["adapter"]["activation_ungrouped_include_zero"] is True, training
 assert training["optimizer_steps"] == 1, training
 assert training["gradient_accumulation_steps"] == 8, training
 assert training["calibration_sequences"] == 8, training
@@ -145,6 +158,7 @@ echo "SPINQUANT_13B_W16A8_FORMAL_STAGE=source_manifest"
         "${training_config}" \
         "${project_root}/repro/spinquant/artifacts.py" \
         "${project_root}/repro/spinquant/calibration.py" \
+        "${project_root}/repro/spinquant/activation_qdq.py" \
         "${project_root}/repro/spinquant/llama_adapter.py" \
         "${project_root}/repro/spinquant/rotations.py" \
         "${project_root}/repro/spinquant/stiefel.py" \
@@ -222,7 +236,11 @@ assert training["adapter"]["weight_bits"] == 16, training
 assert training["adapter"]["activation_bits"] == 8, training
 assert training["adapter"]["weight_runtime_form"] == "unquantized", training
 assert training["adapter"]["activation_runtime_form"] == "floating_qdq_with_ste", training
-assert training["adapter"]["activation_granularity"] == "per_token_last_axis", training
+assert training["adapter"]["activation_granularity"] == (
+    "per_token_last_axis_o_proj_grouped"
+), training
+assert training["adapter"]["activation_o_proj_group_size"] == 128, training
+assert training["adapter"]["activation_ungrouped_include_zero"] is True, training
 assert training["optimizer_steps"] == 100, training
 assert training["gradient_accumulation_steps"] == 8, training
 assert training["calibration_sequences"] == 800, training

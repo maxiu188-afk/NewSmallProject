@@ -33,11 +33,11 @@ class ActivationAuditTests(unittest.TestCase):
         import torch
 
         from repro.qdq import qdq_last_axis
-        from repro.spinquant.activation_audit import paper_aligned_asymmetric_qdq
+        from repro.spinquant.activation_qdq import spinquant_activation_qdq
 
         values = torch.tensor([[1.0, 2.0], [-2.0, -1.0]])
         current = qdq_last_axis(values, 8, symmetric=False)
-        observed = paper_aligned_asymmetric_qdq(values)
+        observed = spinquant_activation_qdq(values, 8, symmetric=False)
 
         self.assertTrue(torch.equal(current, torch.tensor([[1.0, 1.0], [-1.0, -1.0]])))
         self.assertFalse(torch.equal(observed[0, 0], observed[0, 1]))
@@ -50,12 +50,16 @@ class ActivationAuditTests(unittest.TestCase):
     def test_paper_o_proj_groups_isolate_an_outlier(self):
         import torch
 
-        from repro.spinquant.activation_audit import paper_aligned_asymmetric_qdq
+        from repro.spinquant.activation_qdq import spinquant_activation_qdq
 
         values = torch.linspace(-0.05, 0.05, 256).reshape(1, 1, 256)
         values[..., 0] = 100.0
-        full = paper_aligned_asymmetric_qdq(values, group_size=-1)
-        grouped = paper_aligned_asymmetric_qdq(values, group_size=128)
+        full = spinquant_activation_qdq(
+            values, 8, symmetric=False, group_size=-1
+        )
+        grouped = spinquant_activation_qdq(
+            values, 8, symmetric=False, group_size=128
+        )
         full_error = (full[..., 128:] - values[..., 128:]).square().sum()
         grouped_error = (grouped[..., 128:] - values[..., 128:]).square().sum()
         self.assertLess(grouped_error.item(), full_error.item())

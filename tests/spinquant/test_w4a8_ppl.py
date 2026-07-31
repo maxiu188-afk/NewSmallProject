@@ -30,6 +30,12 @@ class SpinQuantW4A8PplTests(unittest.TestCase):
         self.assertEqual(config["quantization"]["activation_bits"], 8)
         self.assertFalse(config["quantization"]["activation_symmetric"])
         self.assertFalse(config["quantization"]["activation_clipping"])
+        self.assertTrue(
+            config["quantization"]["activation_ungrouped_include_zero"]
+        )
+        self.assertEqual(
+            config["quantization"]["activation_o_proj_group_size"], 128
+        )
         self.assertEqual(config["quantization"]["key_bits"], 16)
         self.assertEqual(config["quantization"]["value_bits"], 16)
 

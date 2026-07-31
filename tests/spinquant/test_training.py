@@ -184,6 +184,8 @@ class SpinQuantTrainingTests(unittest.TestCase):
                 "weight_symmetric": True,
                 "activation_symmetric": False,
                 "activation_clipping": False,
+                "activation_ungrouped_include_zero": True,
+                "activation_o_proj_group_size": 8,
                 "quantize_lm_head": False,
             },
             "optimization": {
@@ -206,7 +208,12 @@ class SpinQuantTrainingTests(unittest.TestCase):
             result["adapter"]["activation_runtime_form"],
             "floating_qdq_with_ste",
         )
-        self.assertEqual(result["adapter"]["activation_granularity"], "per_token_last_axis")
+        self.assertEqual(
+            result["adapter"]["activation_granularity"],
+            "per_token_last_axis_o_proj_grouped",
+        )
+        self.assertEqual(result["adapter"]["activation_o_proj_group_size"], 8)
+        self.assertTrue(result["adapter"]["activation_ungrouped_include_zero"])
         self.assertGreater(result["gradient_maxima"][0], 0.0)
         self.assertTrue(all(parameter.requires_grad for parameter in rotations.parameters()))
 

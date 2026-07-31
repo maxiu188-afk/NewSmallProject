@@ -46,7 +46,9 @@ def _validate_config(config: dict[str, Any]) -> None:
         "activation_bits": 8,
         "activation_symmetric": False,
         "activation_clipping": False,
-        "activation_granularity": "per_token_last_axis",
+        "activation_ungrouped_include_zero": True,
+        "activation_o_proj_group_size": 128,
+        "activation_granularity": "per_token_last_axis_o_proj_grouped",
         "key_bits": 16,
         "value_bits": 16,
         "quantize_lm_head": False,
@@ -188,6 +190,7 @@ def _prepare_case(
         model,
         bits=int(quantization["activation_bits"]),
         symmetric=bool(quantization["activation_symmetric"]),
+        o_proj_group_size=int(quantization["activation_o_proj_group_size"]),
     )
     preparation = {
         "rotation": rotation_summary,

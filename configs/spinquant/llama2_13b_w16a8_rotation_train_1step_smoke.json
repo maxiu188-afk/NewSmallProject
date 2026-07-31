@@ -27,7 +27,9 @@
     "weight_symmetric": true,
     "activation_symmetric": false,
     "activation_clipping": false,
-    "activation_granularity": "per_token_last_axis",
+    "activation_ungrouped_include_zero": true,
+    "activation_o_proj_group_size": 128,
+    "activation_granularity": "per_token_last_axis_o_proj_grouped",
     "quantize_lm_head": false,
     "runtime_form": "floating_activation_qdq_with_ste"
   },

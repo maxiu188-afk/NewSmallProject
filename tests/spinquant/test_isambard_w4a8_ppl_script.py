@@ -20,6 +20,10 @@ class SpinQuantIsambardW4A8PplScriptTests(unittest.TestCase):
         self.assertIn('preparation["gptq"]["linear_layers"] == 280', text)
         self.assertIn('activation["activation_bits"] == 8', text)
         self.assertIn('activation["activation_symmetric"] is False', text)
+        self.assertIn('activation["activation_o_proj_group_size"] == 128', text)
+        self.assertIn(
+            'activation["activation_ungrouped_include_zero"] is True', text
+        )
         self.assertIn('preparation["rotation"]["online_rotation_modules"] == 0', text)
         self.assertIn('torch.cuda.get_device_name(0) == "NVIDIA GH200 120GB"', text)
         self.assertIn("SLURM_SUBMIT_DIR", text)

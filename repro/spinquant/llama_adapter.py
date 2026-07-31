@@ -17,6 +17,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from repro.qdq import qdq_last_axis
+from repro.spinquant.activation_qdq import ste_spinquant_activation_qdq
 from repro.spinquant.rotations import SpinQuantRotations
 from repro.torch_smoke import UnitRMSNorm
 
@@ -30,6 +31,7 @@ class SpinQuantFakeQuantSpec:
     weight_group_size: int = -1
     weight_symmetric: bool = True
     activation_symmetric: bool = False
+    activation_o_proj_group_size: int = -1
     quantize_lm_head: bool = False
 
     def validate(self) -> None:
@@ -41,6 +43,13 @@ class SpinQuantFakeQuantSpec:
                 raise ValueError(f"{name} must be in [2, 16]")
         if self.weight_group_size == 0 or self.weight_group_size < -1:
             raise ValueError("weight_group_size must be -1 or positive")
+        if (
+            self.activation_o_proj_group_size == 0
+            or self.activation_o_proj_group_size < -1
+        ):
+            raise ValueError(
+                "activation_o_proj_group_size must be -1 or positive"
+            )
 
 
 def ste_qdq(
@@ -257,10 +266,16 @@ class SpinQuantLinear(nn.Module):
     def forward(self, values: Tensor) -> Tensor:
         quantize_activation = self.role != "lm_head"
         if quantize_activation:
-            values = ste_qdq(
+            group_size = (
+                self.spec.activation_o_proj_group_size
+                if self.role == "o_writer"
+                else -1
+            )
+            values = ste_spinquant_activation_qdq(
                 values,
                 self.spec.activation_bits,
                 symmetric=self.spec.activation_symmetric,
+                group_size=group_size,
             )
         return F.linear(values, self._transformed_weight(), self._transformed_bias())
 
@@ -395,6 +410,8 @@ def apply_spinquant_llama_training_adapter(
         "tied_embeddings_retained_as_shared_frozen_weight": tied_embeddings,
         "weight_bits": spec.weight_bits,
         "activation_bits": spec.activation_bits,
+        "activation_o_proj_group_size": spec.activation_o_proj_group_size,
+        "activation_ungrouped_include_zero": True,
         "weight_group_size": spec.weight_group_size,
         "weight_runtime_form": (
             "floating_qdq_with_ste" if spec.weight_bits < 16 else "unquantized"
@@ -404,7 +421,11 @@ def apply_spinquant_llama_training_adapter(
             if spec.activation_bits < 16
             else "unquantized"
         ),
-        "activation_granularity": "per_token_last_axis",
+        "activation_granularity": (
+            "per_token_last_axis_o_proj_grouped"
+            if spec.activation_o_proj_group_size > 0
+            else "per_token_last_axis"
+        ),
         "online_rotation_scope": "training_only",
         "transformers_model_source_copied": False,
     }

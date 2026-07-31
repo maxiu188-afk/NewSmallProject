@@ -95,7 +95,7 @@ class SpinQuantOfflineTests(unittest.TestCase):
     def test_asymmetric_a8_quantizes_decoder_inputs_only(self):
         import torch
 
-        from repro.qdq import qdq_last_axis
+        from repro.spinquant.activation_qdq import spinquant_activation_qdq
         from repro.spinquant.offline import (
             fake_quantize_llama_decoder_activations,
         )
@@ -118,6 +118,7 @@ class SpinQuantOfflineTests(unittest.TestCase):
             model,
             bits=8,
             symmetric=False,
+            o_proj_group_size=8,
         ) as summary:
             self.assertEqual(len(decoder._forward_pre_hooks), 1)
             self.assertEqual(len(model.lm_head._forward_pre_hooks), 0)
@@ -133,10 +134,18 @@ class SpinQuantOfflineTests(unittest.TestCase):
         self.assertEqual(summary["quantized_decoder_linears"], 14)
         self.assertEqual(summary["activation_bits"], 8)
         self.assertFalse(summary["activation_symmetric"])
+        self.assertEqual(summary["activation_o_proj_group_size"], 8)
+        self.assertTrue(summary["activation_ungrouped_include_zero"])
+        self.assertEqual(
+            summary["activation_granularity"],
+            "per_token_last_axis_o_proj_grouped",
+        )
         self.assertFalse(summary["quantized_lm_head"])
         self.assertEqual(len(baseline_inputs), 1)
         self.assertEqual(len(observed_inputs), 1)
-        expected = qdq_last_axis(baseline_inputs[0], 8, symmetric=False)
+        expected = spinquant_activation_qdq(
+            baseline_inputs[0], 8, symmetric=False
+        )
         torch.testing.assert_close(observed_inputs[0], expected)
 
         # The context must remove every temporary hook after evaluation.

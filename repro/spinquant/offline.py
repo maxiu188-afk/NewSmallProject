@@ -14,6 +14,7 @@ import torch
 from torch import Tensor, nn
 
 from repro.qdq import qdq_last_axis
+from repro.spinquant.activation_qdq import spinquant_activation_qdq
 from repro.spinquant.llama_adapter import (
     _left_apply_head_rotation_transpose,
     _right_apply_head_rotation,
@@ -199,12 +200,24 @@ def _decoder_linears(model: nn.Module) -> Iterable[nn.Linear]:
         yield layer.mlp.down_proj
 
 
+def _role_decoder_linears(model: nn.Module) -> Iterable[tuple[str, nn.Linear]]:
+    for layer in model.model.layers:
+        yield "q_proj", layer.self_attn.q_proj
+        yield "k_proj", layer.self_attn.k_proj
+        yield "v_proj", layer.self_attn.v_proj
+        yield "o_proj", layer.self_attn.o_proj
+        yield "gate_proj", layer.mlp.gate_proj
+        yield "up_proj", layer.mlp.up_proj
+        yield "down_proj", layer.mlp.down_proj
+
+
 @contextmanager
 def fake_quantize_llama_decoder_activations(
     model: nn.Module,
     *,
     bits: int = 8,
     symmetric: bool = False,
+    o_proj_group_size: int = -1,
 ) -> Iterator[Dict[str, Any]]:
     """Apply per-token activation QDQ before the seven decoder linears.
 
@@ -214,26 +227,51 @@ def fake_quantize_llama_decoder_activations(
 
     if bits < 2 or bits >= 16:
         raise ValueError("decoder activation fake quantization requires bits in [2, 15]")
-    linears = list(_decoder_linears(model))
+    role_linears = list(_role_decoder_linears(model))
     expected = int(model.config.num_hidden_layers) * 7
-    if len(linears) != expected or not all(isinstance(linear, nn.Linear) for linear in linears):
+    if len(role_linears) != expected or not all(
+        isinstance(linear, nn.Linear) for _role, linear in role_linears
+    ):
         raise ValueError("decoder activation QDQ requires seven standard linears per layer")
+    if o_proj_group_size == 0 or o_proj_group_size < -1:
+        raise ValueError("o_proj_group_size must be -1 or positive")
 
-    def quantize_input(_module: nn.Module, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
-        if not inputs or not isinstance(inputs[0], Tensor):
-            raise ValueError("decoder linear did not receive a tensor input")
-        quantized = qdq_last_axis(inputs[0], bits, symmetric=symmetric)
-        return (quantized,) + inputs[1:]
+    def make_hook(role: str):
+        def quantize_input(
+            _module: nn.Module,
+            inputs: tuple[Any, ...],
+        ) -> tuple[Any, ...]:
+            if not inputs or not isinstance(inputs[0], Tensor):
+                raise ValueError("decoder linear did not receive a tensor input")
+            group_size = o_proj_group_size if role == "o_proj" else -1
+            quantized = spinquant_activation_qdq(
+                inputs[0],
+                bits,
+                symmetric=symmetric,
+                group_size=group_size,
+            )
+            return (quantized,) + inputs[1:]
 
-    handles = [linear.register_forward_pre_hook(quantize_input) for linear in linears]
+        return quantize_input
+
+    handles = [
+        linear.register_forward_pre_hook(make_hook(role))
+        for role, linear in role_linears
+    ]
     summary = {
         "applied": True,
         "runtime_form": "floating_qdq_forward_pre_hook",
         "activation_bits": bits,
         "activation_symmetric": symmetric,
         "activation_clipping": False,
-        "activation_granularity": "per_token_last_axis",
-        "quantized_decoder_linears": len(linears),
+        "activation_granularity": (
+            "per_token_last_axis_o_proj_grouped"
+            if o_proj_group_size > 0
+            else "per_token_last_axis"
+        ),
+        "activation_o_proj_group_size": o_proj_group_size,
+        "activation_ungrouped_include_zero": True,
+        "quantized_decoder_linears": len(role_linears),
         "quantized_lm_head": False,
     }
     try:

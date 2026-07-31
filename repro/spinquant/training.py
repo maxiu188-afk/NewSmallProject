@@ -37,6 +37,20 @@ def _validate_rotation_objective(quantization: Mapping[str, Any]) -> str:
             raise ValueError(
                 "paper-aligned activation_qdq currently requires unclipped min-max QDQ"
             )
+        if bool(quantization["activation_symmetric"]):
+            raise ValueError(
+                "paper-aligned activation_qdq requires asymmetric activations"
+            )
+        if int(quantization.get("activation_o_proj_group_size", -1)) < 1:
+            raise ValueError(
+                "paper-aligned activation_qdq requires grouped o_proj inputs"
+            )
+        if not bool(
+            quantization.get("activation_ungrouped_include_zero", False)
+        ):
+            raise ValueError(
+                "paper-aligned activation_qdq must include zero in ungrouped ranges"
+            )
     return objective
 
 
@@ -86,6 +100,9 @@ def train_llama_rotations(
             weight_group_size=int(quantization["weight_group_size"]),
             weight_symmetric=bool(quantization["weight_symmetric"]),
             activation_symmetric=bool(quantization["activation_symmetric"]),
+            activation_o_proj_group_size=int(
+                quantization.get("activation_o_proj_group_size", -1)
+            ),
             quantize_lm_head=bool(quantization["quantize_lm_head"]),
         ),
     )

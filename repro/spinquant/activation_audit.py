@@ -17,6 +17,7 @@ import torch
 from torch import Tensor, nn
 
 from repro.qdq import qdq_last_axis
+from repro.spinquant.activation_qdq import spinquant_activation_qdq
 
 
 AUDIT_MODES = ("current_repo", "paper_aligned")
@@ -29,53 +30,6 @@ _LINEAR_ROLES = (
     "up_proj",
     "down_proj",
 )
-
-
-def paper_aligned_asymmetric_qdq(
-    values: Tensor,
-    *,
-    bits: int = 8,
-    group_size: int = -1,
-) -> Tensor:
-    """Apply dynamic asymmetric QDQ with SpinQuant evaluation granularity.
-
-    Ungrouped token vectors include zero in their observed range.  Positive
-    ``group_size`` uses independent contiguous groups and an unconstrained zero
-    point, matching the mathematical behavior of the reference implementation.
-    This is an independently written diagnostic operator, not deployment code.
-    """
-
-    if bits < 2 or bits >= 16:
-        raise ValueError("activation audit bits must be in [2, 15]")
-    last = values.shape[-1]
-    if group_size == -1:
-        grouped = values.reshape(-1, last)
-        minimum = torch.minimum(
-            grouped.amin(dim=-1, keepdim=True),
-            torch.zeros((grouped.shape[0], 1), device=values.device, dtype=values.dtype),
-        )
-        maximum = torch.maximum(
-            grouped.amax(dim=-1, keepdim=True),
-            torch.zeros((grouped.shape[0], 1), device=values.device, dtype=values.dtype),
-        )
-        output_shape = values.shape
-    else:
-        if group_size < 1 or last % group_size:
-            raise ValueError("group_size must divide the activation last axis")
-        grouped = values.reshape(-1, last // group_size, group_size)
-        minimum = grouped.amin(dim=-1, keepdim=True)
-        maximum = grouped.amax(dim=-1, keepdim=True)
-        output_shape = values.shape
-
-    qmax = 2**bits - 1
-    all_zero = (minimum == 0) & (maximum == 0)
-    safe_minimum = torch.where(all_zero, -torch.ones_like(minimum), minimum)
-    safe_maximum = torch.where(all_zero, torch.ones_like(maximum), maximum)
-    scale = (safe_maximum - safe_minimum) / qmax
-    zero = torch.round(-safe_minimum / scale)
-    quantized = torch.clamp(torch.round(grouped / scale) + zero, 0, qmax)
-    restored = (quantized - zero) * scale
-    return restored.reshape(output_shape).to(dtype=values.dtype)
 
 
 @dataclass
@@ -224,9 +178,10 @@ class ActivationAuditCollector:
         if self.mode == "current_repo":
             return qdq_last_axis(values, self.bits, symmetric=False)
         group_size = self.head_dim if role == "o_proj" else -1
-        return paper_aligned_asymmetric_qdq(
+        return spinquant_activation_qdq(
             values,
-            bits=self.bits,
+            self.bits,
+            symmetric=False,
             group_size=group_size,
         )
 

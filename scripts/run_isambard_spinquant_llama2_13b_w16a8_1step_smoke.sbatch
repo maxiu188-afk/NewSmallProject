@@ -1,7 +1,8 @@
 #!/bin/bash
 # Run the paper-aligned activation-only SpinQuant no-had one-step CUDA smoke.
 # Weights remain BF16 during rotation learning; activations use unclipped,
-# asymmetric per-token A8 floating QDQ. Post-learning GPTQ is a later gate.
+# asymmetric per-token A8 floating QDQ, with head-dimension groups on o_proj.
+# Post-learning GPTQ is a later gate.
 # Submit from a clean, isolated SpinQuant checkout:
 #   sbatch --test-only scripts/run_isambard_spinquant_llama2_13b_w16a8_1step_smoke.sbatch
 #   sbatch scripts/run_isambard_spinquant_llama2_13b_w16a8_1step_smoke.sbatch
@@ -102,6 +103,7 @@ echo "SPINQUANT_13B_W16A8_SMOKE_STAGE=source_manifest"
         "${training_config}" \
         "${project_root}/repro/spinquant/artifacts.py" \
         "${project_root}/repro/spinquant/calibration.py" \
+        "${project_root}/repro/spinquant/activation_qdq.py" \
         "${project_root}/repro/spinquant/llama_adapter.py" \
         "${project_root}/repro/spinquant/rotations.py" \
         "${project_root}/repro/spinquant/stiefel.py" \
@@ -170,7 +172,11 @@ assert training["adapter"]["weight_bits"] == 16, training
 assert training["adapter"]["activation_bits"] == 8, training
 assert training["adapter"]["weight_runtime_form"] == "unquantized", training
 assert training["adapter"]["activation_runtime_form"] == "floating_qdq_with_ste", training
-assert training["adapter"]["activation_granularity"] == "per_token_last_axis", training
+assert training["adapter"]["activation_granularity"] == (
+    "per_token_last_axis_o_proj_grouped"
+), training
+assert training["adapter"]["activation_o_proj_group_size"] == 128, training
+assert training["adapter"]["activation_ungrouped_include_zero"] is True, training
 assert training["optimizer_steps"] == 1, training
 assert training["gradient_accumulation_steps"] == 8, training
 assert training["calibration_sequences"] == 8, training
