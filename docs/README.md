@@ -16,9 +16,11 @@ but it is not the current project plan.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
   full-model serving result and same-environment layer-0 diagnostic.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
-  rotation-training and matched held-out fake-quant PPL evidence.
+  rotation-training and matched held-out fake-quant PPL evidence, including the
+  corrected no-had W4A8 deployment boundary.
 - [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): independent SpinQuant fake-quant
-  implementation status, clean-room boundary, and staged reproduction plan.
+  implementation status, clean-room boundary, W4A8 migration assessment, and
+  staged reproduction plan.
 - [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md):
   two-route deployment decision and completed vLLM W4A16 evidence chain.
 - [`QUAROT_PROGRESS_REPORT_ZH.tex`](QUAROT_PROGRESS_REPORT_ZH.tex): concise
