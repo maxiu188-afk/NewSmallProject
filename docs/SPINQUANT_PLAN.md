@@ -197,14 +197,24 @@ sbatch --dependency=afterok:<smoke-job> \
 4. For real deployment, retain only offline-fusible learned R1/R2, apply
    group-128 GPTQ W4A16, and reuse the standard compressed-tensors/vLLM route.
 
-The first part of stage 1 is now prepared. The W16A8 smoke/formal configs make
+The first part of stage 1 has passed its full-model execution smoke. The W16A8
+smoke/formal configs make
 the rotation objective explicit as `activation_qdq`, require unquantized
 16-bit weights, and use unclipped asymmetric per-token A8 floating QDQ. A
 local tiny-Llama mechanism test confirmed non-zero R1/R2 gradients and the
-expected weight/activation runtime forms. The isolated GH200 one-step entry
-point is
-`scripts/run_isambard_spinquant_llama2_13b_w16a8_1step_smoke.sbatch`; it is not
-yet CUDA evidence until that job completes and its artifact is accepted.
+expected weight/activation runtime forms. Isambard job `5848060` then completed
+the one-step Llama-2-13B smoke in 3 minutes 5 seconds with exit code `0:0`. It
+used eight 2048-token sequences, produced a non-zero maximum rotation gradient
+of `0.120179`, and retained maximum R1/R2 orthogonality errors of `1.25e-6` and
+`5.96e-7`. The accepted rotation SafeTensors SHA256 is
+`61b7d1f2b8eee6ad15584624d3be8d44b19ad858453cda113a83e2db08a0f6d8`.
+
+The formal content-gated entry point is
+`scripts/run_isambard_spinquant_llama2_13b_w16a8_100step.sbatch`. It revalidates
+the smoke result, all smoke source hashes, the W16/A8 runtime forms, 800 x 2048
+calibration shape, 100 finite losses, 100 non-zero gradients, and the final
+rotation artifact. Completion of that job remains training evidence only;
+post-learning GPTQ and evaluation are separate gates.
 
 The SpinQuant fake-quant stages remain independent of the completed QuaRot
 deployment checkout and artifacts. The later SpinQuant deployment gate can

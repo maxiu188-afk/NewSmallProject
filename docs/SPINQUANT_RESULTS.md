@@ -89,6 +89,9 @@ The remaining stages are:
    compressed-tensors, and vLLM route, then rerun the deployed-checkpoint PPL
    and serving gates.
 
-The W16A8 activation-only training objective and its one-step Isambard entry
-point are implemented and locally mechanism-tested. They remain planned CUDA
-evidence until the smoke result is accepted.
+The W16A8 activation-only training objective passed its full-model one-step
+Isambard smoke as job `5848060` with exit code `0:0`. The accepted smoke used
+unquantized weights, per-token asymmetric A8 floating QDQ, eight 2048-token
+sequences, a non-zero maximum rotation gradient of `0.120179`, and bounded R1/R2
+orthogonality errors. Formal 100-step training, post-learning GPTQ, and matched
+evaluation remain separate gates.

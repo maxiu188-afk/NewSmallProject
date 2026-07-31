@@ -9,7 +9,7 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | Deployment-aligned `no_had` R1/R2 training and matched Llama-2-13B held-out PPL passed on GH200; learned W4A16 reached 5.0937 versus unrotated 5.1763, fixed random-Hadamard R1/R2 5.7078, and BF16 5.0087 | Complete for the implemented offline-fused group-128 RTN-QDQ path; paper-aligned A8/A4 learning, post-learning GPTQ, `had` R3/R4, downstream accuracy, packing, and deployment remain separate gates |
+| SpinQuant fake quant | Deployment-aligned `no_had` R1/R2 training and matched Llama-2-13B held-out PPL passed on GH200; paper-aligned W16A8 activation-only one-step job 5848060 also passed | Complete for the implemented offline-fused group-128 RTN-QDQ path; W16A8 formal training, post-learning GPTQ, A4/`had` R3/R4, downstream accuracy, packing, and deployment remain separate gates |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
