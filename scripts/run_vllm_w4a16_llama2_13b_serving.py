@@ -25,6 +25,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_MODELS = ("bf16", "unrotated_w4a16", "rotated_w4a16")
 
 
+def _expected_models(config: dict[str, Any]) -> tuple[str, ...]:
+    values = tuple(config["source_gate"]["expected_models"])
+    if len(values) < 2 or values[0] != "bf16" or len(set(values)) != len(values):
+        raise ValueError("source gate requires unique models with bf16 first")
+    return values
+
+
 def _revision() -> str:
     return subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -53,7 +60,10 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
-def _parse_models(values: list[str]) -> dict[str, Path]:
+def _parse_models(
+    values: list[str],
+    expected_models: tuple[str, ...] = EXPECTED_MODELS,
+) -> dict[str, Path]:
     models: dict[str, Path] = {}
     for value in values:
         if "=" not in value:
@@ -62,9 +72,9 @@ def _parse_models(values: list[str]) -> dict[str, Path]:
         if name in models:
             raise ValueError(f"repeated model name: {name}")
         models[name] = Path(raw_path).resolve()
-    if tuple(models) != EXPECTED_MODELS:
+    if tuple(models) != expected_models:
         raise ValueError(
-            f"models must be supplied in this order: {', '.join(EXPECTED_MODELS)}"
+            f"models must be supplied in this order: {', '.join(expected_models)}"
         )
     for name, path in models.items():
         if not (path / "config.json").is_file():
@@ -76,8 +86,7 @@ def _validate_config(config: dict[str, Any]) -> None:
     server = config["server"]
     benchmark = config["benchmark"]
     source_gate = config["source_gate"]
-    if source_gate["expected_models"] != list(EXPECTED_MODELS):
-        raise ValueError("source gate model order drifted")
+    _expected_models(config)
     if server["host"] != "127.0.0.1":
         raise ValueError("service jobs must bind only to 127.0.0.1")
     if int(server["max_model_len"]) < (
@@ -335,14 +344,33 @@ class _RunningServer:
         return f"http://{server['host']}:{server['port']}"
 
 
-def _server_record(server: _RunningServer) -> dict[str, Any]:
-    return {
+def _server_record(
+    server: _RunningServer,
+    config: dict[str, Any],
+    model_name: str,
+) -> dict[str, Any]:
+    record = {
         "startup_seconds": server.startup_seconds,
         "baseline_gpu_memory_used_mib": server.baseline_memory_mib,
         "ready_gpu_memory_used_mib": server.ready_memory_mib,
         "server_log": str(server.log_path),
         "server_log_sha256": _sha256(server.log_path),
     }
+    kernel_gate = config.get("kernel_gate")
+    if isinstance(kernel_gate, dict) and model_name in kernel_gate.get(
+        "quantized_models", []
+    ):
+        pattern = str(kernel_gate["required_quantized_log_pattern"])
+        log_text = server.log_path.read_text(encoding="utf-8", errors="replace")
+        if pattern not in log_text:
+            raise RuntimeError(
+                f"{model_name} did not prove the required kernel in its server log"
+            )
+        record["kernel_evidence"] = {
+            "required_pattern": pattern,
+            "matched": True,
+        }
+    return record
 
 
 def _run_smoke(
@@ -388,22 +416,26 @@ def _run_smoke(
                 raise RuntimeError(f"{name} returned the wrong completion length: {usage}")
             generated_texts.add(choices[0]["text"])
         results[name] = {
-            **_server_record(server),
+            **_server_record(server, config, name),
             "released_gpu_memory_used_mib": server.released_memory_mib,
             "served_model_ids": ids,
             "completion": completion,
         }
-    if len(generated_texts) != 1:
+    generated_texts_equal = len(generated_texts) == 1
+    if smoke.get("require_equal_generated_texts", True) and not generated_texts_equal:
         raise RuntimeError("service smoke models returned different greedy text")
     return {
         "status": "passed",
-        "scope": "three complete Llama-2-13B OpenAI-compatible service endpoint checks; not performance evidence",
+        "scope": (
+            f"{len(models)} complete Llama-2-13B OpenAI-compatible service "
+            "endpoint checks; not performance evidence"
+        ),
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "project_revision": _revision(),
         "source_gate": config["source_gate"],
         "server_config": config["server"],
         "smoke_config": smoke,
-        "generated_texts_equal": True,
+        "generated_texts_equal": generated_texts_equal,
         "models": results,
     }
 
@@ -531,35 +563,45 @@ def _validate_raw_benchmark(
 
 
 def _comparisons(results: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    def compare(candidate: dict[str, Any], baseline: dict[str, Any]) -> dict[str, float]:
+        return {
+            "request_throughput_ratio": (
+                candidate["metrics"]["request_throughput"]
+                / baseline["metrics"]["request_throughput"]
+            ),
+            "output_throughput_ratio": (
+                candidate["metrics"]["output_throughput"]
+                / baseline["metrics"]["output_throughput"]
+            ),
+            "median_ttft_ratio": (
+                candidate["metrics"]["median_ttft_ms"]
+                / baseline["metrics"]["median_ttft_ms"]
+            ),
+            "median_tpot_ratio": (
+                candidate["metrics"]["median_tpot_ms"]
+                / baseline["metrics"]["median_tpot_ms"]
+            ),
+            "ready_gpu_memory_ratio": (
+                candidate["ready_gpu_memory_used_mib"]
+                / baseline["ready_gpu_memory_used_mib"]
+            ),
+        }
+
     comparisons: dict[str, Any] = {}
     for case in config["benchmark"]["cases"]:
         case_name = case["name"]
         baseline = results["bf16"][case_name]
         per_case = {}
-        for name in EXPECTED_MODELS[1:]:
+        for name in _expected_models(config)[1:]:
             candidate = results[name][case_name]
-            per_case[f"{name}_vs_bf16"] = {
-                "request_throughput_ratio": (
-                    candidate["metrics"]["request_throughput"]
-                    / baseline["metrics"]["request_throughput"]
-                ),
-                "output_throughput_ratio": (
-                    candidate["metrics"]["output_throughput"]
-                    / baseline["metrics"]["output_throughput"]
-                ),
-                "median_ttft_ratio": (
-                    candidate["metrics"]["median_ttft_ms"]
-                    / baseline["metrics"]["median_ttft_ms"]
-                ),
-                "median_tpot_ratio": (
-                    candidate["metrics"]["median_tpot_ms"]
-                    / baseline["metrics"]["median_tpot_ms"]
-                ),
-                "ready_gpu_memory_ratio": (
-                    candidate["ready_gpu_memory_used_mib"]
-                    / baseline["ready_gpu_memory_used_mib"]
-                ),
-            }
+            per_case[f"{name}_vs_bf16"] = compare(candidate, baseline)
+        for pair in config.get("comparison_pairs", []):
+            candidate_name = pair["candidate"]
+            reference_name = pair["reference"]
+            per_case[pair["name"]] = compare(
+                results[candidate_name][case_name],
+                results[reference_name][case_name],
+            )
         comparisons[case_name] = per_case
     return comparisons
 
@@ -629,7 +671,7 @@ def _run_benchmark(
                 raw = json.loads(raw_path.read_text(encoding="utf-8"))
                 metrics = _validate_raw_benchmark(raw, benchmark)
             results[name][case_name] = {
-                **_server_record(server),
+                **_server_record(server, config, name),
                 "released_gpu_memory_used_mib": server.released_memory_mib,
                 "case": case,
                 "metrics": metrics,
@@ -667,7 +709,7 @@ def main() -> int:
 
     config = json.loads(args.config.read_text(encoding="utf-8"))
     _validate_config(config)
-    models = _parse_models(args.model)
+    models = _parse_models(args.model, _expected_models(config))
     if not args.vllm_executable.is_file():
         raise FileNotFoundError(args.vllm_executable)
     if not (args.tokenizer / "tokenizer.json").is_file():

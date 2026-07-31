@@ -3,23 +3,25 @@
 ## Decision and sequence
 
 This is a hardware-aligned extension for Isambard GH200, not a relabelling of
-the papers' INT8-activation experiments. Its status is **planned, not started**.
+the papers' INT8-activation experiments. Its local path is prepared; remote
+execution is **planned, not started**.
 
 The order is fixed:
 
 1. accept the current SpinQuant `no_had` W4A8 fake-quant smoke/formal chain
    (`5850956` -> `5850958`);
 2. freeze its artifacts, hashes, held-out PPL, and claim boundary;
-3. only then implement and submit the joint W4AFP8 deployment work;
+3. only then sync the prepared path to Isambard and submit the joint W4AFP8 work;
 4. evaluate both deployed-checkpoint quality and full-model serving performance
    for QuaRot and SpinQuant.
 
-No W4AFP8 code, export, or Slurm job is started while the current fake-quant
-chain is unfinished. The current W4A8 fake-quant result will answer the
-paper-aligned INT8 quality question only. It cannot be reused, converted, or
-extrapolated into a W4AFP8 accuracy result because FP8 changes the activation
-quantizer, error distribution, calibration/learning objective, and executed
-kernel.
+Local W4AFP8 preparation may proceed while the current fake-quant chain is
+unfinished, but it must remain isolated from the Isambard checkout, artifacts,
+environments, and jobs used by that chain. No W4AFP8 export or Slurm job is
+started yet. The current W4A8 fake-quant result will answer the paper-aligned
+INT8 quality question only. It cannot be reused, converted, or extrapolated
+into a W4AFP8 accuracy result because FP8 changes the activation quantizer,
+error distribution, calibration/learning objective, and executed kernel.
 
 The online-Hadamard `SpinQuant_had` path remains a separate paper extension. It
 is not a dependency for the offline-only W4AFP8 deployment defined here.
@@ -67,7 +69,7 @@ formal comparison.
 
 - Wait for both current fake-quant jobs to reach a terminal accepted state.
 - Verify same-revision execution, exit codes, stage markers, result hashes, and
-  the full 162 x 2048 held-out-token result before changing implementation.
+  the full 162 x 2048 held-out-token result before syncing or executing W4AFP8.
 - Keep the accepted INT8 W4A8 artifacts immutable and separately named.
 
 ### Gate 1: W4AFP8 numerical and export smoke
@@ -136,6 +138,8 @@ The final claims are bounded as follows:
 
 ## Current non-actions
 
-Until jobs `5850956` and `5850958` are accepted, this document is the only
-change: no implementation, checkpoint export, environment mutation, remote
+The export, deployed-PPL, and full-model service paths are now prepared in the
+local repository and documented in
+[`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md). Until jobs `5850956`
+and `5850958` are accepted, no checkpoint export, environment mutation, remote
 checkout update, new Slurm submission, or continuous monitoring is authorized.

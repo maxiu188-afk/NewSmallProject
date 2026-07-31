@@ -40,9 +40,11 @@ evidence.
 After that chain is accepted, the next real-deployment study changes to a
 joint, hardware-aligned W4AFP8 route for both QuaRot and SpinQuant on GH200.
 It requires deployed-checkpoint PPL plus matched full-model serving performance;
-the existing fake-quant evaluator cannot establish W4AFP8 accuracy. No W4AFP8
-implementation or submission starts before the current jobs finish. See
-[`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md).
+the existing fake-quant evaluator cannot establish W4AFP8 accuracy. Its local
+export, backend-audit, deployed-PPL, and serving paths are prepared and tested
+statically, but no Isambard checkout update, export, or Slurm submission has
+started. See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
+[`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
 ## Latest accepted result
 

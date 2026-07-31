@@ -24,6 +24,8 @@ but it is not the current project plan.
 - [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): deferred joint
   QuaRot/SpinQuant GH200 deployment plan, including deployed-checkpoint quality
   and matched full-model acceleration gates.
+- [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md): isolated local
+  preparation state and the deferred GH200 export, PPL, and serving procedure.
 - [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md):
   completed QuaRot routes plus the planned joint W4AFP8 extension.
 - [`QUAROT_PROGRESS_REPORT_ZH.tex`](QUAROT_PROGRESS_REPORT_ZH.tex): concise
