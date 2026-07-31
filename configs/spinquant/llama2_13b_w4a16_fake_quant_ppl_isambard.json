@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "label": "matched Llama-2-13B QuaRot-style versus learned SpinQuant R1/R2 W4A16 fake-quant PPL",
+  "seed": 0,
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "trust_remote_code": false
+  },
+  "learned_rotation": {
+    "training_job_id": "5842047",
+    "project_revision": "ee5e754f80f29925ce0531c5357bee3b835de5d0",
+    "training_result_sha256": "7da9f951a65f0962f7a08eea72934c5976bdeb483410487b1b5947358a72af6e",
+    "rotation_safetensors_sha256": "303c614f425ea5d37e138643dd52a2410a4747fda7e3038587c93a2db05a57fe"
+  },
+  "tokens": {
+    "config": "configs/deployment/vllm_w4a16_llama2_13b_ppl_isambard.json",
+    "manifest_sha256": "b6ed5f122ba85a9752b3dda699d73405e5a86b7db19050c1f395cbbea450f1cf",
+    "token_ids_sha256": "0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9",
+    "samples": 162,
+    "sequence_length": 2048,
+    "scored_tokens": 331614
+  },
+  "quantization": {
+    "scheme": "W4A16",
+    "weight_bits": 4,
+    "activation_bits": 16,
+    "key_bits": 16,
+    "value_bits": 16,
+    "weight_group_size": 128,
+    "weight_symmetric": true,
+    "quantize_lm_head": false,
+    "runtime_form": "one-time_floating_weight_qdq"
+  },
+  "evaluation": {
+    "cases": [
+      "bf16",
+      "unrotated_w4a16",
+      "quarot_r1r2_w4a16",
+      "spinquant_r1r2_w4a16"
+    ],
+    "batch_size": 4,
+    "logit_chunk_tokens": 128,
+    "attention_implementation": "sdpa",
+    "smoke_samples": 2
+  },
+  "scope": "matched algorithmic fake-quant PPL only; no GPTQ, packing, integer kernel, or deployment claim"
+}

@@ -115,12 +115,29 @@ training. The accepted 102.5 MiB SafeTensors artifact has SHA256
 `48e3d10e0a62dd6c78d4e5ff507ec387105c5f11771aa71fc70a4fb6588f9abb`.
 This establishes full-model execution only, not learned-rotation quality.
 
-The formal entry point is
+The formal training entry point is
 `scripts/run_isambard_spinquant_llama2_13b_100step.sbatch`. It requests six
 hours based on the observed one-step runtime and validates the completed smoke
 result plus every smoke controlling-source hash before training. Success
 requires all 100 loss and non-zero gradient records, bounded orthogonality,
 the expected R1/R2 shapes, and a checksummed SafeTensors artifact.
+
+The formal training passed as Isambard job `5842047` in 2 hours 17 minutes 51
+seconds with exit code `0:0`. All 100 gradient maxima were finite and non-zero,
+the first/last ten-step mean losses were `1.73751` and `1.57174`, and the best
+update loss was `1.34794` at step 94. The final R1/R2 training orthogonality
+errors were `1.34e-6` and `5.96e-7`. The accepted rotation SafeTensors SHA256
+is `303c614f425ea5d37e138643dd52a2410a4747fda7e3038587c93a2db05a57fe`.
+This is training evidence only; quality still requires held-out evaluation.
+
+The next quality gate uses
+`scripts/run_isambard_spinquant_llama2_13b_fake_quant_ppl.sbatch`. It compares
+BF16, unrotated W4A16, fixed QuaRot-style R1/R2 W4A16, and learned SpinQuant
+R1/R2 W4A16. All four cases use the same pinned Llama-2-13B snapshot and the
+same retained 162 x 2048 WikiText-2 test token artifact as the deployed QuaRot
+PPL study. R1/R2 are fused into standard Llama parameters before one-time
+group-128 W4 floating QDQ; no online rotation wrapper, GPTQ, packing, integer
+kernel, or deployment backend is involved.
 
 Run it with:
 
@@ -152,6 +169,11 @@ sbatch scripts/run_isambard_spinquant_llama2_13b_1step_smoke.sbatch
 sbatch --test-only \
   scripts/run_isambard_spinquant_llama2_13b_100step.sbatch
 sbatch scripts/run_isambard_spinquant_llama2_13b_100step.sbatch
+
+sbatch \
+  scripts/run_isambard_spinquant_llama2_13b_fake_quant_ppl.sbatch smoke
+sbatch --dependency=afterok:<smoke-job> \
+  scripts/run_isambard_spinquant_llama2_13b_fake_quant_ppl.sbatch formal
 ```
 
 ## Next stages
