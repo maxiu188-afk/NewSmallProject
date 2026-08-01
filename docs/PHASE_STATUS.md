@@ -14,6 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving | Complete on GH200 for the matched Llama-2-13B serving and layer-0 diagnostic protocols | W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; rotation had no material performance effect; no deployed-checkpoint PPL or downstream-quality result |
+| vLLM W4AFP8 deployment | QuaRot Gate 1 job 5854439 and isolated SpinQuant-transfer Gate 1 job 5857916 are queued | Export/load correctness only until accepted; deployed PPL and matched serving remain later gates, and the SpinQuant checkpoint is an INT8-trained rotation transfer diagnostic |
 
 ## Current deployment decision
 

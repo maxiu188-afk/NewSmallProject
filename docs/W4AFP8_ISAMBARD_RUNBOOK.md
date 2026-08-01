@@ -3,8 +3,8 @@
 ## Current state
 
 The QuaRot-only real-deployment gate is queued as job `5854439`. The corrected
-SpinQuant fake-quant chain is complete, and an isolated SpinQuant-transfer gate
-is now prepared. The two deployment gates remain independent because:
+SpinQuant fake-quant chain is complete, and isolated SpinQuant-transfer gate
+`5857916` is queued. The two deployment gates remain independent because:
 
 - it uses a separate Isambard checkout and Slurm allocation;
 - W4AFP8 uses a separate
@@ -62,8 +62,9 @@ smoke outcomes to change the formal protocol.
 ## SpinQuant transfer execution sequence
 
 The first W4AFP8 SpinQuant checkpoint is a transfer diagnostic from the
-corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. Run it
-in a separate checkout and artifact root:
+corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. Job
+`5857916` was submitted from revision `168252700dd9` in a separate checkout and
+artifact root using:
 
 ```bash
 sbatch --test-only \

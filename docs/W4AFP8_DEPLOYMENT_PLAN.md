@@ -11,7 +11,8 @@ The first SpinQuant no-had chain (`5850956` -> `5850958`) was accepted and is
 retained as an old-QDQ baseline. The active order is now fixed:
 
 1. accept queued QuaRot W4AFP8 gate `5854439`;
-2. run the isolated BF16/unrotated/SpinQuant-transfer W4AFP8 export/load gate;
+2. accept queued isolated BF16/unrotated/SpinQuant-transfer W4AFP8 gate
+   `5857916`;
 3. evaluate deployed-checkpoint quality and serving performance only after
    each isolated gate has frozen its checkpoint provenance;
 4. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
@@ -140,8 +141,8 @@ The final claims are bounded as follows:
 ## Current execution boundary
 
 QuaRot gate `5854439` remains queued in its isolated checkout. The corrected
-SpinQuant rotation provenance is now frozen, and a separate `spinquant` Gate 1
-mode is prepared. It exports the unrotated control and SpinQuant-transfer
+SpinQuant rotation provenance is now frozen, and separate `spinquant` Gate 1
+job `5857916` is queued. It exports the unrotated control and SpinQuant-transfer
 W4AFP8 checkpoint, then loads BF16 plus those two checkpoints in fresh vLLM
 processes. This first checkpoint is explicitly an INT8-trained rotation
 transfer diagnostic, not an FP8-optimized endpoint.
