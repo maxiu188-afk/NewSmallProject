@@ -8,11 +8,14 @@ queued independently, and the corrected SpinQuant no-had fake-quant chain has
 completed in its own checkout and artifact root.
 
 The first SpinQuant no-had chain (`5850956` -> `5850958`) was accepted and is
-retained as an old-QDQ baseline. The active order is now fixed:
+retained as an old-QDQ baseline. QuaRot Gate 1 job `5854439` and SpinQuant
+transfer Gate 1 job `5857916` were cancelled before allocation on 2026-08-01
+after the GPTQ protocol was changed. They produced no deployment result. The
+active order is now fixed:
 
-1. accept queued QuaRot W4AFP8 gate `5854439`;
-2. accept queued isolated BF16/unrotated/SpinQuant-transfer W4AFP8 gate
-   `5857916`;
+1. resubmit and accept the QuaRot W4AFP8 gate with the revised protocol;
+2. resubmit and accept the isolated BF16/unrotated/SpinQuant-transfer W4AFP8
+   gate with the same revised protocol;
 3. evaluate deployed-checkpoint quality and serving performance only after
    each isolated gate has frozen its checkpoint provenance;
 4. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
@@ -35,6 +38,8 @@ accepted vLLM `0.25.1+cu129` serving environment and a compatible LLM
 Compressor export environment. The intended common runtime form is:
 
 - symmetric group-128 INT4 decoder weights;
+- GPTQ without activation ordering and with ordinary min/max weight ranges; no
+  additional MSE weight clipping;
 - dynamic per-token FP8 activations, with the exact FP8 dtype and scale contract
   recorded from the selected vLLM kernel;
 - BF16 outputs, normalization, residual arithmetic, embeddings, and `lm_head`;
@@ -43,6 +48,14 @@ Compressor export environment. The intended common runtime form is:
 - no online R3/R4 Hadamard transforms and no custom attention or KV-cache code;
 - no runtime activation-order `g_idx` if the selected Hopper W4AFP8 kernel does
   not support it.
+
+Group size 128 is a backend constraint, not an accuracy tuning choice: the
+pinned `CutlassW4A8LinearKernel` rejects any other group size. Consequently
+this real-deployment GPTQ cannot be made identical to the paper-oriented
+`group_size=-1` protocol. It is instead the weaker option still executable by
+the selected accelerated backend: group-128 with activation ordering disabled.
+Its PPL must be compared only across the matched W4AFP8 variants, not directly
+against fake-quant rows produced by a different GPTQ protocol.
 
 Every decoder projection must remain covered after packing. The exporter must
 record the 280 expected packed linears, validate all Llama-2-13B matrix shapes
@@ -140,12 +153,13 @@ The final claims are bounded as follows:
 
 ## Current execution boundary
 
-QuaRot gate `5854439` remains queued in its isolated checkout. The corrected
-SpinQuant rotation provenance is now frozen, and separate `spinquant` Gate 1
-job `5857916` is queued. It exports the unrotated control and SpinQuant-transfer
-W4AFP8 checkpoint, then loads BF16 plus those two checkpoints in fresh vLLM
-processes. This first checkpoint is explicitly an INT8-trained rotation
-transfer diagnostic, not an FP8-optimized endpoint.
+The prior QuaRot gate `5854439` and SpinQuant-transfer gate `5857916` are
+cancelled with zero runtime because they carried the superseded static
+activation-order protocol. The corrected SpinQuant rotation provenance remains
+frozen. Replacement jobs have not yet been submitted; they must use the same
+revised no-actorder configuration and pass same-revision smoke before formal
+deployment evidence is accepted. The first SpinQuant checkpoint remains an
+INT8-trained rotation transfer diagnostic, not an FP8-optimized endpoint.
 
 The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
 rotation. Deployed PPL and serving still require accepted gate results and

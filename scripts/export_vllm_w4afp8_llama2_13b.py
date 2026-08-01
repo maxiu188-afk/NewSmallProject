@@ -72,6 +72,22 @@ def _checkpoint_tensor_names(output_dir: Path) -> list[str]:
     return sorted(names)
 
 
+def _validate_resolved_gptq_recipe(recipe: GPTQModifier, quant: dict[str, Any]) -> None:
+    """Fail if a dependency update silently strengthens the frozen protocol."""
+
+    resolved = recipe.resolve_quantization_config()
+    groups = tuple(resolved.config_groups.values())
+    if len(groups) != 1:
+        raise RuntimeError(f"expected one W4AFP8 recipe group, found {len(groups)}")
+    weights = groups[0].weights
+    if weights.group_size != int(quant["weight_group_size"]):
+        raise RuntimeError(f"unexpected resolved GPTQ group size: {weights.group_size}")
+    if weights.actorder is not None:
+        raise RuntimeError(f"unexpected resolved GPTQ actorder: {weights.actorder}")
+    if weights.observer != quant["weight_observer"]:
+        raise RuntimeError(f"unexpected resolved weight observer: {weights.observer}")
+
+
 def _spinquant_rotations(model: Any, seed: int) -> SpinQuantRotations:
     config = model.config
     return SpinQuantRotations(
@@ -227,6 +243,7 @@ def export(
         dampening_frac=float(quant["dampening_frac"]),
         actorder=quant["weight_actorder"],
     )
+    _validate_resolved_gptq_recipe(recipe, quant)
     oneshot(
         model=model,
         dataset=dataset,

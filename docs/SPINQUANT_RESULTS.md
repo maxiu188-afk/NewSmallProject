@@ -24,8 +24,8 @@ deployment performance.
 | Matched PPL formal | `5847441` | `COMPLETED (0:0)`, 3m25s | 162 sequences and 331,614 scored tokens; result status `passed` |
 | Corrected paper-aligned W16A8 learning smoke | `5854268` | `COMPLETED (0:0)`, 2m47s | Eight 2048-token sequences; paper-aligned A8 coverage assertions and non-zero R1/R2 gradients accepted |
 | Corrected paper-aligned W16A8 formal learning | `5854269` | `COMPLETED (0:0)`, 2h12m09s | 800 sequences, 100 finite-loss updates, 100 non-zero gradient records; accepted corrected rotation artifact |
-| Corrected no-had GPTQ W4A8 PPL smoke | `5854890` | `COMPLETED (0:0)`, 12m33s | Two held-out sequences; BF16, unrotated, and learned-rotation paths completed with 8-sequence GPTQ calibration |
-| Corrected no-had GPTQ W4A8 PPL formal | `5854891` | `COMPLETED (0:0)`, 19m50s | 162 sequences, 331,614 scored tokens, and 128-sequence GPTQ calibration; all three paths accepted |
+| Corrected-A8, strong-GPTQ no-had W4A8 PPL smoke | `5854890` | `COMPLETED (0:0)`, 12m33s | Two held-out sequences; BF16, unrotated, and learned-rotation paths completed with 8-sequence GPTQ calibration |
+| Corrected-A8, strong-GPTQ no-had W4A8 PPL formal | `5854891` | `COMPLETED (0:0)`, 19m50s | 162 sequences, 331,614 scored tokens, and 128-sequence GPTQ calibration; all three paths accepted as a matched diagnostic |
 
 The first four jobs used project revision
 `5d610b152434ffb04bd405be37aa172114dd6216`. The formal PPL job reused the
@@ -52,7 +52,7 @@ The fixed random-Hadamard row tests a QuaRot-style R1/R2 mechanism under this
 matched RTN-QDQ protocol. It is not the accepted QuaRot GPTQ/vLLM checkpoint
 and must not be reported as that deployment result.
 
-## Corrected no-had W4A8 fake-quant PPL
+## Corrected-A8, strong-GPTQ no-had W4A8 diagnostic PPL
 
 | Path | Runtime form | PPL | Delta versus BF16 |
 |---|---|---:|---:|
@@ -62,11 +62,15 @@ and must not be reported as that deployment result.
 
 The learned-rotation path was `0.0147` PPL worse than the matched unrotated
 control, a 0.285% relative increase. Both W4A8 paths used the same 128 x 2048
-GPTQ calibration artifact, quantized all 280 decoder linears, used group size
-128 for `o_proj`, included zero for ungrouped asymmetric A8, left `lm_head`
-and KV at 16 bits, and scored the same 331,614 held-out targets. The result is
-therefore accepted as a completed reproduction with no observed rotation
-benefit, not rejected or converted into a positive claim.
+GPTQ calibration artifact, quantized all 280 decoder linears, used group-128
+weights with activation ordering, used group size 128 for `o_proj`, included
+zero for ungrouped asymmetric A8, left `lm_head` and KV at 16 bits, and scored
+the same 331,614 held-out targets. The result is retained as a completed
+matched **strong-GPTQ diagnostic** with no observed rotation benefit. It is not
+the paper-aligned GPTQ endpoint and must not be compared numerically with a
+paper-table PPL without an explicit protocol-change label. A later
+paper-aligned run will use `group_size=-1`, no activation ordering, and the
+paper's weight-clipping step; the existing result remains immutable.
 
 The formal PPL result SHA256 is
 `0b5403d3a0423efd9b3d7673107ed9b25d58350a7caf7643432aefcc2ef4c6fd`;
@@ -128,11 +132,15 @@ PPL result; its training loss alone is not quality evidence.
 
 The remaining stages are:
 
-1. export the corrected learned rotation as a clearly labelled W4AFP8 transfer
-   diagnostic and test packed-checkpoint fresh-process loading;
-2. measure deployed-checkpoint PPL and matched full-model serving only after
+1. run the separately labelled paper-GPTQ W4A8 endpoint without replacing the
+   accepted strong-GPTQ diagnostic;
+2. export the corrected learned rotation as a clearly labelled W4AFP8 transfer
+   diagnostic and test packed-checkpoint fresh-process loading using the
+   backend-constrained protocol: group-128, no activation ordering, and no
+   weight clipping;
+3. measure deployed-checkpoint PPL and matched full-model serving only after
    the selected Hopper W4AFP8 kernel is proven in the runtime logs;
-3. run FP8-targeted rotation learning if the transfer checkpoint is not
+4. run FP8-targeted rotation learning if the transfer checkpoint is not
    competitive with the unrotated W4AFP8 control.
 
 The paper's online `had` R3/R4 extension remains deferred and outside the

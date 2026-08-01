@@ -77,7 +77,7 @@ def _valid_quantization_config():
                     "group_size": 128,
                     "symmetric": True,
                     "dynamic": False,
-                    "actorder": "static",
+                    "actorder": None,
                 },
                 "input_activations": {
                     "num_bits": 8,
@@ -135,14 +135,19 @@ class VllmW4AFP8Tests(unittest.TestCase):
         validate_export_config(config)
         self.assertEqual(tuple(config["variants"]), EXPECTED_VARIANTS[1:])
         self.assertEqual(config["quantization"]["scheme"], "W4AFP8")
-        self.assertEqual(config["quantization"]["weight_actorder"], "static")
+        self.assertIsNone(config["quantization"]["weight_actorder"])
+        self.assertEqual(config["quantization"]["weight_observer"], "minmax")
+        self.assertFalse(config["quantization"]["weight_clipping"])
         self.assertFalse(config["kernel"]["runtime_g_idx"])
 
-    def test_checkpoint_metadata_requires_fp8_tokens_and_no_group_actorder(self):
+    def test_checkpoint_metadata_requires_fp8_tokens_and_no_actorder(self):
         metadata = _valid_quantization_config()
         validate_checkpoint_quantization_config(metadata)
+        metadata["config_groups"]["group_0"]["weights"]["actorder"] = "static"
+        with self.assertRaisesRegex(ValueError, "actorder=None"):
+            validate_checkpoint_quantization_config(metadata)
         metadata["config_groups"]["group_0"]["weights"]["actorder"] = "group"
-        with self.assertRaisesRegex(ValueError, "runtime g_idx"):
+        with self.assertRaisesRegex(ValueError, "actorder=None"):
             validate_checkpoint_quantization_config(metadata)
 
     def test_kernel_shape_and_tensor_gates_reject_incompatible_inputs(self):

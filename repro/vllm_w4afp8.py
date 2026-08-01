@@ -42,7 +42,9 @@ def validate_export_config(config: Mapping[str, Any]) -> None:
         "weight_block_size": 128,
         "dampening_frac": 0.01,
         "weight_symmetric": True,
-        "weight_actorder": "static",
+        "weight_actorder": None,
+        "weight_observer": "minmax",
+        "weight_clipping": False,
         "activation_bits": 8,
         "activation_type": "float",
         "activation_strategy": "token",
@@ -127,11 +129,11 @@ def validate_checkpoint_quantization_config(
         if activations.get(key) != expected:
             raise ValueError(f"W4AFP8 input_activations.{key} must be {expected!r}")
 
-    # GROUP/DYNAMIC act ordering serializes runtime g_idx and is rejected by
-    # CutlassW4A8LinearKernel. STATIC is an alias for weight-only ordering and
-    # does not change the runtime checkpoint layout.
-    if weights.get("actorder") in {"group", "dynamic"}:
-        raise ValueError("W4AFP8 checkpoint requires no runtime g_idx")
+    # The selected weaker deployment protocol disables activation ordering.
+    # GROUP/DYNAMIC ordering would additionally serialize runtime g_idx and is
+    # rejected by CutlassW4A8LinearKernel.
+    if weights.get("actorder") is not None:
+        raise ValueError("W4AFP8 checkpoint requires actorder=None")
 
 
 def validate_no_runtime_g_idx(tensor_names: Iterable[str]) -> None:

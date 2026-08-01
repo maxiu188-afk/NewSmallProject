@@ -2,9 +2,12 @@
 
 ## Current state
 
-The QuaRot-only real-deployment gate is queued as job `5854439`. The corrected
-SpinQuant fake-quant chain is complete, and isolated SpinQuant-transfer gate
-`5857916` is queued. The two deployment gates remain independent because:
+The QuaRot-only job `5854439` and isolated SpinQuant-transfer job `5857916`
+were cancelled before allocation on 2026-08-01 after the GPTQ protocol was
+revised from static activation ordering to no activation ordering. Both have
+zero runtime and provide no result. The corrected SpinQuant fake-quant chain
+remains complete. Replacement deployment gates have not yet been submitted,
+and the two modes remain independent because:
 
 - it uses a separate Isambard checkout and Slurm allocation;
 - W4AFP8 uses a separate
@@ -27,6 +30,9 @@ weights plus symmetric dynamic per-token FP8 activations. The pinned vLLM
 kernel requires Hopper SM90, FP8 E4M3 activations, no zero points, no runtime
 activation-order `g_idx`, K/N divisible by 128, and BF16 output. These are
 encoded as validation failures rather than documentation-only assumptions.
+The revised deployment GPTQ keeps the required group size 128 but explicitly
+sets `actorder=None` and uses min/max weight ranges without MSE clipping. This
+is the weaker deployable protocol, not the paper's `group_size=-1` GPTQ.
 
 Official references:
 
@@ -62,9 +68,10 @@ smoke outcomes to change the formal protocol.
 ## SpinQuant transfer execution sequence
 
 The first W4AFP8 SpinQuant checkpoint is a transfer diagnostic from the
-corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. Job
-`5857916` was submitted from revision `168252700dd9` in a separate checkout and
-artifact root using:
+corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. The
+superseded job `5857916` was submitted from revision `168252700dd9` and then
+cancelled before allocation. Its replacement must be submitted from the
+revised same-revision checkout using:
 
 ```bash
 sbatch --test-only \
