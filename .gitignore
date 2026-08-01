@@ -7,6 +7,7 @@ __pycache__/
 # Upstream reference checkout and locally supplied papers are intentionally
 # separate from this reproduction repository.
 QuaRot/
+/SpinQuant/
 *.pdf
 
 # Generated experiment artifacts; configuration and documentation stay tracked.

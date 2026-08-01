@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "label": "paper-aligned Llama-2-13B SpinQuant no-had GPTQ W4A8KV16 fake-quant PPL",
+  "seed": 0,
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "expected_decoder_linears": 280,
+    "trust_remote_code": false
+  },
+  "learned_rotation": {
+    "training_job_id": "5854269",
+    "project_revision": "94ac5fd4e0e993100655baa0328a3de6b6058ace",
+    "training_result_sha256": "fc17656fe9d2684ccd4e96859c3e8d4f48a909be7e72ffd46b8f5c013fbe43e9",
+    "rotation_manifest_sha256": "b52466ef3eed8a97e859fed1c5593fc6fd7591e16ed1b20599235fc2a1aec695",
+    "rotation_safetensors_sha256": "ac08587f537b37be176cdd8ed6ab2137bc2b287e0e9f1e7a1e9aa9fb3ed31c4a"
+  },
+  "gptq_calibration": {
+    "manifest_sha256": "626b34af46a3d9bd45844e582557c68f5d458ffcfcacafe841e100f5035ac59a",
+    "token_ids_sha256": "4499fa8446b64b07b1feabe1cb81ca07b333db21fe46bc13a1c678be96cf21a0",
+    "dataset_id": "Salesforce/wikitext",
+    "dataset_subset": "wikitext-2-raw-v1",
+    "dataset_split": "train",
+    "dataset_revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "selection": "deterministic_source_order_complete_sequences",
+    "samples": 128,
+    "sequence_length": 2048,
+    "smoke_samples": 8
+  },
+  "tokens": {
+    "config": "configs/deployment/vllm_w4a16_llama2_13b_ppl_isambard.json",
+    "manifest_sha256": "b6ed5f122ba85a9752b3dda699d73405e5a86b7db19050c1f395cbbea450f1cf",
+    "token_ids_sha256": "0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9",
+    "samples": 162,
+    "sequence_length": 2048,
+    "scored_tokens": 331614
+  },
+  "quantization": {
+    "scheme": "W4A8KV16",
+    "weight_algorithm": "GPTQ",
+    "weight_bits": 4,
+    "weight_group_size": 128,
+    "weight_block_size": 128,
+    "weight_damp_percent": 0.01,
+    "weight_act_order": true,
+    "weight_symmetric": true,
+    "activation_bits": 8,
+    "activation_symmetric": false,
+    "activation_clipping": false,
+    "activation_ungrouped_include_zero": true,
+    "activation_o_proj_group_size": 128,
+    "activation_granularity": "per_token_last_axis_o_proj_grouped",
+    "key_bits": 16,
+    "value_bits": 16,
+    "quantize_lm_head": false,
+    "runtime_form": "floating_gptq_weight_qdq_plus_floating_activation_qdq"
+  },
+  "evaluation": {
+    "cases": [
+      "bf16",
+      "unrotated_w4a8",
+      "spinquant_nohad_w4a8"
+    ],
+    "batch_size": 4,
+    "logit_chunk_tokens": 128,
+    "attention_implementation": "sdpa",
+    "smoke_samples": 2
+  },
+  "scope": "paper-aligned SpinQuant no-had fake-quant quality only: offline R1/R2, post-learning GPTQ W4, dynamic asymmetric per-token A8, KV16; no packing, integer kernel, or deployment claim"
+}

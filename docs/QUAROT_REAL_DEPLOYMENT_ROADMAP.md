@@ -2,17 +2,20 @@
 
 ## Objective and naming
 
-The deliverable is a demonstrable real-deployment study for QuaRot, with two
-separate evidence tracks. The official-backend track reproduces upstream
-QuaRot W4A4 execution. The serving track combines only offline-fusible QuaRot
-rotations with a low-bit format natively supported by stable vLLM; it is
-reported as **QuaRot-style**, not as original QuaRot W4A4.
+The completed deliverable contains two separate QuaRot evidence tracks. The
+official-backend track reproduces upstream QuaRot W4A4 execution. The serving
+track combines only offline-fusible QuaRot rotations with a low-bit format
+natively supported by stable vLLM; it is reported as **QuaRot-style**, not as
+original QuaRot W4A4. A third, planned W4AFP8 route will compare QuaRot-style
+and SpinQuant offline rotations under one GH200 deployment protocol.
 
 The existing owned W4A8 correctness kernel remains useful evidence that all
 280 Llama-2-13B decoder linears can execute from packed W4. Its performance
 smoke reduced peak allocated memory from about 26.2 GB to 7.4--7.5 GB but was
 slower than BF16, so it is no longer the default deployment backend. No new
-full CUDA kernel will be developed in this phase, and SpinQuant is excluded.
+full CUDA kernel was developed for the completed routes. SpinQuant is excluded
+from those completed QuaRot results, but is included as a separately named
+method in the planned W4AFP8 comparison.
 
 ## Feasibility decisions from the current repository
 
@@ -88,6 +91,20 @@ Current references:
 - LLM Compressor W4A16 example: <https://docs.vllm.ai/projects/llm-compressor/en/latest/examples/quantization_w4a16/>
 - vLLM OpenAI-compatible server: <https://docs.vllm.ai/en/stable/serving/openai_compatible_server/>
 
+### Route C: joint hardware-aligned W4AFP8 extension
+
+Route C is planned but not started. It begins only after the current SpinQuant
+`no_had` W4A8 fake-quant dependency chain is complete and accepted. It will
+export four matched Llama-2-13B cases: BF16, unrotated W4AFP8, QuaRot-style
+W4AFP8, and SpinQuant W4AFP8. All rotations remain offline; KV cache and
+non-linear components remain 16-bit for the first study.
+
+This route must prove the selected Hopper W4AFP8 kernel, then measure both
+deployed-checkpoint WikiText-2 PPL and full-model service performance. Existing
+INT8 W4A8 fake-quant numbers cannot be used as FP8 accuracy evidence. The
+complete dependency, export, quality, serving, and acceptance gates are frozen
+in [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md).
+
 ## Execution gates
 
 ### A. Official-backend gates
@@ -133,6 +150,20 @@ come from the matched repeated protocol.
    W4A16 use the same prompts, concurrency, input/output lengths, vLLM version,
    GPU, and server flags. Record quality, TTFT, TPOT, request throughput, token
    throughput, and peak memory.
+
+### C. W4AFP8 joint-deployment gates
+
+1. **Dependency gate:** accept jobs `5850956` and `5850958`; do not implement,
+   export, or submit W4AFP8 work before that point.
+2. **Runtime gate:** validate metadata, all 280 packed linears, alignment, FP8
+   scales, and the actual selected Hopper W4AFP8 kernel in fresh processes.
+3. **Quality gate:** measure the same retained WikiText-2 PPL from every
+   deployed checkpoint; fake-quant PPL is not a substitute.
+4. **Performance gate:** run BF16 and all three W4AFP8 cases with the matched
+   full-model service protocol and report latency, throughput, memory, failures,
+   and recovery.
+5. **Claim gate:** keep QuaRot-style and SpinQuant results separate and call a
+   speedup only after verified W4AFP8 kernel execution.
 
 ## Completed deployment results
 

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "label": "pinned Llama-2-13B SpinQuant rotation calibration tokens",
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "trust_remote_code": false
+  },
+  "calibration": {
+    "dataset_id": "Salesforce/wikitext",
+    "dataset_subset": "wikitext-2-raw-v1",
+    "dataset_split": "train",
+    "dataset_revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "text_field": "text",
+    "join_separator": "\n\n",
+    "add_special_tokens": false,
+    "selection": "random_windows_with_replacement",
+    "samples": 800,
+    "sequence_length": 2048,
+    "seed": 0
+  },
+  "scope": "token materialization only; no model execution or quality claim"
+}

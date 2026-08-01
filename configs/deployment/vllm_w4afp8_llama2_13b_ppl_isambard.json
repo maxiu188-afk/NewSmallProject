@@ -1,0 +1,53 @@
+{
+  "config_version": 1,
+  "status": "prepared_not_submitted",
+  "source_gate": {
+    "status": "pending",
+    "job_id": null,
+    "required_marker": "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_GATE_PASSED",
+    "result": null,
+    "result_sha256": null,
+    "capability_result": null,
+    "capability_result_sha256": null,
+    "expected_models": [
+      "bf16",
+      "unrotated_w4afp8",
+      "quarot_w4afp8",
+      "spinquant_w4afp8"
+    ]
+  },
+  "tokens": {
+    "source_config": "configs/deployment/vllm_w4a16_llama2_13b_ppl_isambard.json",
+    "manifest_sha256": "b6ed5f122ba85a9752b3dda699d73405e5a86b7db19050c1f395cbbea450f1cf",
+    "token_ids_sha256": "0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9",
+    "samples": 162,
+    "sequence_length": 2048,
+    "expected_scored_tokens": 331614
+  },
+  "engine": {
+    "dtype": "bfloat16",
+    "max_model_len": 2049,
+    "max_num_seqs": 8,
+    "gpu_memory_utilization": 0.75,
+    "enforce_eager": false,
+    "enable_prefix_caching": false,
+    "disable_log_stats": true,
+    "prompt_logprobs": 1,
+    "max_tokens": 1,
+    "temperature": 0.0,
+    "seed": 0
+  },
+  "smoke": {
+    "samples": 2,
+    "expected_scored_tokens": 4094
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "torch_version": "2.11.0+cu129",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [9, 0],
+    "vllm_use_flashinfer_sampler": "0"
+  },
+  "scope": "Matched deployed-checkpoint WikiText-2 PPL for Llama-2-13B BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant W4AFP8 through vLLM on one GH200"
+}

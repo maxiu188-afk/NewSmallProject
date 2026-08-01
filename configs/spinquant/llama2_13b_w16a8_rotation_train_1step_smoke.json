@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "label": "Llama-2-13B SpinQuant no-had paper-aligned W16A8 rotation training smoke",
+  "seed": 0,
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "trust_remote_code": false
+  },
+  "calibration": {
+    "config": "configs/spinquant/llama2_13b_rotation_calibration_8_smoke.json",
+    "samples": 8,
+    "sequence_length": 2048,
+    "seed": 0
+  },
+  "quantization": {
+    "scheme": "W16A8KV16",
+    "rotation_objective": "activation_qdq",
+    "weight_bits": 16,
+    "activation_bits": 8,
+    "key_bits": 16,
+    "value_bits": 16,
+    "weight_group_size": -1,
+    "weight_symmetric": true,
+    "activation_symmetric": false,
+    "activation_clipping": false,
+    "activation_ungrouped_include_zero": true,
+    "activation_o_proj_group_size": 128,
+    "activation_granularity": "per_token_last_axis_o_proj_grouped",
+    "quantize_lm_head": false,
+    "runtime_form": "floating_activation_qdq_with_ste"
+  },
+  "optimization": {
+    "steps": 1,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 1.5,
+    "schedule": "linear_to_zero",
+    "cayley_method": "fixed_point",
+    "fixed_point_steps": 5,
+    "gradient_checkpointing": true
+  },
+  "runtime": {
+    "device": "cuda",
+    "attention_implementation": "sdpa",
+    "single_process": true
+  },
+  "scope": "SpinQuant no-had paper-aligned R1/R2 W16A8 activation-only training smoke; no GPTQ, PPL, packing, or deployment claim"
+}

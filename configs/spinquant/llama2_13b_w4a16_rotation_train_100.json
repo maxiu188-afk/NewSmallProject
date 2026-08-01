@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "label": "Llama-2-13B SpinQuant no-had W4A16 rotation training",
+  "seed": 0,
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "trust_remote_code": false
+  },
+  "calibration": {
+    "config": "configs/spinquant/llama2_13b_rotation_calibration_800.json",
+    "samples": 800,
+    "sequence_length": 2048,
+    "seed": 0
+  },
+  "quantization": {
+    "scheme": "W4A16",
+    "rotation_objective": "weight_qdq",
+    "weight_bits": 4,
+    "activation_bits": 16,
+    "key_bits": 16,
+    "value_bits": 16,
+    "weight_group_size": 128,
+    "weight_symmetric": true,
+    "activation_symmetric": false,
+    "quantize_lm_head": false,
+    "runtime_form": "floating_qdq_with_ste"
+  },
+  "optimization": {
+    "steps": 100,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 1.5,
+    "schedule": "linear_to_zero",
+    "cayley_method": "fixed_point",
+    "fixed_point_steps": 5,
+    "gradient_checkpointing": true
+  },
+  "runtime": {
+    "device": "cuda",
+    "attention_implementation": "sdpa",
+    "single_process": true
+  },
+  "scope": "SpinQuant no-had R1/R2 W4A16 fake-quant training only; no GPTQ, evaluation, packing, or deployment claim"
+}

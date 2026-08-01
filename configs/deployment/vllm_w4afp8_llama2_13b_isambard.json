@@ -1,0 +1,99 @@
+{
+  "config_version": 1,
+  "status": "quarot_gate_queued_spinquant_transfer_gate_ready",
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "expected_decoder_linears": 280
+  },
+  "calibration": {
+    "dataset_id": "Salesforce/wikitext",
+    "dataset_subset": "wikitext-2-raw-v1",
+    "dataset_split": "train",
+    "dataset_revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "text_field": "text",
+    "samples": 128,
+    "sequence_length": 2048,
+    "max_rows": 100000,
+    "seed": 0
+  },
+  "variants": [
+    "unrotated_w4afp8",
+    "quarot_w4afp8",
+    "spinquant_w4afp8"
+  ],
+  "quantization": {
+    "algorithm": "GPTQ",
+    "scheme": "W4AFP8",
+    "targets": "Linear",
+    "ignore": ["lm_head"],
+    "weight_bits": 4,
+    "weight_type": "int",
+    "weight_strategy": "group",
+    "weight_group_size": 128,
+    "weight_block_size": 128,
+    "dampening_frac": 0.01,
+    "weight_symmetric": true,
+    "weight_actorder": "static",
+    "activation_bits": 8,
+    "activation_type": "float",
+    "activation_strategy": "token",
+    "activation_dynamic": true,
+    "activation_symmetric": true,
+    "format": "pack-quantized",
+    "key_bits": 16,
+    "value_bits": 16,
+    "quantize_lm_head": false
+  },
+  "rotation": {
+    "seed": 0,
+    "max_absolute_logit_error_tolerance": 0.25,
+    "maximum_orthogonality_error": 0.0001,
+    "spinquant_evidence_label": "W16A8_INT8_trained_rotation_transfer_to_W4AFP8",
+    "spinquant_training_job_id": "5854269",
+    "spinquant_training_result_sha256": "fc17656fe9d2684ccd4e96859c3e8d4f48a909be7e72ffd46b8f5c013fbe43e9",
+    "spinquant_rotation_manifest_sha256": "b52466ef3eed8a97e859fed1c5593fc6fd7591e16ed1b20599235fc2a1aec695",
+    "spinquant_rotation_safetensors_sha256": "ac08587f537b37be176cdd8ed6ab2137bc2b287e0e9f1e7a1e9aa9fb3ed31c4a"
+  },
+  "kernel": {
+    "expected_backend": "CutlassW4A8LinearKernel",
+    "expected_scheme": "CompressedTensorsW4A8Fp8",
+    "activation_dtype": "float8_e4m3fn",
+    "activation_scale": "dynamic_per_token",
+    "output_dtype": "bfloat16",
+    "minimum_compute_capability": [9, 0],
+    "runtime_g_idx": false,
+    "zero_points": false,
+    "required_linear_shapes": [
+      [5120, 5120],
+      [5120, 13824],
+      [13824, 5120]
+    ]
+  },
+  "inference": {
+    "prompt": "The capital of France is",
+    "max_new_tokens": 8,
+    "max_model_len": 256,
+    "max_logprobs": 128,
+    "gpu_memory_utilization": 0.75
+  },
+  "runtime": {
+    "torch_version": "2.11.0+cu129",
+    "vllm_version": "0.25.1",
+    "llmcompressor_version": "0.12.0",
+    "quantizer_compressed_tensors_version": "0.17.1",
+    "serving_compressed_tensors_version": "0.17.0",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [9, 0],
+    "artifact_subdir": "newsmallproject-vllm/llama2-13b-w4afp8"
+  },
+  "reference_revisions": {
+    "vllm_v0.25.1": "752a3a504485790a2e8491cacbb35c137339ad34",
+    "llm_compressor_0.12.0": "6d2a0908e45324b76e390bdec600143e85a075f8",
+    "compressed_tensors_0.17.1": "c18a0fa8b969d789f33b7912eef57cd69c56bd9e"
+  },
+  "scope": "Prepared Llama-2-13B BF16/unrotated/QuaRot-style/SpinQuant W4AFP8 export and real-vLLM correctness gate on GH200; no result until submitted and accepted"
+}

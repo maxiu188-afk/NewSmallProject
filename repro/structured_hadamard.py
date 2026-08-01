@@ -6,6 +6,8 @@ module intentionally implements that small, auditable operation in PyTorch;
 it does not import or depend on the upstream CUDA extension.
 """
 
+from __future__ import annotations
+
 import base64
 import math
 

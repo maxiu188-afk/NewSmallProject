@@ -1,0 +1,48 @@
+{
+  "config_version": 1,
+  "source_gate": {
+    "job_id": "5769503",
+    "required_marker": "ISAMBARD_VLLM_W4A16_LLAMA2_13B_GATE_PASSED",
+    "result": "results/vllm-w4a16-llama2-13b/offline-inference-retry.json",
+    "result_sha256": "3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10",
+    "expected_models": ["bf16", "unrotated_w4a16", "rotated_w4a16"]
+  },
+  "evaluation": {
+    "dataset_id": "Salesforce/wikitext",
+    "dataset_subset": "wikitext-2-raw-v1",
+    "dataset_split": "test",
+    "dataset_revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "text_field": "text",
+    "max_rows": 4358,
+    "samples": 162,
+    "sequence_length": 2048,
+    "expected_scored_tokens": 331614,
+    "add_special_tokens": false
+  },
+  "engine": {
+    "dtype": "bfloat16",
+    "max_model_len": 2049,
+    "max_num_seqs": 8,
+    "gpu_memory_utilization": 0.75,
+    "enforce_eager": false,
+    "enable_prefix_caching": false,
+    "disable_log_stats": true,
+    "prompt_logprobs": 1,
+    "max_tokens": 1,
+    "temperature": 0.0,
+    "seed": 0
+  },
+  "smoke": {
+    "samples": 2,
+    "expected_scored_tokens": 4094
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "torch_version": "2.11.0+cu129",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [9, 0],
+    "vllm_use_flashinfer_sampler": "0"
+  },
+  "scope": "Matched deployed-checkpoint WikiText-2 perplexity for Llama-2-13B BF16, unrotated GPTQ W4A16, and offline-rotated GPTQ W4A16 through vLLM on one Isambard GH200"
+}

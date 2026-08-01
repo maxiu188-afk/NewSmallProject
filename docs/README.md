@@ -15,8 +15,19 @@ but it is not the current project plan.
   official-backend full-model and paper-aligned single-block results.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
   full-model serving result and same-environment layer-0 diagnostic.
+- [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
+  rotation-training and matched held-out fake-quant PPL evidence, including the
+  corrected no-had W4A8 deployment boundary.
+- [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): independent SpinQuant fake-quant
+  implementation status, clean-room boundary, W4A8 migration assessment, and
+  staged reproduction plan.
+- [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): deferred joint
+  QuaRot/SpinQuant GH200 deployment plan, including deployed-checkpoint quality
+  and matched full-model acceleration gates.
+- [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md): isolated local
+  preparation state and the deferred GH200 export, PPL, and serving procedure.
 - [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md):
-  two-route deployment decision and completed vLLM W4A16 evidence chain.
+  completed QuaRot routes plus the planned joint W4AFP8 extension.
 - [`QUAROT_PROGRESS_REPORT_ZH.tex`](QUAROT_PROGRESS_REPORT_ZH.tex): concise
   Chinese progress report for XeLaTeX/Overleaf.
 
