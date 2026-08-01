@@ -6,8 +6,9 @@ The QuaRot-only job `5854439` and isolated SpinQuant-transfer job `5857916`
 were cancelled before allocation on 2026-08-01 after the GPTQ protocol was
 revised from static activation ordering to no activation ordering. Both have
 zero runtime and provide no result. The corrected SpinQuant fake-quant chain
-remains complete. Replacement deployment gates have not yet been submitted,
-and the two modes remain independent because:
+remains complete. Replacement QuaRot job `5859043` and SpinQuant-transfer job
+`5859044` are queued from revision `d5c4fbb6f5da`; they provide no result while
+pending. The two modes remain independent because:
 
 - it uses a separate Isambard checkout and Slurm allocation;
 - W4AFP8 uses a separate
@@ -70,8 +71,8 @@ smoke outcomes to change the formal protocol.
 The first W4AFP8 SpinQuant checkpoint is a transfer diagnostic from the
 corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. The
 superseded job `5857916` was submitted from revision `168252700dd9` and then
-cancelled before allocation. Its replacement must be submitted from the
-revised same-revision checkout using:
+cancelled before allocation. Its replacement `5859044` is queued from the
+revised same-revision checkout. The submission protocol is:
 
 ```bash
 sbatch --test-only \

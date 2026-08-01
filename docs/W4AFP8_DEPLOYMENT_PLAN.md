@@ -13,9 +13,9 @@ transfer Gate 1 job `5857916` were cancelled before allocation on 2026-08-01
 after the GPTQ protocol was changed. They produced no deployment result. The
 active order is now fixed:
 
-1. resubmit and accept the QuaRot W4AFP8 gate with the revised protocol;
-2. resubmit and accept the isolated BF16/unrotated/SpinQuant-transfer W4AFP8
-   gate with the same revised protocol;
+1. accept queued QuaRot W4AFP8 gate `5859043` with the revised protocol;
+2. accept queued isolated BF16/unrotated/SpinQuant-transfer W4AFP8 gate
+   `5859044` with the same revised protocol;
 3. evaluate deployed-checkpoint quality and serving performance only after
    each isolated gate has frozen its checkpoint provenance;
 4. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
@@ -156,10 +156,12 @@ The final claims are bounded as follows:
 The prior QuaRot gate `5854439` and SpinQuant-transfer gate `5857916` are
 cancelled with zero runtime because they carried the superseded static
 activation-order protocol. The corrected SpinQuant rotation provenance remains
-frozen. Replacement jobs have not yet been submitted; they must use the same
-revised no-actorder configuration and pass same-revision smoke before formal
-deployment evidence is accepted. The first SpinQuant checkpoint remains an
-INT8-trained rotation transfer diagnostic, not an FP8-optimized endpoint.
+frozen. Replacement jobs `5859043` (QuaRot) and `5859044` (SpinQuant transfer)
+are queued from revision `d5c4fbb6f5da`; both use the same revised no-actorder
+configuration. No deployment evidence is accepted until each job terminates
+successfully and its artifacts pass provenance checks. The first SpinQuant
+checkpoint remains an INT8-trained rotation transfer diagnostic, not an
+FP8-optimized endpoint.
 
 The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
 rotation. Deployed PPL and serving still require accepted gate results and
