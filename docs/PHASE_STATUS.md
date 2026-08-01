@@ -51,6 +51,16 @@ weakest verified option supported by the selected accelerated backend.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
+The W4AFP8 **formal deployment result is a two-part evidence package**, not a
+performance-only benchmark. Accuracy must be measured from the packed
+checkpoints through vLLM on the retained 162 x 2048 WikiText-2 tokens
+(331,614 scored next-token targets), reporting total NLL and PPL for BF16,
+unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant W4AFP8. Acceleration must
+be measured separately with the matched serving protocol, reporting throughput,
+TTFT, TPOT, end-to-end latency, GPU memory, request completion, and selected
+kernel evidence. A method is not deployment-complete if either formal accuracy
+or formal serving evidence is missing.
+
 ## Latest accepted result
 
 The Isambard evidence chain is complete through Llama-2-13B offline inference,

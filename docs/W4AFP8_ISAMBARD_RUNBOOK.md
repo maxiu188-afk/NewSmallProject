@@ -66,6 +66,21 @@ Official references:
 The main PPL and serving jobs depend on accepted smoke results. They do not use
 smoke outcomes to change the formal protocol.
 
+## Formal deployment evidence contract
+
+Formal deployment is accepted only as the combination of two terminal,
+provenance-checked results:
+
+| Required formal result | Primary records | Acceptance boundary |
+|---|---|---|
+| Deployed accuracy | Total NLL, PPL, 331,614 scored targets, checkpoint and token hashes for BF16 plus all W4AFP8 variants | Must execute the packed checkpoints through vLLM; fake-quant PPL and fixed-token inference cannot substitute |
+| Serving acceleration | Throughput, TTFT, TPOT, end-to-end latency, ready/peak GPU memory, completed/failed requests, kernel log proof | Must use the matched full-model concurrency-1/8 protocol; checkpoint size and layer timing cannot substitute |
+
+Submit a PPL smoke before the PPL formal job and a serving smoke before the
+serving formal job. The final report must join both accepted formal results by
+checkpoint hashes and present quality and performance together. Do not label a
+variant as real-deployment complete when only one side has passed.
+
 ## SpinQuant transfer execution sequence
 
 The first W4AFP8 SpinQuant checkpoint is a transfer diagnostic from the
@@ -89,6 +104,8 @@ serving from this gate until its result and checkpoint hashes are frozen.
 ## Result boundaries
 
 - The current INT8 W4A8 fake-quant result is not W4AFP8 quality evidence.
+- Gate 1 jobs `5859043` and `5859044` are export/load correctness only, not
+  formal accuracy or acceleration evidence.
 - Backend capability selection is not checkpoint correctness, PPL, or speed.
 - Fixed-token inference is not full held-out accuracy.
 - Deployed PPL is not acceleration.

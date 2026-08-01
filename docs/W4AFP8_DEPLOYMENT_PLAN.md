@@ -138,6 +138,18 @@ only as secondary explanation.
 ### Gate 4: acceptance and reporting
 
 A variant is deployment-complete only after it passes both Gate 2 and Gate 3.
+The formal deployment experiment therefore consists of two required formal
+jobs after their respective smokes:
+
+1. a deployed-checkpoint accuracy job that records total NLL, PPL, scored-token
+   count, and PPL deltas against both BF16 and unrotated W4AFP8;
+2. a matched full-model serving job that records throughput, TTFT, TPOT,
+   end-to-end latency, GPU memory, request success/failure counts, and the
+   selected W4AFP8 kernel.
+
+Neither formal job can substitute for the other. A successful serving speedup
+without deployed-checkpoint PPL is an incomplete performance result, while PPL
+without the serving benchmark is an incomplete quality result.
 The final comparison must present the quality/performance trade-off for BF16,
 unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant W4AFP8, while keeping the
 completed QuaRot-style W4A16 result as a separately named reference point.
@@ -158,10 +170,12 @@ cancelled with zero runtime because they carried the superseded static
 activation-order protocol. The corrected SpinQuant rotation provenance remains
 frozen. Replacement jobs `5859043` (QuaRot) and `5859044` (SpinQuant transfer)
 are queued from revision `d5c4fbb6f5da`; both use the same revised no-actorder
-configuration. No deployment evidence is accepted until each job terminates
-successfully and its artifacts pass provenance checks. The first SpinQuant
-checkpoint remains an INT8-trained rotation transfer diagnostic, not an
-FP8-optimized endpoint.
+configuration. These are Gate 1 export/load jobs only: they record neither the
+formal 331,614-token PPL result nor the formal serving speedup. No deployment
+evidence is accepted until each Gate 1 job terminates successfully, its
+artifacts pass provenance checks, and the later accuracy and serving formal
+jobs both pass. The first SpinQuant checkpoint remains an INT8-trained rotation
+transfer diagnostic, not an FP8-optimized endpoint.
 
 The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
 rotation. Deployed PPL and serving still require accepted gate results and
