@@ -9,7 +9,7 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | Corrected no-had W16A8 learning jobs 5854268/5854269 passed; the dependent corrected GPTQ W4A8 PPL smoke 5854890 and formal 5854891 are queued | Only the corrected SpinQuant no-had fake-quant chain is being redone; QuaRot, W4A16, data, A4/`had` R3/R4, packing, and deployment remain separate |
+| SpinQuant fake quant | Corrected no-had chain complete: jobs 5854890/5854891 passed; PPL was 5.0087 BF16, 5.1480 unrotated W4A8, and 5.1627 SpinQuant W4A8 | Complete paper-aligned floating GPTQ-W4 plus A8 QDQ quality evidence; no packing, integer kernel, or speed claim; no learned-rotation gain was observed |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
@@ -80,12 +80,12 @@ random-Hadamard R1/R2 mechanism baseline. This W4A16 result is retained as a
 weight-only ablation, not the paper deployment target.
 
 The first activation-only rotation chain was superseded after the A8 audit
-found a paper-protocol mismatch at `o_proj`. Corrected job `5854268` passed the
-one-step W16A8 smoke, and corrected job `5854269` completed all 100 formal
-updates in 2 hours 12 minutes 9 seconds with finite losses and non-zero
-rotation gradients. Its checksummed rotation now feeds corrected GPTQ W4A8
-PPL smoke `5854890` and dependent formal job `5854891`; those quality results
-remain pending acceptance. See
+found a paper-protocol mismatch at `o_proj`. Corrected jobs `5854268` and
+`5854269` passed the one-step and 100-step W16A8 learning gates. Corrected GPTQ
+W4A8 PPL smoke `5854890` and formal job `5854891` then passed on the retained
+held-out tokens. SpinQuant no-had reached PPL `5.1627`, slightly worse than the
+matched unrotated W4A8 control at `5.1480`; this completes the reproduction
+chain but does not establish a learned-rotation benefit. See
 [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md) for protocol and claim boundaries
 and [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md) for the next stages.
 

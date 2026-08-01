@@ -20,6 +20,7 @@ from safetensors import safe_open
 from repro.vllm_w4afp8 import (  # noqa: E402
     EXPECTED_VARIANTS,
     QUAROT_VARIANTS,
+    SPINQUANT_VARIANTS,
     validate_checkpoint_quantization_config,
     validate_no_runtime_g_idx,
 )
@@ -34,7 +35,13 @@ from scripts.run_vllm_w4a16_llama2_13b_gate import (  # noqa: E402
 
 VARIANT_SETS = {
     "quarot": QUAROT_VARIANTS,
+    "spinquant": SPINQUANT_VARIANTS,
     "joint": EXPECTED_VARIANTS,
+}
+
+VARIANT_SCOPES = {
+    "quarot": "QuaRot-only W4AFP8 export/load correctness gate; no SpinQuant, PPL, or performance claim",
+    "spinquant": "SpinQuant INT8-trained rotation transfer to W4AFP8 export/load correctness gate; no PPL or performance claim",
 }
 
 
@@ -127,11 +134,7 @@ def run(
     return {
         "status": "passed",
         "variant_set": variant_set,
-        "scope": (
-            config["scope"]
-            if expected_variants == EXPECTED_VARIANTS
-            else "QuaRot-only W4AFP8 export/load correctness gate; no SpinQuant, PPL, or performance claim"
-        ),
+        "scope": VARIANT_SCOPES.get(variant_set, config["scope"]),
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "project_revision": _revision(),
         "runtime": json.loads(runtimes.pop()),

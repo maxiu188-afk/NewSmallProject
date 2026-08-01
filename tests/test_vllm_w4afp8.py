@@ -32,6 +32,7 @@ SERVING_CONFIG = (
 from repro.vllm_w4afp8 import (  # noqa: E402
     EXPECTED_VARIANTS,
     QUAROT_VARIANTS,
+    SPINQUANT_VARIANTS,
     validate_checkpoint_quantization_config,
     validate_export_config,
     validate_kernel_shapes,
@@ -103,15 +104,31 @@ class VllmW4AFP8Tests(unittest.TestCase):
             parsed = GATE._parse_models(values, QUAROT_VARIANTS)
         self.assertEqual(tuple(parsed), QUAROT_VARIANTS)
 
-    def test_isambard_gate_has_isolated_quarot_mode(self):
+    def test_spinquant_gate_accepts_only_bf16_control_and_spinquant(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            values = []
+            for name in SPINQUANT_VARIANTS:
+                model = root / name
+                model.mkdir()
+                (model / "config.json").write_text("{}", encoding="utf-8")
+                values.append(f"{name}={model}")
+            parsed = GATE._parse_models(values, SPINQUANT_VARIANTS)
+        self.assertEqual(tuple(parsed), SPINQUANT_VARIANTS)
+
+    def test_isambard_gate_has_isolated_quarot_and_spinquant_modes(self):
         text = (
             PROJECT_ROOT
             / "scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch"
         ).read_text(encoding="utf-8")
         self.assertIn('variant_set="${1:-}"', text)
-        self.assertIn('"${variant_set}" == "joint"', text)
+        self.assertIn("{quarot|spinquant|joint}", text)
         self.assertIn("--variant-set", text)
         self.assertIn("ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_QUAROT_GATE_PASSED", text)
+        self.assertIn(
+            "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_SPINQUANT_TRANSFER_GATE_PASSED",
+            text,
+        )
 
     def test_export_config_freezes_hopper_numerical_contract(self):
         config = json.loads(EXPORT_CONFIG.read_text(encoding="utf-8"))

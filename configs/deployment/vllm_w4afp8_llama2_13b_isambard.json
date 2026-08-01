@@ -1,6 +1,6 @@
 {
   "config_version": 1,
-  "status": "quarot_gate_ready_spinquant_deferred",
+  "status": "quarot_gate_queued_spinquant_transfer_gate_ready",
   "model": {
     "id": "meta-llama/Llama-2-13b-hf",
     "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
@@ -53,10 +53,10 @@
     "max_absolute_logit_error_tolerance": 0.25,
     "maximum_orthogonality_error": 0.0001,
     "spinquant_evidence_label": "W16A8_INT8_trained_rotation_transfer_to_W4AFP8",
-    "spinquant_training_job_id": "5848547",
-    "spinquant_training_result_sha256": "11a71e105b93640763886e9dbc165feb37e96adffd1a0cf9ebcdc42113d6097e",
-    "spinquant_rotation_manifest_sha256": "e17764396d00d15749c301ef6a72529fcefd916455fc52a425b498b93a548bac",
-    "spinquant_rotation_safetensors_sha256": "62cbc73e26d8993f068331e924c19738a40bc89813e680316d1978df3d452fda"
+    "spinquant_training_job_id": "5854269",
+    "spinquant_training_result_sha256": "fc17656fe9d2684ccd4e96859c3e8d4f48a909be7e72ffd46b8f5c013fbe43e9",
+    "spinquant_rotation_manifest_sha256": "b52466ef3eed8a97e859fed1c5593fc6fd7591e16ed1b20599235fc2a1aec695",
+    "spinquant_rotation_safetensors_sha256": "ac08587f537b37be176cdd8ed6ab2137bc2b287e0e9f1e7a1e9aa9fb3ed31c4a"
   },
   "kernel": {
     "expected_backend": "CutlassW4A8LinearKernel",

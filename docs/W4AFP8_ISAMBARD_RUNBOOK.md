@@ -2,14 +2,16 @@
 
 ## Current state
 
-The QuaRot-only real-deployment gate is ready to submit independently. This
-work does not affect the running corrected SpinQuant fake-quant chain because:
+The QuaRot-only real-deployment gate is queued as job `5854439`. The corrected
+SpinQuant fake-quant chain is complete, and an isolated SpinQuant-transfer gate
+is now prepared. The two deployment gates remain independent because:
 
 - it uses a separate Isambard checkout and Slurm allocation;
 - W4AFP8 uses a separate
   `${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4afp8/` artifact root;
 - the QuaRot-only mode neither reads nor exports a SpinQuant rotation;
-- fake-quant configs, outputs, and job scripts are unchanged.
+- the SpinQuant mode uses the checksummed corrected job `5854269` rotation;
+- fake-quant outputs remain immutable and separate from deployment artifacts.
 
 The prepared path covers all later evidence gates:
 
@@ -56,6 +58,24 @@ Official references:
 
 The main PPL and serving jobs depend on accepted smoke results. They do not use
 smoke outcomes to change the formal protocol.
+
+## SpinQuant transfer execution sequence
+
+The first W4AFP8 SpinQuant checkpoint is a transfer diagnostic from the
+corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. Run it
+in a separate checkout and artifact root:
+
+```bash
+sbatch --test-only \
+  scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch spinquant
+sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch spinquant
+```
+
+Acceptance requires the general gate marker plus
+`ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_SPINQUANT_TRANSFER_GATE_PASSED`, 280 packed
+linears in both quantized checkpoints, no runtime `g_idx`, and selected
+`CutlassW4A8LinearKernel` capability evidence. Do not submit deployed PPL or
+serving from this gate until its result and checkpoint hashes are frozen.
 
 ## Result boundaries
 

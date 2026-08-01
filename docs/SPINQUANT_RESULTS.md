@@ -24,6 +24,8 @@ deployment performance.
 | Matched PPL formal | `5847441` | `COMPLETED (0:0)`, 3m25s | 162 sequences and 331,614 scored tokens; result status `passed` |
 | Corrected paper-aligned W16A8 learning smoke | `5854268` | `COMPLETED (0:0)`, 2m47s | Eight 2048-token sequences; paper-aligned A8 coverage assertions and non-zero R1/R2 gradients accepted |
 | Corrected paper-aligned W16A8 formal learning | `5854269` | `COMPLETED (0:0)`, 2h12m09s | 800 sequences, 100 finite-loss updates, 100 non-zero gradient records; accepted corrected rotation artifact |
+| Corrected no-had GPTQ W4A8 PPL smoke | `5854890` | `COMPLETED (0:0)`, 12m33s | Two held-out sequences; BF16, unrotated, and learned-rotation paths completed with 8-sequence GPTQ calibration |
+| Corrected no-had GPTQ W4A8 PPL formal | `5854891` | `COMPLETED (0:0)`, 19m50s | 162 sequences, 331,614 scored tokens, and 128-sequence GPTQ calibration; all three paths accepted |
 
 The first four jobs used project revision
 `5d610b152434ffb04bd405be37aa172114dd6216`. The formal PPL job reused the
@@ -31,7 +33,7 @@ same retained 162 x 2048 WikiText-2 test token artifact as the deployed QuaRot
 PPL study. Its token-ID SHA256 is
 `0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9`.
 
-## Matched held-out PPL
+## Matched held-out W4A16 ablation PPL
 
 | Path | Runtime form | PPL | Delta versus BF16 |
 |---|---|---:|---:|
@@ -49,6 +51,27 @@ linears.
 The fixed random-Hadamard row tests a QuaRot-style R1/R2 mechanism under this
 matched RTN-QDQ protocol. It is not the accepted QuaRot GPTQ/vLLM checkpoint
 and must not be reported as that deployment result.
+
+## Corrected no-had W4A8 fake-quant PPL
+
+| Path | Runtime form | PPL | Delta versus BF16 |
+|---|---|---:|---:|
+| BF16 | Unquantized reference | 5.0087 | -- |
+| Unrotated W4A8KV16 | GPTQ group-128 W4 plus dynamic asymmetric per-token A8 QDQ | 5.1480 | +0.1392 (+2.78%) |
+| SpinQuant no-had W4A8KV16 | Offline R1/R2, then matched GPTQ W4 and A8 QDQ | **5.1627** | +0.1539 (+3.07%) |
+
+The learned-rotation path was `0.0147` PPL worse than the matched unrotated
+control, a 0.285% relative increase. Both W4A8 paths used the same 128 x 2048
+GPTQ calibration artifact, quantized all 280 decoder linears, used group size
+128 for `o_proj`, included zero for ungrouped asymmetric A8, left `lm_head`
+and KV at 16 bits, and scored the same 331,614 held-out targets. The result is
+therefore accepted as a completed reproduction with no observed rotation
+benefit, not rejected or converted into a positive claim.
+
+The formal PPL result SHA256 is
+`0b5403d3a0423efd9b3d7673107ed9b25d58350a7caf7643432aefcc2ef4c6fd`;
+the formal source-manifest SHA256 is
+`713be9fd759677ed19dad3a5f3a8ffd045c0f1b420686c66259ed03b4d772727`.
 
 ## Artifact provenance
 
@@ -100,18 +123,17 @@ its manifest SHA256 is
 `b52466ef3eed8a97e859fed1c5593fc6fd7591e16ed1b20599235fc2a1aec695`,
 and the formal result SHA256 is
 `fc17656fe9d2684ccd4e96859c3e8d4f48a909be7e72ffd46b8f5c013fbe43e9`.
-This remains rotation-learning evidence only; corrected PPL is pending.
+The rotation artifact is accepted as the source of the completed corrected
+PPL result; its training loss alone is not quality evidence.
 
 The remaining stages are:
 
-1. accept smoke job `5854890` and dependent formal job `5854891`, which apply
-   post-learning GPTQ W4 to the corrected W16A8-trained rotations and evaluate
-   the no-had W4A8KV16 path on matched held-out tokens;
-2. reproduce the `had` fake-quant path with R3/R4 for low-bit activation/KV
-   experiments, while keeping it out of the offline-only deployment path;
-3. export a compressed-tensors W4A8 checkpoint and test fresh-process load plus
-   fixed-token correctness;
-4. test selected-kernel runtime form and performance separately. Current stable
-   vLLM documentation does not list INT4-weight/INT8-activation acceleration on
-   Hopper, so loading a checkpoint is not sufficient evidence of real A8
-   execution or acceleration.
+1. export the corrected learned rotation as a clearly labelled W4AFP8 transfer
+   diagnostic and test packed-checkpoint fresh-process loading;
+2. measure deployed-checkpoint PPL and matched full-model serving only after
+   the selected Hopper W4AFP8 kernel is proven in the runtime logs;
+3. run FP8-targeted rotation learning if the transfer checkpoint is not
+   competitive with the unrotated W4AFP8 control.
+
+The paper's online `had` R3/R4 extension remains deferred and outside the
+offline-only deployment path.

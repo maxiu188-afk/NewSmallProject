@@ -1,5 +1,6 @@
 #!/bin/bash
-# Export/load gate for a QuaRot-only or later joint W4AFP8 study.
+# Export/load gate for isolated QuaRot, isolated SpinQuant-transfer, or joint
+# W4AFP8 studies.
 # Run the isolated QuaRot gate as:
 #   sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch quarot
 #SBATCH --job-name=vllm-13b-w4afp8-gate
@@ -14,8 +15,10 @@
 set -euo pipefail
 
 variant_set="${1:-}"
-if [[ "${variant_set}" != "quarot" && "${variant_set}" != "joint" ]]; then
-    echo "usage: sbatch $0 {quarot|joint}" >&2
+if [[ "${variant_set}" != "quarot" && \
+      "${variant_set}" != "spinquant" && \
+      "${variant_set}" != "joint" ]]; then
+    echo "usage: sbatch $0 {quarot|spinquant|joint}" >&2
     exit 2
 fi
 
@@ -35,7 +38,7 @@ spinquant_dir="${artifact_root}/spinquant-w4afp8-int8-transfer"
 results_dir="${project_root}/results/vllm-w4afp8-llama2-13b"
 model_snapshot="${HOME}/.cache/huggingface/models--meta-llama--Llama-2-13b-hf/snapshots/5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1"
 spinquant_artifact_root="${SPINQUANT_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-spinquant/llama2-13b-paper-nohad-w16a8}"
-rotation_manifest="${spinquant_artifact_root}/rotations-100step-5848547/rotation-manifest.json"
+rotation_manifest="${spinquant_artifact_root}/rotations-100step-5854269/rotation-manifest.json"
 
 task_tmp_parent="${SCRATCHDIR:-/tmp}"
 export SCRATCHDIR="${task_tmp_parent%/}/newsmallproject-vllm-w4afp8-${SLURM_JOB_ID}"
@@ -60,7 +63,7 @@ required_inputs=(
     "${config}"
     "${model_snapshot}/config.json"
 )
-if [[ "${variant_set}" == "joint" ]]; then
+if [[ "${variant_set}" != "quarot" ]]; then
     required_inputs+=("${rotation_manifest}")
 fi
 for required in "${required_inputs[@]}"; do
@@ -126,7 +129,7 @@ echo "VLLM_W4AFP8_STAGE=source_manifest"
         "${project_root}/scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch" \
         "${calibration_dir}/manifest.json"
 } > "${results_dir}/source-manifest-${SLURM_JOB_ID}.txt"
-if [[ "${variant_set}" == "joint" ]]; then
+if [[ "${variant_set}" != "quarot" ]]; then
     sha256sum \
         "${project_root}/repro/spinquant/artifacts.py" \
         "${project_root}/repro/spinquant/offline.py" \
@@ -200,11 +203,13 @@ validate_or_export \
     unrotated_w4afp8 \
     "${unrotated_dir}" \
     "${results_dir}/unrotated-export.json"
-validate_or_export \
-    quarot_w4afp8 \
-    "${quarot_dir}" \
-    "${results_dir}/quarot-export.json"
-if [[ "${variant_set}" == "joint" ]]; then
+if [[ "${variant_set}" != "spinquant" ]]; then
+    validate_or_export \
+        quarot_w4afp8 \
+        "${quarot_dir}" \
+        "${results_dir}/quarot-export.json"
+fi
+if [[ "${variant_set}" != "quarot" ]]; then
     validate_or_export \
         spinquant_w4afp8 \
         "${spinquant_dir}" \
@@ -221,10 +226,12 @@ gate_command=(
     --config "${config}"
     --model "bf16=${model_snapshot}"
     --model "unrotated_w4afp8=${unrotated_dir}"
-    --model "quarot_w4afp8=${quarot_dir}"
     --output "${gate_result}"
 )
-if [[ "${variant_set}" == "joint" ]]; then
+if [[ "${variant_set}" != "spinquant" ]]; then
+    gate_command+=(--model "quarot_w4afp8=${quarot_dir}")
+fi
+if [[ "${variant_set}" != "quarot" ]]; then
     gate_command+=(--model "spinquant_w4afp8=${spinquant_dir}")
 fi
 "${gate_command[@]}"
@@ -241,7 +248,9 @@ capability, gate = [
 ]
 variant_set = sys.argv[4]
 expected = {"bf16", "unrotated_w4afp8", "quarot_w4afp8"}
-if variant_set == "joint":
+if variant_set == "spinquant":
+    expected = {"bf16", "unrotated_w4afp8", "spinquant_w4afp8"}
+elif variant_set == "joint":
     expected.add("spinquant_w4afp8")
 assert capability["status"] == "passed", capability
 assert {row["kernel"] for row in capability["selections"]} == {
@@ -260,4 +269,6 @@ PY
 
 if [[ "${variant_set}" == "quarot" ]]; then
     echo "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_QUAROT_GATE_PASSED"
+elif [[ "${variant_set}" == "spinquant" ]]; then
+    echo "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_SPINQUANT_TRANSFER_GATE_PASSED"
 fi

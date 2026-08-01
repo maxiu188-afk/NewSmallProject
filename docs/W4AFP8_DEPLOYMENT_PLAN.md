@@ -3,17 +3,19 @@
 ## Decision and sequence
 
 This is a hardware-aligned extension for Isambard GH200, not a relabelling of
-the papers' INT8-activation experiments. The QuaRot-only export/load gate can
-now proceed independently while the corrected SpinQuant no-had fake-quant
-chain runs in its own checkout and artifact root.
+the papers' INT8-activation experiments. The QuaRot-only export/load gate is
+queued independently, and the corrected SpinQuant no-had fake-quant chain has
+completed in its own checkout and artifact root.
 
 The first SpinQuant no-had chain (`5850956` -> `5850958`) was accepted and is
 retained as an old-QDQ baseline. The active order is now fixed:
 
-1. run the isolated BF16/unrotated/QuaRot W4AFP8 export/load gate;
-2. evaluate QuaRot deployed-checkpoint quality and serving performance;
-3. complete the corrected SpinQuant no-had fake-quant chain independently;
-4. add SpinQuant W4AFP8 only after its corrected rotation provenance is frozen.
+1. accept queued QuaRot W4AFP8 gate `5854439`;
+2. run the isolated BF16/unrotated/SpinQuant-transfer W4AFP8 export/load gate;
+3. evaluate deployed-checkpoint quality and serving performance only after
+   each isolated gate has frozen its checkpoint provenance;
+4. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
+   FP8-targeted learning later if deployed quality is not competitive.
 
 The QuaRot work remains isolated from the Isambard checkout, artifacts,
 environments, and jobs used by the SpinQuant redo. The existing W4A8
@@ -66,7 +68,7 @@ formal comparison.
 
 ### Gate 0: dependency and provenance
 
-- Wait for both current fake-quant jobs to reach a terminal accepted state.
+- The corrected fake-quant jobs are terminal and accepted.
 - Verify same-revision execution, exit codes, stage markers, result hashes, and
   the full 162 x 2048 held-out-token result before syncing or executing W4AFP8.
 - Keep the accepted INT8 W4A8 artifacts immutable and separately named.
@@ -137,8 +139,13 @@ The final claims are bounded as follows:
 
 ## Current execution boundary
 
-The QuaRot-only Gate 1 path is authorized and isolated. It exports only the
-unrotated control and QuaRot-style W4AFP8 checkpoint, then loads BF16 plus those
-two checkpoints in fresh vLLM processes. SpinQuant export remains deferred;
-the old INT8-trained rotation is not frozen into this gate. Deployed PPL and
-serving still require the accepted gate result and hashes before submission.
+QuaRot gate `5854439` remains queued in its isolated checkout. The corrected
+SpinQuant rotation provenance is now frozen, and a separate `spinquant` Gate 1
+mode is prepared. It exports the unrotated control and SpinQuant-transfer
+W4AFP8 checkpoint, then loads BF16 plus those two checkpoints in fresh vLLM
+processes. This first checkpoint is explicitly an INT8-trained rotation
+transfer diagnostic, not an FP8-optimized endpoint.
+
+The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
+rotation. Deployed PPL and serving still require accepted gate results and
+frozen hashes before submission.
