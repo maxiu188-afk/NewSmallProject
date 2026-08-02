@@ -41,7 +41,10 @@ checks kept separate from real CUDA deployment and performance work.
   to BF16, both packed W4A16 checkpoints cut ready GPU memory by 52.7%,
   improved request throughput by 1.37--1.54x, and reduced p50 E2E by
   26.9--35.2%. A dependent real-vLLM layer-0 diagnostic found shape-dependent
-  0.96--1.05x speed and 74.2% fewer parameter bytes.
+  0.96--1.05x speed and 74.2% fewer parameter bytes. The matched deployed
+  WikiText-2 gate measured PPL 5.007820 for BF16, 5.289677 for unrotated W4A16,
+  and 5.132755 for rotated W4A16; rotation recovered 55.67% of the unrotated
+  quantization gap.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment

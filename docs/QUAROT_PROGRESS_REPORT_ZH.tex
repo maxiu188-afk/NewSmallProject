@@ -164,10 +164,10 @@ vLLM”。checkpoint保持标准Transformers结构和compressed-tensors格式，
 \textbf{QuaRot-style W4A16}，而不是原始QuaRot W4A4KV4。
 
 Isambard GH200上的完整证据链已经通过，包括tiny checkpoint GPU smoke、
-Llama-2-13B固定token离线推理、OpenAI兼容服务smoke、正式服务benchmark，以及依赖
-smoke的真实vLLM layer-0诊断。正式服务测试使用256-token输入、强制64-token输出、
-4次warm-up和64个测量请求；每个模型和concurrency组合均启动新server，并固定8\,GiB
-KV cache。
+Llama-2-13B固定token离线推理、部署checkpoint的WikiText-2 PPL、OpenAI兼容服务
+smoke、正式服务benchmark，以及依赖smoke的真实vLLM layer-0诊断。正式服务测试使用
+256-token输入、强制64-token输出、4次warm-up和64个测量请求；每个模型和
+concurrency组合均启动新server，并固定8\,GiB KV cache。
 
 \begin{table}[htbp]
   \centering
@@ -193,6 +193,12 @@ concurrency 8提升1.37倍；p50 E2E降低26.9--35.2\%，p50 TPOT降低
 32.1--36.8\%。TTFT基本接近BF16但略高。普通与离线旋转W4A16的服务性能几乎
 相同，因此不能声称旋转本身带来部署速度优势。
 
+正式质量任务通过vLLM在162条2048-token序列上评估331,614个next-token目标。
+BF16、普通W4A16和旋转W4A16的PPL分别为5.007820、5.289677和5.132755。旋转相对
+普通W4A16把PPL降低2.97\%，恢复了55.67\%的量化PPL差距；因此旋转没有带来速度
+差异，但在真实packed checkpoint上带来了可测量的质量收益。旋转版本仍比BF16高
+2.49\%，且该结果不替代下游任务或更广泛的生成质量评估。
+
 \subsection*{W4A16：真实单block诊断}
 
 同环境诊断通过\texttt{LLM.apply\_model()}在真实
@@ -213,8 +219,9 @@ BF16；官方W4A4KV4后端证明了真实低比特执行的容量收益以及特
 速度优势，但旧版完整模型batch-1路径仍慢；稳定vLLM W4A16则在GH200完整模型服务
 中同时获得约53\% ready显存下降、1.37--1.54倍请求吞吐和更低TPOT/E2E。
 
-离线旋转没有改变W4A16部署性能。其潜在价值应通过单独的部署checkpoint质量协议
-验证，而不能由性能结果推断。目前固定token推理已经通过，但尚无W4A16 checkpoint
-的WikiText-2 PPL或下游任务结果；fake quant PPL也不能替代这项质量证据。
+离线旋转没有改变W4A16部署性能，但正式部署checkpoint PPL已经证明其质量价值：
+PPL从5.289677降低到5.132755，并恢复55.67\%的量化差距。尚未完成的是下游任务或
+更广泛的生成质量评估；fake quant PPL仍属于独立证据，不能替代真实packed vLLM
+结果。
 
 \end{document}

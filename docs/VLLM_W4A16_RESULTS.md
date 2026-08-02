@@ -18,6 +18,8 @@ kernel.
 |---|---:|---|
 | Tiny vLLM GPU smoke | `5751780` | BF16, unrotated W4A16, and rotated W4A16 tiny checkpoints loaded and generated through the frozen GH200 runtime |
 | Llama-2-13B offline inference | `5769503` | All three complete models loaded in fresh processes and returned the same eight greedy tokens |
+| Deployed PPL smoke | `5839415` | All three checkpoints completed the same 4,094-target WikiText-2 slice |
+| Deployed PPL formal | `5839419` | All three checkpoints completed 331,614 held-out targets through vLLM with matched runtime and provenance |
 | OpenAI-compatible service smoke | `5780629` | All three servers passed health, model-listing, and deterministic completion checks |
 | Matched full-model serving | `5780631` | Six model/concurrency groups each completed 64/64 measured requests with zero failures |
 | Real layer-0 hook smoke | `5784966` | The packed W4A16 `LlamaDecoderLayer` executed with valid CUDA-event prefill and decode records |
@@ -29,6 +31,37 @@ packed decoder linears. Across 122 shared first-token log-probability entries,
 the maximum absolute differences from BF16 were `0.65765` for unrotated W4A16
 and `0.37806` for rotated W4A16. This establishes bounded inference
 correctness, not downstream quality or perplexity.
+
+## Deployed-checkpoint quality result
+
+The formal quality job evaluated 162 non-overlapping 2,048-token WikiText-2
+sequences, or 331,614 scored next-token targets, through the deployed vLLM
+checkpoints. Each model ran in a fresh child process with vLLM
+`0.25.1+cu129`, PyTorch `2.11.0+cu129`, CUDA 12.9, and one GH200. The two W4A16
+checkpoints each exposed 280 packed decoder linears and selected
+`MacheteLinearKernel`.
+
+| Model | Runtime form | PPL | Delta versus BF16 |
+|---|---|---:|---:|
+| BF16 | Original checkpoint through vLLM | 5.007820 | -- |
+| Unrotated W4A16 | Group-128 GPTQ packed W4A16 | 5.289677 | +0.281856 (+5.63%) |
+| Rotated W4A16 | Offline QuaRot-style rotation plus matched packed W4A16 | **5.132755** | +0.124934 (+2.49%) |
+
+Rotation reduced deployed PPL by `0.156922` versus unrotated W4A16, a 2.97%
+relative reduction, and recovered 55.67% of the unrotated W4A16-to-BF16 PPL
+gap. It therefore provides a measured deployment-quality benefit under this
+matched protocol, although the rotated checkpoint remains 2.49% above BF16.
+This quality result does not establish downstream-task accuracy or unrestricted
+generation quality.
+
+Smoke job `5839415` and its dependent formal job `5839419` both completed with
+exit code `0:0`. The formal manifest records `afterok:5839415`, clean revision
+`7074b3ea90a7072f1ac59f49dc2a0ec25a592f3a`, token-ID SHA-256
+`0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9`, and
+token-manifest SHA-256
+`b6ed5f122ba85a9752b3dda699d73405e5a86b7db19050c1f395cbbea450f1cf`.
+The accepted formal-result SHA-256 is
+`f7698afcca494279cb7d3f2d50d94fd1378e03c6d6edd4506d750869cb09829a`.
 
 ## Primary full-model serving result
 
@@ -103,7 +136,8 @@ execute, but it does not by itself explain the larger full-model serving gain
 and is not the primary performance claim.
 
 Offline rotation does not materially change deployment performance relative to
-unrotated W4A16. Whether it improves model quality remains open: this phase has
-no deployed-checkpoint WikiText-2 PPL or downstream-task result. Fake-quant PPL
-from the algorithmic study must not be reused as deployed W4A16 quality
-evidence.
+unrotated W4A16, but the deployed-checkpoint PPL result shows a quality benefit:
+PPL improved from 5.289677 to 5.132755 and recovered 55.67% of the quantization
+gap to BF16. Downstream-task and broader generation-quality evaluation remain
+open. Fake-quant PPL from the algorithmic study remains a separate evidence
+route and must not be substituted for this packed vLLM result.
