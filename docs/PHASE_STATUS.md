@@ -13,7 +13,7 @@ through 2026-07-22 is preserved in
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
-| vLLM W4A16 serving | Complete on GH200 for the matched Llama-2-13B serving and layer-0 diagnostic protocols | W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; rotation had no material performance effect; no deployed-checkpoint PPL or downstream-quality result |
+| vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
 | vLLM W4AFP8 deployment | Deployed quality accepted on GH200: PPL smoke 5874806 and formal job 5874807 completed `0:0`; an isolated min/max-versus-MSE diagnostic is queued as gate 5875320 and dependent smoke 5875322 | Accepted PPL remains BF16 5.007820, unrotated 5.136105, QuaRot-style 5.248356, and SpinQuant-transfer 5.230155 over 331,614 targets. The MSE diagnostic has no result yet and its formal task is intentionally not submitted; matched serving also remains untested |
 
 ## Current deployment decision
@@ -109,12 +109,14 @@ eight-case single-block comparison. W4A16 reduced layer-0 parameter bytes by
 0.96--1.05x versus BF16. This diagnostic used eager execution and is not a
 replacement for the compiled serving result.
 
-The remaining QuaRot scientific boundary is deployed-checkpoint quality. Its
-fixed-token offline gate establishes bounded execution correctness, but this
-phase has not measured WikiText-2 PPL or a downstream task on the packed W4A16
-checkpoint. Rotation did not materially change serving or layer timing, so any
-rotation benefit must be evaluated through a separate quality protocol rather
-than inferred from performance.
+The deployed-checkpoint quality gate has also passed. Smoke job `5839415` and
+formal job `5839419` completed with exit code `0:0`; the formal run scored
+331,614 WikiText-2 targets through the real vLLM checkpoints. PPL was 5.007820
+for BF16, 5.289677 for unrotated W4A16, and 5.132755 for rotated W4A16. Rotation
+reduced PPL by 2.97% relative to unrotated W4A16 and recovered 55.67% of its PPL
+gap to BF16 while leaving serving performance materially unchanged. The
+remaining quality boundary is downstream-task or broader generation evaluation,
+not deployed-checkpoint perplexity.
 
 The SpinQuant work is isolated under its own implementation, configuration,
 script, and test directories. It does not modify the completed QuaRot pipeline

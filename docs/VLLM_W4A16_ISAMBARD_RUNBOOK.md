@@ -175,6 +175,47 @@ BF16 were 0.65765 for unrotated W4A16 and 0.37806 for rotated W4A16. This is
 accepted full-model offline inference evidence, not quality or performance
 evidence.
 
+## Deployed-checkpoint PPL smoke and formal result
+
+The PPL gate evaluates the original BF16 checkpoint and both packed W4A16
+checkpoints through vLLM on the retained WikiText-2 test stream. It materializes
+162 non-overlapping 2,048-token sequences and scores all 331,614 next-token
+targets. Each model runs in a fresh child process, and the formal job requires
+an `afterok` dependency on a passing same-revision smoke:
+
+```bash
+cd "$HOME/NewSmallProject-vllm-ready"
+smoke_job="$(
+  sbatch --parsable \
+    scripts/run_isambard_vllm_w4a16_llama2_13b_ppl.sbatch smoke
+)"
+sbatch --dependency="afterok:${smoke_job}" \
+  scripts/run_isambard_vllm_w4a16_llama2_13b_ppl.sbatch formal
+```
+
+Smoke job `5839415` completed in 7 minutes 41 seconds with exit code `0:0` and
+scored 4,094 targets. Formal job `5839419` completed in 5 minutes 51 seconds
+with exit code `0:0`, recorded `afterok:5839415`, and emitted
+`ISAMBARD_VLLM_W4A16_LLAMA2_13B_PPL_FORMAL_PASSED`. Both used clean revision
+`7074b3ea90a7072f1ac59f49dc2a0ec25a592f3a`.
+
+| Model | Scored targets | PPL |
+|---|---:|---:|
+| BF16 | 331,614 | 5.007820 |
+| Unrotated packed W4A16 | 331,614 | 5.289677 |
+| Rotated packed W4A16 | 331,614 | **5.132755** |
+
+The rotated checkpoint reduced PPL by 2.97% relative to unrotated W4A16 and
+recovered 55.67% of the PPL gap to BF16. Both W4 checkpoints contained 280
+packed decoder linears and selected `MacheteLinearKernel`. Optional DeepGEMM
+import and NCCL process-group cleanup warnings were non-fatal; all per-model,
+aggregate-result, provenance, marker, and Slurm exit-code assertions passed.
+
+The accepted formal-result SHA-256 is
+`f7698afcca494279cb7d3f2d50d94fd1378e03c6d6edd4506d750869cb09829a`.
+The retained token-ID SHA-256 is
+`0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9`.
+
 ## Service smoke and dependent formal benchmark
 
 The service stage uses the separate serving configuration at

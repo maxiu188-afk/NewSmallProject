@@ -14,7 +14,8 @@ but it is not the current project plan.
 - [`OFFICIAL_QUAROT_RESULTS.md`](OFFICIAL_QUAROT_RESULTS.md): consolidated
   official-backend full-model and paper-aligned single-block results.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
-  full-model serving result and same-environment layer-0 diagnostic.
+  deployed-checkpoint PPL, full-model serving result, and same-environment
+  layer-0 diagnostic.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
   for BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant transfer, plus
   the explicitly pending min/max-versus-MSE observer diagnostic.
