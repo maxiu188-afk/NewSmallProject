@@ -5,16 +5,28 @@
 The QuaRot-only job `5854439` and isolated SpinQuant-transfer job `5857916`
 were cancelled before allocation on 2026-08-01 after the GPTQ protocol was
 revised from static activation ordering to no activation ordering. Both have
-zero runtime and provide no result. The corrected SpinQuant fake-quant chain
-remains complete. Replacement QuaRot job `5859043` and SpinQuant-transfer job
-`5859044` are queued from revision `d5c4fbb6f5da`; they provide no result while
-pending. The two modes remain independent because:
+zero runtime and provide no result. Jobs `5859043`/`5859044` then failed the
+same-revision calibration check. Their replacements `5873446`/`5873447`
+accepted calibration and passed the GH200 CUTLASS capability audit, but both
+stopped before `oneshot()` quantization because the exporter required the
+configured observer alias `minmax` while LLM Compressor 0.12.0 resolves the
+same direct-min/max observer as `memoryless_minmax`. They produced no
+checkpoint.
 
-- it uses a separate Isambard checkout and Slurm allocation;
+Revision `9d691e9cf828` accepts those two equivalent names while continuing to
+reject `memoryless_mse`; the pinned quantizer preflight and all ten W4AFP8 unit
+tests passed on Isambard. QuaRot validation job `5873544` is queued from that
+revision with a six-hour limit. SpinQuant-transfer main job `5873545` is queued
+with `afterok:5873544`, so it cannot start unless validation succeeds. Neither
+queued job currently provides a deployment result. The scheduler dependency is
+operational; the evidence boundaries remain distinct because:
+
+- W4AFP8 uses a separate Isambard checkout from the fake-quant runs;
 - W4AFP8 uses a separate
   `${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4afp8/` artifact root;
 - the QuaRot-only mode neither reads nor exports a SpinQuant rotation;
 - the SpinQuant mode uses the checksummed corrected job `5854269` rotation;
+- the SpinQuant job must pass its own packed-checkpoint and inference checks;
 - fake-quant outputs remain immutable and separate from deployment artifacts.
 
 The prepared path covers all later evidence gates:
@@ -84,15 +96,16 @@ variant as real-deployment complete when only one side has passed.
 ## SpinQuant transfer execution sequence
 
 The first W4AFP8 SpinQuant checkpoint is a transfer diagnostic from the
-corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. The
-superseded job `5857916` was submitted from revision `168252700dd9` and then
-cancelled before allocation. Its replacement `5859044` is queued from the
-revised same-revision checkout. The submission protocol is:
+corrected W16A8-trained rotation, not an FP8-targeted learned endpoint. Current
+main job `5873545` is scheduler-gated on validation job `5873544`. The
+submission protocol is:
 
 ```bash
-sbatch --test-only \
+validation_job=$(sbatch --parsable --time=06:00:00 \
+  scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch quarot)
+sbatch --time=06:00:00 \
+  --dependency="afterok:${validation_job}" \
   scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch spinquant
-sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch spinquant
 ```
 
 Acceptance requires the general gate marker plus
@@ -104,7 +117,7 @@ serving from this gate until its result and checkpoint hashes are frozen.
 ## Result boundaries
 
 - The current INT8 W4A8 fake-quant result is not W4AFP8 quality evidence.
-- Gate 1 jobs `5859043` and `5859044` are export/load correctness only, not
+- Gate 1 jobs `5873544` and `5873545` are export/load correctness only, not
   formal accuracy or acceleration evidence.
 - Backend capability selection is not checkpoint correctness, PPL, or speed.
 - Fixed-token inference is not full held-out accuracy.

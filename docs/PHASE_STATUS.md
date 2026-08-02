@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving | Complete on GH200 for the matched Llama-2-13B serving and layer-0 diagnostic protocols | W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; rotation had no material performance effect; no deployed-checkpoint PPL or downstream-quality result |
-| vLLM W4AFP8 deployment | Revised QuaRot Gate 1 job 5859043 and SpinQuant-transfer Gate 1 job 5859044 are queued; superseded jobs 5854439/5857916 were cancelled before allocation | CUTLASS requires group-128, so the revised route disables activation ordering and weight clipping but cannot use paper-style group-size -1; deployed PPL and matched serving remain untested |
+| vLLM W4AFP8 deployment | Jobs 5859043/5859044 failed stale-calibration validation; jobs 5873446/5873447 then passed calibration and the CUTLASS audit but stopped before quantization on an over-strict `minmax` alias check. Revision `9d691e9` fixes that check; QuaRot validation job 5873544 is queued and SpinQuant-transfer job 5873545 is queued with `afterok:5873544` | Neither failed pair produced a W4AFP8 checkpoint or quality result. CUTLASS still requires group-128/no-actorder GPTQ with no MSE clipping; deployed PPL and matched serving remain untested |
 
 ## Current deployment decision
 
@@ -44,10 +44,15 @@ joint, hardware-aligned W4AFP8 route for both QuaRot and SpinQuant on GH200.
 It requires deployed-checkpoint PPL plus matched full-model serving performance;
 the existing fake-quant evaluator cannot establish W4AFP8 accuracy. Its local
 export, backend-audit, deployed-PPL, and serving paths are prepared and tested
-statically. Corrected rotation provenance is frozen. The previous W4AFP8 gates
-were cancelled before allocation when the GPTQ protocol changed; replacement
-jobs `5859043` and `5859044` are queued with group-128/no-actorder GPTQ, the
-weakest verified option supported by the selected accelerated backend.
+statically. Corrected rotation provenance is frozen. The first W4AFP8 gates
+were cancelled before allocation when the GPTQ protocol changed. Jobs
+`5859043`/`5859044` later failed stale-calibration validation, and
+`5873446`/`5873447` passed calibration and backend audit before an over-strict
+observer-name check rejected LLM Compressor's canonical `memoryless_minmax`
+name. Revision `9d691e9` accepts only the equivalent
+`minmax`/`memoryless_minmax` names and still rejects MSE observers. QuaRot
+validation job `5873544` is queued from that revision; SpinQuant-transfer main
+job `5873545` is queued with `afterok:5873544`. Neither queued job is a result.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
