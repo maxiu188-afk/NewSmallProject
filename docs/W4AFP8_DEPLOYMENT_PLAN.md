@@ -44,6 +44,25 @@ calibration/learning objective, and executed kernel.
 The online-Hadamard `SpinQuant_had` path remains a separate paper extension. It
 is not a dependency for the offline-only W4AFP8 deployment defined here.
 
+### Isolated min/max versus MSE diagnostic
+
+The accepted quality result uses ordinary min/max weight ranges. To test the
+specific hypothesis that paper-style MSE clipping changes the QuaRot versus
+unrotated ranking, revision `6f609b0` adds two isolated checkpoints while
+preserving the accepted min/max checkpoints as controls. The resulting PPL
+matrix is BF16 plus unrotated/QuaRot under min/max and unrotated/QuaRot under
+MSE clipping. Group-128, no activation ordering, calibration data, retained
+evaluation tokens, activation format, and serving runtime remain unchanged.
+
+Gate job `5875320` is queued. Smoke job `5875322` is queued only through
+`afterok:5875320`. The smoke script also rejects execution without an `afterok`
+dependency. Formal has deliberately not been submitted: after smoke finishes,
+its JSON, logs, observer metadata, packed-linear coverage, runtime `g_idx`
+absence, token counts, and source revision must be reviewed before a formal job
+may be submitted with a dependency on the accepted smoke job. These diagnostic
+jobs do not replace the accepted W4AFP8 result or close the outstanding serving
+half of deployment acceptance.
+
 ## Frozen runtime target
 
 The first formal target is Llama-2-13B on one Isambard GH200, using the already

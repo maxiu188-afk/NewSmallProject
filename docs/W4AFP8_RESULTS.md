@@ -56,6 +56,27 @@ ignored copies retained for review. They are intentionally excluded from Git
 by the repository's generated-result policy; the hashes above bind this
 reviewed summary to those artifacts.
 
+## Active GPTQ observer diagnostic (no result yet)
+
+An isolated 2 x 2 diagnostic was submitted from revision
+`6f609b04d1051a60a7d0443796c53d874a9c2144` to test whether the accepted
+min/max range selection explains why the unrotated checkpoint beat the
+QuaRot-style checkpoint. Gate job `5875320` exports and loads new unrotated and
+QuaRot-style checkpoints using MSE-clipped weight ranges. Smoke job `5875322`
+is queued with scheduler dependency `afterok:5875320`. No formal job has been
+submitted; it remains blocked on manual review and acceptance of the smoke
+artifact.
+
+The comparison freezes group size 128, block size 128, `actorder=None`,
+128 x 2048 calibration tokens, retained PPL tokens, FP8 activation metadata,
+and the vLLM runtime. The only intended checkpoint-construction change is the
+weight observer: accepted `memoryless_minmax` controls versus MSE clipping with
+`maxshrink=0.8`, `grid=100`, and error norm 2.4. This matches the clipping
+search range used by the paper code while retaining the deployable group-128
+backend contract; it is therefore a deployment-oriented observer diagnostic,
+not an exact reproduction of the paper's GPTQ protocol and not an accepted
+accuracy result until the formal artifact is reviewed.
+
 ## Evidence boundary
 
 This closes the deployed-checkpoint PPL half of the W4AFP8 experiment. It does
