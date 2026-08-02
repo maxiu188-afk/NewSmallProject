@@ -22,6 +22,24 @@ EXPECTED_KERNEL = "CutlassW4A8LinearKernel"
 EXPECTED_SCHEME = "CompressedTensorsW4A8Fp8"
 
 
+def validate_resolved_weight_observer(
+    configured_observer: str,
+    resolved_observer: str,
+) -> str:
+    """Accept only dependency aliases for the frozen min/max observer."""
+
+    accepted_resolved = {
+        "minmax": frozenset({"minmax", "memoryless_minmax"}),
+    }
+    accepted = accepted_resolved.get(
+        configured_observer,
+        frozenset({configured_observer}),
+    )
+    if resolved_observer not in accepted:
+        raise ValueError(f"unexpected resolved weight observer: {resolved_observer}")
+    return resolved_observer
+
+
 def validate_export_config(config: Mapping[str, Any]) -> None:
     """Reject protocol drift before a model or CUDA runtime is loaded."""
 

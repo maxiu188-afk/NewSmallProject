@@ -37,6 +37,7 @@ from repro.vllm_w4afp8 import (  # noqa: E402
     validate_export_config,
     validate_kernel_shapes,
     validate_no_runtime_g_idx,
+    validate_resolved_weight_observer,
 )
 
 
@@ -139,6 +140,14 @@ class VllmW4AFP8Tests(unittest.TestCase):
         self.assertEqual(config["quantization"]["weight_observer"], "minmax")
         self.assertFalse(config["quantization"]["weight_clipping"])
         self.assertFalse(config["kernel"]["runtime_g_idx"])
+
+    def test_resolved_weight_observer_accepts_minmax_alias_only(self):
+        self.assertEqual(
+            validate_resolved_weight_observer("minmax", "memoryless_minmax"),
+            "memoryless_minmax",
+        )
+        with self.assertRaisesRegex(ValueError, "memoryless_mse"):
+            validate_resolved_weight_observer("minmax", "memoryless_mse")
 
     def test_checkpoint_metadata_requires_fp8_tokens_and_no_actorder(self):
         metadata = _valid_quantization_config()
