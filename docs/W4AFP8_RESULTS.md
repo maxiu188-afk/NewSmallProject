@@ -127,16 +127,63 @@ The SpinQuant checkpoint remains an INT8-trained rotation transfer to W4AFP8,
 not an FP8-targeted learned endpoint. Its slightly better PPL than QuaRot does
 not show that FP8-targeted SpinQuant training is complete.
 
-## BoolQ diagnostic status
+## Accepted BoolQ downstream diagnostic
 
-A matched downstream diagnostic is prepared but has no accepted result yet.
-It will compare BF16, unrotated min/max W4AFP8, QuaRot-style min/max W4AFP8,
-and SpinQuant-transfer min/max W4AFP8 on all 3,270 BoolQ validation examples.
-The protocol freezes the zero-shot prompt, `no`/`yes` choices, and raw accuracy
-from the LM Evaluation Harness commit pinned by QuaRot. A 32-example smoke must
-be reviewed before the formal job is submitted.
+Smoke job `5876321` completed `0:0` and was reviewed before formal job
+`5876591` was submitted through `afterok:5876321`. The formal run evaluated all
+3,270 BoolQ validation examples through vLLM, using the frozen zero-shot prompt,
+`no`/`yes` choices, and raw-accuracy construction from the LM Evaluation
+Harness commit pinned by QuaRot.
+
+| Model | Correct | Accuracy | Delta vs unrotated |
+|---|---:|---:|---:|
+| BF16 | 2,635 / 3,270 | 80.5810% | +2.1713 pp |
+| Unrotated W4AFP8 | 2,564 / 3,270 | 78.4098% | baseline |
+| QuaRot-style W4AFP8 | 2,569 / 3,270 | 78.5627% | +0.1529 pp |
+| SpinQuant-transfer W4AFP8 | 2,603 / 3,270 | 79.6024% | +1.1927 pp |
+
+SpinQuant-transfer recovered 39 of the 71 correct-answer gap between the
+unrotated checkpoint and BF16. Its paired prediction comparison with unrotated
+had 162 SpinQuant-only correct cases and 123 unrotated-only correct cases; the
+exploratory exact McNemar p-value was `0.0242202`. This is encouraging evidence
+that the learned rotation transfers to the FP8 deployment on BoolQ, despite its
+worse deployed WikiText-2 PPL. It does not turn the transfer checkpoint into an
+FP8-targeted endpoint and does not establish serving acceleration.
+
+The formal result SHA-256 is
+`b278567aae262fdd6f4379d4004817f17faba51fa304077f03dd1479b8bdb824`.
+It records 6,540 model requests, project revision
+`0f7a2df489f66609c1026ad20987d6ec9f77c7e6`, config SHA-256
+`fa44d2c61317022bac346ff4a14824d8da90f192a00c1e6204493ed8d80f818f`,
+dataset-manifest SHA-256
+`66b7a80e9ef1df7d3bd1f07a111824bffcccff56b1ff47c4d9e81afebd1146d5`,
+and example SHA-256
+`475e56b71939a8e3db8be48bcc4d344569b36cc660f4086c9ae15858d46a297f`.
 
 This is deliberately labelled a W4AFP8 downstream diagnostic. SpinQuant Table
 7 reports LLaMA-2-13B W4A8KV16 BoolQ accuracy of 75.3% for GPTQ and 81.5% for
 SpinQuant without online Hadamard transforms; those values are motivation, not
 acceptance targets for the current FP8-activation checkpoints.
+
+## FP8-targeted SpinQuant follow-up
+
+The positive BoolQ transfer result motivates a separately named FP8-targeted
+rotation-learning run. Its training objective reproduces vLLM's dynamic
+per-token FP8 E4M3 input quantizer exactly: one FP32 scale per final-axis row,
+maximum magnitude 448, minimum scale `1 / (448 * 512)`, all seven decoder
+Linear inputs covered, and `lm_head` excluded. It reuses the accepted
+WikiText-2 calibration sequences, initialization, optimizer, and 100-step
+schedule so the intended training change is only the activation objective.
+
+Training completion alone is not an accepted W4AFP8 result. The new rotation
+must be exported with the frozen group-128/no-actorder/min-max recipe and pass:
+
+1. packed-checkpoint vLLM load/kernel validation;
+2. the same formal WikiText-2 PPL and 3,270-example BoolQ protocols; and
+3. matched full-model BF16/W4AFP8 serving at concurrency 1 and 8, including
+   throughput, TTFT, TPOT, end-to-end latency, GPU memory, request failures,
+   recovery, and `CutlassW4A8LinearKernel` log evidence.
+
+Only the one-step training smoke is submitted initially. Formal 100-step
+training remains blocked on manual smoke acceptance, and the quality and
+acceleration jobs remain blocked until a new rotation and checkpoint exist.

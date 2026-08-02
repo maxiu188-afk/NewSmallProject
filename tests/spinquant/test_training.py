@@ -65,6 +65,34 @@ class SpinQuantTrainingTests(unittest.TestCase):
         self.assertEqual(smoke["calibration"]["samples"], 8)
         self.assertEqual(formal["calibration"]["samples"], 800)
 
+    def test_vllm_aligned_w16afp8_configs_differ_only_in_planned_scale(self):
+        smoke = json.loads(
+            (
+                PROJECT_ROOT
+                / "configs/spinquant/llama2_13b_w16afp8_rotation_train_1step_smoke.json"
+            ).read_text(encoding="utf-8")
+        )
+        formal = json.loads(
+            (
+                PROJECT_ROOT
+                / "configs/spinquant/llama2_13b_w16afp8_rotation_train_100.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(smoke["model"], formal["model"])
+        self.assertEqual(smoke["quantization"], formal["quantization"])
+        self.assertEqual(smoke["runtime"], formal["runtime"])
+        quantization = smoke["quantization"]
+        self.assertEqual(quantization["rotation_objective"], "fp8_activation_qdq")
+        self.assertEqual(quantization["activation_type"], "float")
+        self.assertEqual(quantization["activation_dtype"], "float8_e4m3fn")
+        self.assertEqual(quantization["activation_strategy"], "token")
+        self.assertTrue(quantization["activation_symmetric"])
+        self.assertEqual(quantization["activation_o_proj_group_size"], -1)
+        self.assertEqual(smoke["optimization"]["steps"], 1)
+        self.assertEqual(formal["optimization"]["steps"], 100)
+        self.assertEqual(smoke["calibration"]["samples"], 8)
+        self.assertEqual(formal["calibration"]["samples"], 800)
+
     def test_tiny_training_consumes_exact_protocol_and_updates_rotations(self):
         import torch
         from transformers import LlamaConfig, LlamaForCausalLM
@@ -228,6 +256,113 @@ class SpinQuantTrainingTests(unittest.TestCase):
                     "activation_bits": 8,
                 }
             )
+
+    def test_fp8_activation_objective_updates_rotations(self):
+        import torch
+        from transformers import LlamaConfig, LlamaForCausalLM
+
+        from repro.spinquant.training import train_llama_rotations
+
+        torch.manual_seed(61)
+        model = LlamaForCausalLM(
+            LlamaConfig(
+                vocab_size=97,
+                hidden_size=32,
+                intermediate_size=64,
+                num_hidden_layers=1,
+                num_attention_heads=4,
+                num_key_value_heads=2,
+                max_position_embeddings=32,
+                use_cache=False,
+            )
+        ).float()
+        config = {
+            "seed": 0,
+            "quantization": {
+                "rotation_objective": "fp8_activation_qdq",
+                "weight_bits": 16,
+                "activation_bits": 8,
+                "activation_type": "float",
+                "activation_dtype": "float8_e4m3fn",
+                "activation_dynamic": True,
+                "activation_strategy": "token",
+                "activation_granularity": "per_token_last_axis",
+                "activation_scale_dtype": "float32",
+                "activation_maximum": 448.0,
+                "activation_minimum_scale": 1.0 / (448.0 * 512.0),
+                "runtime_form": "vllm_dynamic_per_token_fp8_e4m3fn_qdq_with_ste",
+                "weight_group_size": -1,
+                "weight_symmetric": True,
+                "activation_symmetric": True,
+                "activation_clipping": False,
+                "activation_o_proj_group_size": -1,
+                "quantize_lm_head": False,
+            },
+            "optimization": {
+                "steps": 1,
+                "gradient_accumulation_steps": 2,
+                "learning_rate": 1.5,
+                "cayley_method": "fixed_point",
+                "fixed_point_steps": 5,
+                "gradient_checkpointing": False,
+            },
+        }
+        rotations, result = train_llama_rotations(
+            model,
+            [[1, 2, 3, 4, 5, 6], [2, 3, 4, 5, 6, 7]],
+            config,
+        )
+        self.assertEqual(result["rotation_objective"], "fp8_activation_qdq")
+        self.assertEqual(result["adapter"]["activation_type"], "float")
+        self.assertEqual(
+            result["adapter"]["activation_runtime_form"],
+            "vllm_dynamic_per_token_fp8_e4m3fn_qdq_with_ste",
+        )
+        self.assertEqual(
+            result["adapter"]["activation_granularity"],
+            "per_token_last_axis",
+        )
+        self.assertGreater(result["gradient_maxima"][0], 0.0)
+        self.assertTrue(all(parameter.requires_grad for parameter in rotations.parameters()))
+
+    def test_fp8_activation_objective_rejects_wrong_runtime_contract(self):
+        from repro.spinquant.training import _validate_rotation_objective
+
+        base = {
+            "rotation_objective": "fp8_activation_qdq",
+            "weight_bits": 16,
+            "activation_bits": 8,
+            "activation_type": "float",
+            "activation_dtype": "float8_e4m3fn",
+            "activation_dynamic": True,
+            "activation_strategy": "token",
+            "activation_granularity": "per_token_last_axis",
+            "activation_scale_dtype": "float32",
+            "activation_maximum": 448.0,
+            "activation_minimum_scale": 1.0 / (448.0 * 512.0),
+            "runtime_form": "vllm_dynamic_per_token_fp8_e4m3fn_qdq_with_ste",
+            "activation_symmetric": True,
+            "activation_clipping": False,
+            "activation_o_proj_group_size": -1,
+        }
+        for key, value in (
+            ("activation_type", "int"),
+            ("activation_dtype", "float8_e5m2"),
+            ("activation_dynamic", False),
+            ("activation_strategy", "tensor"),
+            ("activation_granularity", "tensor"),
+            ("activation_scale_dtype", "bfloat16"),
+            ("activation_maximum", 240.0),
+            ("activation_minimum_scale", 0.0),
+            ("runtime_form", "generic_fp8"),
+            ("activation_symmetric", False),
+            ("activation_clipping", True),
+            ("activation_o_proj_group_size", 128),
+        ):
+            invalid = dict(base)
+            invalid[key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                _validate_rotation_objective(invalid)
 
     def test_runner_requires_exact_calibration_provenance(self):
         from scripts.spinquant import train_llama_rotations as runner

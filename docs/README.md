@@ -18,7 +18,7 @@ but it is not the current project plan.
   layer-0 diagnostic.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
   for BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant transfer, plus
-  the accepted min/max-versus-MSE observer diagnostic.
+  the accepted min/max-versus-MSE observer diagnostic and BoolQ result.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the
   corrected no-had W4A8 deployment boundary.

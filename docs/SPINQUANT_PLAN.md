@@ -276,3 +276,44 @@ deployment checkout and artifacts. The later joint W4AFP8 deployment work can
 reuse the accepted vLLM process and provenance gates without modifying the
 completed QuaRot evidence, but it cannot reuse W4A16 or INT8 W4A8 fake-quant
 results as W4AFP8 accuracy evidence.
+
+## FP8-targeted rotation training
+
+The accepted W4AFP8 BoolQ diagnostic showed that the existing INT8-trained
+rotation transfers usefully: SpinQuant-transfer reached 79.6024%, versus
+78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16 over all 3,270
+examples. This motivates a controlled FP8-targeted training run rather than
+task-specific BoolQ fine-tuning.
+
+The new configs are
+`configs/spinquant/llama2_13b_w16afp8_rotation_train_1step_smoke.json` and
+`configs/spinquant/llama2_13b_w16afp8_rotation_train_100.json`. They preserve
+the existing calibration tokens, signed structured-Hadamard initialization,
+Cayley optimizer, learning rate, accumulation, and 1/100-step scale. The sole
+intended objective change is from asymmetric INT8 activation QDQ to the exact
+vLLM `0.25.1+cu129` CUTLASS input contract: dynamic symmetric per-token
+`float8_e4m3fn`, FP32 scale, range +/-448, and minimum scale
+`1 / (448 * 512)`. The adapter applies it to every decoder Linear input and
+keeps `lm_head` unquantized.
+
+The isolated entry point is
+`scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch`. Submit smoke first:
+
+```bash
+sbatch --test-only scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
+sbatch scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
+```
+
+Do not submit formal training until the one-step artifact, gradients,
+orthogonality, provenance, and runtime-form metadata are accepted. Afterwards:
+
+```bash
+sbatch --dependency=afterok:<SMOKE_JOB_ID> \
+  scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch formal <SMOKE_JOB_ID>
+```
+
+The resulting rotation must not overwrite the accepted INT8-transfer artifact.
+After export with the frozen group-128/no-actorder/min-max W4AFP8 recipe, it
+must pass both quality (PPL and BoolQ) and matched full-model serving
+acceleration. Training loss or fake-quant output alone is not deployment
+evidence.

@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed quality accepted on GH200; isolated min/max-versus-MSE gate 5875320, dependent smoke 5875322, and formal 5875865 all completed `0:0`; matched BoolQ diagnostic prepared, not yet run | Formal MSE PPL was 5.163774 unrotated and 5.216687 QuaRot-style versus 5.136105/5.248356 under min/max. MSE halved but did not reverse the rotation gap; BoolQ and matched serving remain untested |
+| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; FP8-targeted SpinQuant training prepared; matched serving remains unsubmitted | Formal BoolQ job 5876591 reached 79.6024% SpinQuant-transfer versus 78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16. No W4AFP8 acceleration claim exists yet |
 
 ## Current deployment decision
 
@@ -91,7 +91,15 @@ or formal serving evidence is missing.
 
 ## Latest accepted result
 
-The latest accepted diagnostic is formal min/max-versus-MSE job `5875865`.
+The latest accepted diagnostic is formal BoolQ job `5876591`, submitted after
+manual acceptance of smoke `5876321`. It scored all 3,270 validation examples:
+80.5810% BF16, 78.4098% unrotated W4AFP8, 78.5627% QuaRot-style W4AFP8, and
+79.6024% SpinQuant-transfer W4AFP8. The formal JSON SHA-256 is
+`b278567aae262fdd6f4379d4004817f17faba51fa304077f03dd1479b8bdb824`.
+This is downstream quality evidence, not serving-acceleration evidence.
+
+The accepted min/max-versus-MSE job `5875865` remains the latest observer
+diagnostic.
 It scored 331,614 retained WikiText-2 targets per model and confirmed that MSE
 clipping improves QuaRot PPL from 5.248356 to 5.216687 while worsening the
 unrotated control from 5.136105 to 5.163774. Its formal result SHA-256 is

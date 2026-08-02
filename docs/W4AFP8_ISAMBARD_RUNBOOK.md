@@ -144,6 +144,14 @@ sbatch --dependency=afterok:<SMOKE_JOB_ID> \
   scripts/run_isambard_vllm_w4afp8_llama2_13b_boolq.sbatch formal
 ```
 
+Accepted execution: smoke `5876321` completed `0:0`; formal `5876591` then
+completed `0:0` through `afterok:5876321`. Formal accuracy was 80.5810% BF16,
+78.4098% unrotated W4AFP8, 78.5627% QuaRot-style W4AFP8, and 79.6024%
+SpinQuant-transfer W4AFP8. Result SHA-256:
+`b278567aae262fdd6f4379d4004817f17faba51fa304077f03dd1479b8bdb824`.
+This accepts the downstream diagnostic only; the serving-acceleration half is
+still outstanding.
+
 ## Formal deployment evidence contract
 
 Formal deployment is accepted only as the combination of two terminal,
@@ -180,6 +188,20 @@ linears in both quantized checkpoints, no runtime `g_idx`, and selected
 `CutlassW4A8LinearKernel` capability evidence. Do not submit deployed PPL or
 serving from this gate until its result and checkpoint hashes are frozen.
 
+The transfer checkpoint subsequently reached 79.6024% on the accepted BoolQ
+formal run, versus 78.4098% unrotated, while its deployed PPL remained worse
+than unrotated. The follow-up therefore trains a separately named FP8-targeted
+rotation with:
+
+```bash
+sbatch --test-only scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
+sbatch scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
+```
+
+Do not submit its formal mode until the smoke result is manually accepted.
+Training does not alter the frozen transfer checkpoint and does not by itself
+satisfy either the W4AFP8 quality or serving-acceleration gate.
+
 ## Result boundaries
 
 - The current INT8 W4A8 fake-quant result is not W4AFP8 quality evidence.
@@ -192,8 +214,10 @@ serving from this gate until its result and checkpoint hashes are frozen.
 - Backend capability selection is not checkpoint correctness, PPL, or speed.
 - Fixed-token inference is not full held-out accuracy.
 - Deployed PPL is not acceleration.
+- Accepted BoolQ smoke `5876321` and formal `5876591` are downstream-quality
+  evidence, not PPL or acceleration.
 - Acceleration requires the matched full-model service result plus the selected
   W4AFP8 kernel pattern in every quantized server log.
 - The initial SpinQuant checkpoint remains labelled `INT8-trained rotation
-  transfer to W4AFP8`. If it is not competitive with unrotated W4AFP8, the
-  accepted SpinQuant endpoint requires FP8-targeted rotation learning.
+  transfer to W4AFP8`. The separately named FP8-targeted rotation must pass
+  new export, PPL, BoolQ, and serving gates before replacing that label.

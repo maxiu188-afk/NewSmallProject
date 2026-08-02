@@ -11,6 +11,9 @@ PAPER_ALIGNED_SCRIPT = (
     PROJECT_ROOT
     / "scripts/run_isambard_spinquant_llama2_13b_w16a8_100step.sbatch"
 )
+FP8_SCRIPT = (
+    PROJECT_ROOT / "scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch"
+)
 
 
 class SpinQuantIsambardFormalScriptTests(unittest.TestCase):
@@ -60,6 +63,17 @@ class SpinQuantIsambardFormalScriptTests(unittest.TestCase):
             "ISAMBARD_SPINQUANT_LLAMA2_13B_W16A8_100STEP_PASSED",
             text,
         )
+
+    def test_fp8_formal_requires_accepted_smoke_and_afterok(self):
+        text = FP8_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("SLURM_JOB_DEPENDENCY", text)
+        self.assertIn("afterok:", text)
+        self.assertIn("sha256sum --check --status", text)
+        self.assertIn("merge-base", text)
+        self.assertIn("SPINQUANT_13B_FP8_FORMAL_SMOKE_GATE_ACCEPTED", text)
+        self.assertIn("llama2_13b_w16afp8_rotation_train_100.json", text)
+        self.assertIn("expected_steps=100", text)
+        self.assertIn("expected_sequences=800", text)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,10 @@ from torch import Tensor
 from repro.qdq import qdq_last_axis
 
 
+FP8_E4M3FN_MAX = 448.0
+FP8_MIN_SCALING_FACTOR = 1.0 / (FP8_E4M3FN_MAX * 512.0)
+
+
 def spinquant_activation_qdq(
     values: Tensor,
     bits: int,
@@ -70,4 +74,39 @@ def ste_spinquant_activation_qdq(
         symmetric=symmetric,
         group_size=group_size,
     )
+    return values + (quantized - values).detach()
+
+
+def spinquant_fp8_activation_qdq(values: Tensor) -> Tensor:
+    """Reproduce vLLM dynamic per-token FP8 E4M3 activation QDQ.
+
+    CUTLASS W4A8 flattens each Linear input to two dimensions and derives one
+    FP32 scale per row.  Reducing the original tensor over its final axis is
+    equivalent and preserves the caller's shape.
+    """
+
+    if not values.is_floating_point():
+        raise ValueError("FP8 activation QDQ requires a floating-point tensor")
+    if not hasattr(torch, "float8_e4m3fn"):
+        raise RuntimeError("this PyTorch build does not provide float8_e4m3fn")
+
+    with torch.no_grad():
+        maximum = values.abs().amax(dim=-1, keepdim=True).to(torch.float32)
+        scale = (maximum / FP8_E4M3FN_MAX).clamp(
+            min=FP8_MIN_SCALING_FACTOR
+        )
+        quantized = (
+            values.float()
+            .mul(scale.reciprocal())
+            .clamp(-FP8_E4M3FN_MAX, FP8_E4M3FN_MAX)
+            .to(torch.float8_e4m3fn)
+        )
+        dequantized = quantized.float().mul(scale).to(values.dtype)
+    return dequantized
+
+
+def ste_spinquant_fp8_activation_qdq(values: Tensor) -> Tensor:
+    """vLLM-aligned FP8 activation QDQ with an identity STE gradient."""
+
+    quantized = spinquant_fp8_activation_qdq(values)
     return values + (quantized - values).detach()
