@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed quality accepted on GH200: PPL smoke 5874806 and formal job 5874807 completed `0:0`; isolated min/max-versus-MSE gate 5875320 and dependent smoke 5875322 passed, and formal 5875865 is submitted | Accepted PPL remains BF16 5.007820, unrotated 5.136105, QuaRot-style 5.248356, and SpinQuant-transfer 5.230155 over 331,614 targets. MSE smoke is directional only and its formal result is pending; matched serving also remains untested |
+| vLLM W4AFP8 deployment | Deployed quality accepted on GH200; isolated min/max-versus-MSE gate 5875320, dependent smoke 5875322, and formal 5875865 all completed `0:0` | Formal MSE PPL was 5.163774 unrotated and 5.216687 QuaRot-style versus 5.136105/5.248356 under min/max. MSE halved but did not reverse the rotation gap; matched serving remains untested |
 
 ## Current deployment decision
 
@@ -73,8 +73,11 @@ and smoke `5875322` completed `0:0`, with smoke constrained by
 `afterok:5875320`. Review accepted the source revision, observer metadata,
 packed coverage, absence of runtime `g_idx`, fixed token counts, and artifact
 hashes. Formal job `5875865` was then submitted through
-`afterok:5875322`; its result remains pending and the accepted deployment PPL
-above is unchanged.
+`afterok:5875322` and completed `0:0` in 7m02s. Over 331,614 targets, MSE
+PPL was 5.163774 unrotated and 5.216687 QuaRot-style. The matched min/max PPL
+was 5.136105 and 5.248356, so MSE reduced the rotation gap by 52.8622% without
+changing the winner. The accepted four-model deployment result above remains
+unchanged.
 
 The W4AFP8 **formal deployment result is a two-part evidence package**, not a
 performance-only benchmark. Accuracy must be measured from the packed
@@ -88,13 +91,13 @@ or formal serving evidence is missing.
 
 ## Latest accepted result
 
-The latest accepted result is formal deployed-checkpoint W4AFP8 PPL job
-`5874807`. It scored 331,614 retained WikiText-2 targets for each of BF16,
-unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant-transfer W4AFP8. PPL was
-5.007820, 5.136105, 5.248356, and 5.230155 respectively. The formal result
-SHA-256 is
-`78a81dcdb17d8393247abd65d2f7e00b030e78817dc6d8b0699a8c15e48481f3`.
-This is accepted deployed-quality evidence, not serving acceleration.
+The latest accepted diagnostic is formal min/max-versus-MSE job `5875865`.
+It scored 331,614 retained WikiText-2 targets per model and confirmed that MSE
+clipping improves QuaRot PPL from 5.248356 to 5.216687 while worsening the
+unrotated control from 5.136105 to 5.163774. Its formal result SHA-256 is
+`c6e0d88b06f27c6147c069db4f7b06e479ab9566348aa28e9cd7953ba97cbbdf`.
+The primary four-model deployed-quality result remains job `5874807`, including
+SpinQuant-transfer; neither result is serving-acceleration evidence.
 
 The Isambard evidence chain is complete through Llama-2-13B offline inference,
 OpenAI-compatible service smoke, matched full-model serving, and the dependent

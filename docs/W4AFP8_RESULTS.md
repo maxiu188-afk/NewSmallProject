@@ -56,7 +56,7 @@ ignored copies retained for review. They are intentionally excluded from Git
 by the repository's generated-result policy; the hashes above bind this
 reviewed summary to those artifacts.
 
-## Active GPTQ observer diagnostic (formal pending)
+## Accepted GPTQ observer diagnostic
 
 An isolated 2 x 2 diagnostic was submitted from revision
 `6f609b04d1051a60a7d0443796c53d874a9c2144` to test whether the accepted
@@ -69,14 +69,25 @@ use the `mse` weight observer with `actorder=None`, and contain no runtime
 `g_idx`. Gate and smoke artifacts passed source-revision, observer, retained
 token, runtime, and model-set checks.
 
-The two-sequence smoke scored 4,094 targets per model. PPL was 4.823038 BF16,
-4.985051 unrotated min/max, 5.130191 QuaRot min/max, 4.993155 unrotated MSE,
-and 5.036449 QuaRot MSE. MSE clipping therefore reduced the smoke QuaRot gap
-relative to unrotated from 0.145140 to 0.043294 PPL, but this small smoke is
-directional evidence only. Formal job `5875865` was submitted with explicit
-dependency `afterok:5875322` after manual smoke acceptance; because the smoke
-was already successful, Slurm immediately marked that dependency satisfied.
-No formal diagnostic result is accepted yet.
+Formal job `5875865` was submitted with explicit dependency
+`afterok:5875322` after manual smoke acceptance and completed `0:0` in 7m02s.
+It evaluated all five models over the same 162 x 2048 retained WikiText-2
+sequences, scoring 331,614 next-token targets per model.
+
+| Model | Total NLL | Mean NLL | PPL | PPL vs BF16 | MSE vs min/max |
+|---|---:|---:|---:|---:|---:|
+| BF16 | 534,230.409917 | 1.611000772 | 5.007820 | baseline | -- |
+| Unrotated min/max W4AFP8 | 542,618.332650 | 1.636295008 | 5.136105 | +0.128285 (+2.5617%) | baseline |
+| QuaRot min/max W4AFP8 | 549,787.787161 | 1.657914886 | 5.248356 | +0.240536 (+4.8032%) | baseline |
+| Unrotated MSE W4AFP8 | 544,399.984646 | 1.641667676 | 5.163774 | +0.155953 (+3.1142%) | +0.027669 (+0.5387%) |
+| QuaRot MSE W4AFP8 | 547,780.708006 | 1.651862430 | 5.216687 | +0.208866 (+4.1708%) | -0.031670 (-0.6034%) |
+
+MSE clipping improves QuaRot but worsens the unrotated control. The QuaRot
+minus unrotated gap falls from 0.112251 PPL (2.1855%) under min/max to
+0.052913 PPL (1.0247%) under MSE, a 52.8622% reduction. It does not reverse
+the ranking: unrotated min/max remains the best deployed W4AFP8 checkpoint in
+this comparison. Observer choice therefore explains about half of the observed
+rotation gap, not all of it.
 
 Artifact SHA-256 values are `4d4e938e5fd1cf17e2910d3791d29e35a6bbd56a54be1cabf581ec541c3c8163`
 for the unrotated export report,
@@ -85,7 +96,14 @@ for the QuaRot export report,
 `5cf902bdc05e0376247d681ceb2900cadc3525f620d9feac9fd3a8480e991eea`
 for the gate result, and
 `4058fc424c7dd328b6b9959ec74cf5c5216560c2b43817bc2310c04f67b0e736`
-for the smoke result.
+for the smoke result. The formal result SHA-256 is
+`c6e0d88b06f27c6147c069db4f7b06e479ab9566348aa28e9cd7953ba97cbbdf`.
+A post-run read-only audit confirmed that both checkpoints predate formal
+execution. Tree SHA-256 values are
+`2e67b7e085d779cbf6d46ee9484be4448985d3a22c3657c82e878754e8c62e1d`
+for unrotated MSE and
+`81769067eb870faa28e27f8bf29ccb97017f93dc0432b37ab4912f12d3d499a9`
+for QuaRot MSE.
 
 The comparison freezes group size 128, block size 128, `actorder=None`,
 128 x 2048 calibration tokens, retained PPL tokens, FP8 activation metadata,
@@ -94,8 +112,9 @@ weight observer: accepted `memoryless_minmax` controls versus MSE clipping with
 `maxshrink=0.8`, `grid=100`, and error norm 2.4. This matches the clipping
 search range used by the paper code while retaining the deployable group-128
 backend contract; it is therefore a deployment-oriented observer diagnostic,
-not an exact reproduction of the paper's GPTQ protocol. Only the formal
-162-sequence artifact can become an accepted accuracy diagnostic.
+not an exact reproduction of the paper's GPTQ protocol. The formal result is
+accepted for this isolated diagnostic only; it does not establish the paper's
+group-size -1 GPTQ endpoint or serving acceleration.
 
 ## Evidence boundary
 

@@ -18,7 +18,7 @@ but it is not the current project plan.
   layer-0 diagnostic.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
   for BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant transfer, plus
-  the explicitly pending min/max-versus-MSE observer diagnostic.
+  the accepted min/max-versus-MSE observer diagnostic.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the
   corrected no-had W4A8 deployment boundary.
@@ -27,7 +27,7 @@ but it is not the current project plan.
   staged reproduction plan.
 - [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): active joint
   QuaRot/SpinQuant GH200 deployment plan; deployed-checkpoint quality is
-  accepted, the MSE diagnostic formal task is submitted after smoke review, and
+  accepted, the MSE observer diagnostic is complete, and
   matched full-model acceleration remains.
 - [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md): isolated local
   preparation, accepted GH200 export/PPL evidence, and remaining serving

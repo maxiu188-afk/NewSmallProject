@@ -62,12 +62,14 @@ was 4.823038 BF16, 4.985051/5.130191 for unrotated/QuaRot min/max, and
 4.993155/5.036449 for unrotated/QuaRot MSE over 4,094 targets per model.
 
 Formal job `5875865` was consequently submitted with
-`afterok:5875322`. The dependency was already satisfied at submission because
-the accepted smoke had completed, so Slurm cleared it from the active job
-record while retaining the dependency option in the accounting submit line.
-Formal remains unaccepted until its complete 331,614-target artifact is
-reviewed. These diagnostic jobs do not replace the accepted W4AFP8 result or
-close the outstanding serving half of deployment acceptance.
+`afterok:5875322` and completed `0:0` over all 331,614 targets. Formal PPL was
+5.007820 BF16, 5.136105/5.248356 for unrotated/QuaRot min/max, and
+5.163774/5.216687 for unrotated/QuaRot MSE. MSE reduced the QuaRot-minus-
+unrotated gap by 52.8622%, but did not reverse the ranking; unrotated min/max
+remains the best checkpoint. This accepts the observer diagnostic while
+showing that min/max range selection explains only part of the rotation gap.
+It does not replace the accepted four-model W4AFP8 result or close the
+outstanding serving half of deployment acceptance.
 
 ## Frozen runtime target
 

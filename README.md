@@ -48,7 +48,10 @@ checks kept separate from real CUDA deployment and performance work.
 - An accepted Llama-2-13B deployed-checkpoint W4AFP8 PPL study through vLLM on
   Isambard GH200. Over 331,614 targets, PPL was 5.007820 BF16, 5.136105
   unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8, and 5.230155
-  SpinQuant-transfer W4AFP8. Matched W4AFP8 serving remains pending.
+  SpinQuant-transfer W4AFP8. A matched observer diagnostic found that MSE
+  clipping reduced the QuaRot-minus-unrotated gap by 52.8622% but did not
+  reverse the ranking; unrotated min/max remained best. Matched W4AFP8 serving
+  remains pending.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
