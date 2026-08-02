@@ -187,13 +187,15 @@ sbatch --dependency=afterok:<smoke-job> \
 
 ## Paper-aligned fake-quant target and deployment decision
 
-The paper-aligned SpinQuant quality target is corrected from W4A16 to the
-paper's `SpinQuant_no_had` W4A8 route. The current fake-quant gate uses
-W4A8KV16:
+The SpinQuant quality target is corrected from W4A16 to the paper's
+`SpinQuant_no_had` W4A8 route. The completed gate uses W4A8KV16, but its A8
+coverage and GPTQ protocol must be described separately:
 
 - learn R1/R2 with W16 weights and dynamic per-token asymmetric A8 QDQ;
 - fuse R1/R2 into ordinary Llama weights offline;
-- apply group-128 GPTQ W4 after rotation learning;
+- the accepted diagnostic applied strong group-128/activation-order GPTQ W4;
+- a separately labelled paper-GPTQ endpoint will use `group_size=-1`, no
+  activation ordering, and weight clipping after rotation learning;
 - retain A8 execution at inference, with KV left at 16 bits initially;
 - do not add online Hadamard R3/R4 to this no-had deployment path.
 
@@ -219,7 +221,7 @@ deployment.
 | Custom NVIDIA W4A8 backend | High | The repository's owned W4A8 CUDA code is correctness-oriented and previously slow. Turning it into full-model serving requires an optimized kernel and vLLM integration, which is a separate backend project. |
 | Official alternative backend | Medium, but different scope | The official [ExecuTorch Llama example](https://github.com/pytorch/executorch/blob/main/examples/models/llama/README.md) provides a reusable SpinQuant-style W4A8 route for supported Arm/mobile Llama models. It can be evaluated separately, but it does not validate Llama-2-13B serving on GH200. |
 
-Therefore the fake-quant route remains a contained paper-aligned study, while
+Therefore the fake-quant route remains a contained paper-oriented study, while
 production-speed INT8 W4A8 on GH200 is not the selected follow-up. W4AFP8 is
 the planned hardware-aligned route, but its quality and speed remain unproven
 until the deployed-checkpoint gates pass.
@@ -234,16 +236,15 @@ claim boundary for NVIDIA INT4 x INT8 acceleration.
 
 ## Next stages
 
-1. Finish and accept the already submitted paper-aligned `SpinQuant_no_had`
-   fake-quant chain (`5850956` -> `5850958`): apply post-learning GPTQ W4 to
-   the accepted W16A8-trained rotations and evaluate W4A8KV16 on the matched
-   held-out tokens.
-2. Freeze that result as INT8 W4A8 floating-QDQ evidence. It is not evidence for
-   FP8 activation quality or real deployment performance.
-3. After, and only after, the current chain is accepted, start the joint QuaRot
-   and SpinQuant W4AFP8 deployment plan in
+1. Retain the accepted corrected-A8 strong-GPTQ result (`5854890`/`5854891`)
+   without rewriting or relabelling its numerical values.
+2. Run one separately configured paper-GPTQ endpoint with `group_size=-1`, no
+   activation ordering, and weight clipping. Compare only within a clearly
+   declared common protocol.
+3. Resubmit the joint QuaRot and SpinQuant W4AFP8 deployment plan in
    [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md). Both methods must
-   pass deployed-checkpoint PPL and matched full-model serving benchmarks.
+   use the same backend-constrained group-128/no-actorder GPTQ and pass
+   deployed-checkpoint PPL plus matched full-model serving benchmarks.
 4. Keep `SpinQuant_had` with online R3/R4 as a separate paper extension. It is
    not a prerequisite for the offline-only W4AFP8 deployment route.
 
@@ -265,10 +266,10 @@ was `1.32231` at step 94. Final R1/R2 orthogonality errors were `1.3709e-6`
 and `5.96e-7`. The accepted rotation tensor SHA256 is
 `62cbc73e26d8993f068331e924c19738a40bc89813e680316d1978df3d452fda`.
 Completion remains training evidence only. The post-learning GPTQ W4A8
-fake-quant smoke/formal jobs `5850956` and `5850958` have been submitted as a
-same-revision dependency chain, but no result is accepted until their artifacts
-and full held-out metrics are validated. Checkpoint export and backend
-validation remain later, separate gates.
+fake-quant smoke/formal jobs `5850956` and `5850958` are retained as the old-QDQ
+baseline. The corrected-A8 strong-GPTQ jobs `5854890` and `5854891` are
+accepted as a matched diagnostic, not as paper-GPTQ evidence. Checkpoint export
+and backend validation remain separate gates.
 
 The SpinQuant fake-quant stages remain independent of the completed QuaRot
 deployment checkout and artifacts. The later joint W4AFP8 deployment work can

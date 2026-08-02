@@ -9,12 +9,12 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | Corrected no-had chain complete: jobs 5854890/5854891 passed; PPL was 5.0087 BF16, 5.1480 unrotated W4A8, and 5.1627 SpinQuant W4A8 | Complete paper-aligned floating GPTQ-W4 plus A8 QDQ quality evidence; no packing, integer kernel, or speed claim; no learned-rotation gain was observed |
+| SpinQuant fake quant | Corrected-A8 strong-GPTQ diagnostic complete: jobs 5854890/5854891 passed; PPL was 5.0087 BF16, 5.1480 unrotated W4A8, and 5.1627 SpinQuant W4A8 | Group-128 plus activation-order GPTQ is not the paper GPTQ protocol; retain the result, but label it separately and do not compare it directly with the planned group-size -1/no-actorder/clipped run |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | QuaRot Gate 1 job 5854439 and isolated SpinQuant-transfer Gate 1 job 5857916 are queued | Export/load correctness only until accepted; deployed PPL and matched serving remain later gates, and the SpinQuant checkpoint is an INT8-trained rotation transfer diagnostic |
+| vLLM W4AFP8 deployment | Deployed quality accepted on GH200: PPL smoke 5874806 and formal job 5874807 completed `0:0`; an isolated min/max-versus-MSE diagnostic is queued as gate 5875320 and dependent smoke 5875322 | Accepted PPL remains BF16 5.007820, unrotated 5.136105, QuaRot-style 5.248356, and SpinQuant-transfer 5.230155 over 331,614 targets. The MSE diagnostic has no result yet and its formal task is intentionally not submitted; matched serving also remains untested |
 
 ## Current deployment decision
 
@@ -35,20 +35,65 @@ omits online MLP/QK transforms and the custom KV4 cache.
 This W4A16 decision applies to the completed QuaRot workstream only. The
 SpinQuant paper's real-deployment `no_had` route remains W4A8, with
 offline-fused R1/R2 and activation quantization retained at inference. Its
-current INT8 W4A8 fake-quant chain is completed first as paper-aligned quality
-evidence.
+current INT8 W4A8 fake-quant chain completed with paper-aligned A8 coverage but
+a stronger group-128/activation-order GPTQ protocol. It is retained as a
+separately labelled diagnostic; a paper-GPTQ endpoint remains to be run.
 
 After that chain is accepted, the next real-deployment study changes to a
 joint, hardware-aligned W4AFP8 route for both QuaRot and SpinQuant on GH200.
 It requires deployed-checkpoint PPL plus matched full-model serving performance;
 the existing fake-quant evaluator cannot establish W4AFP8 accuracy. Its local
 export, backend-audit, deployed-PPL, and serving paths are prepared and tested
-statically. The isolated QuaRot-only export/load gate can now run in parallel;
-SpinQuant W4AFP8 remains deferred until corrected rotation provenance is frozen.
+statically. Corrected rotation provenance is frozen. The first W4AFP8 gates
+were cancelled before allocation when the GPTQ protocol changed. Jobs
+`5859043`/`5859044` later failed stale-calibration validation, and
+`5873446`/`5873447` passed calibration and backend audit before an over-strict
+observer-name check rejected LLM Compressor's canonical `memoryless_minmax`
+name. Revision `9d691e9` accepts only the equivalent
+`minmax`/`memoryless_minmax` names and still rejects MSE observers. QuaRot
+validation job `5873544` completed in 38m30s, and SpinQuant-transfer job
+`5873545` then completed in 19m44s through `afterok:5873544`. Both returned
+`0:0`; all fixed-token outputs matched BF16. Joint four-model source-gate job
+`5874345` then completed `0:0` in 4m35s. Its inference and capability SHA-256
+hashes are frozen in PPL revision `1f3e4cb`, whose provenance and retained-token
+preflights passed. PPL smoke `5874806` completed `0:0` in 6m24s; formal job
+`5874807` then completed `0:0` in 5m00s through `afterok:5874806`. Formal PPL
+was 5.007820 BF16, 5.136105 unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8,
+and 5.230155 SpinQuant-transfer W4AFP8. Both rotations were worse than the
+matched unrotated control; SpinQuant-transfer was slightly better than
+QuaRot-style. See [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md). The deployed-quality
+half is complete, while matched serving remains required.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
+To isolate why the backend-compatible unrotated GPTQ checkpoint outperformed
+the QuaRot-style checkpoint, revision `6f609b0` adds a matched MSE-clipping
+diagnostic without replacing the accepted min/max artifacts. Gate `5875320`
+and smoke `5875322` are queued, with smoke constrained by
+`afterok:5875320`. Formal is not submitted: the smoke logs and JSON must first
+be reviewed for source revision, observer metadata, packed coverage, absence
+of runtime `g_idx`, and fixed token counts. Until then, this is planned
+diagnostic evidence rather than a new accuracy result.
+
+The W4AFP8 **formal deployment result is a two-part evidence package**, not a
+performance-only benchmark. Accuracy must be measured from the packed
+checkpoints through vLLM on the retained 162 x 2048 WikiText-2 tokens
+(331,614 scored next-token targets), reporting total NLL and PPL for BF16,
+unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant W4AFP8. Acceleration must
+be measured separately with the matched serving protocol, reporting throughput,
+TTFT, TPOT, end-to-end latency, GPU memory, request completion, and selected
+kernel evidence. A method is not deployment-complete if either formal accuracy
+or formal serving evidence is missing.
+
 ## Latest accepted result
+
+The latest accepted result is formal deployed-checkpoint W4AFP8 PPL job
+`5874807`. It scored 331,614 retained WikiText-2 targets for each of BF16,
+unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant-transfer W4AFP8. PPL was
+5.007820, 5.136105, 5.248356, and 5.230155 respectively. The formal result
+SHA-256 is
+`78a81dcdb17d8393247abd65d2f7e00b030e78817dc6d8b0699a8c15e48481f3`.
+This is accepted deployed-quality evidence, not serving acceleration.
 
 The Isambard evidence chain is complete through Llama-2-13B offline inference,
 OpenAI-compatible service smoke, matched full-model serving, and the dependent

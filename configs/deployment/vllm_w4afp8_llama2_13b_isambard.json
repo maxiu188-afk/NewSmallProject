@@ -1,6 +1,6 @@
 {
   "config_version": 1,
-  "status": "quarot_gate_queued_spinquant_transfer_gate_ready",
+  "status": "weaker_backend_compatible_gptq_ready_for_resubmission",
   "model": {
     "id": "meta-llama/Llama-2-13b-hf",
     "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
@@ -37,7 +37,9 @@
     "weight_block_size": 128,
     "dampening_frac": 0.01,
     "weight_symmetric": true,
-    "weight_actorder": "static",
+    "weight_actorder": null,
+    "weight_observer": "minmax",
+    "weight_clipping": false,
     "activation_bits": 8,
     "activation_type": "float",
     "activation_strategy": "token",
@@ -95,5 +97,5 @@
     "llm_compressor_0.12.0": "6d2a0908e45324b76e390bdec600143e85a075f8",
     "compressed_tensors_0.17.1": "c18a0fa8b969d789f33b7912eef57cd69c56bd9e"
   },
-  "scope": "Prepared Llama-2-13B BF16/unrotated/QuaRot-style/SpinQuant W4AFP8 export and real-vLLM correctness gate on GH200; no result until submitted and accepted"
+  "scope": "Prepared Llama-2-13B BF16/unrotated/QuaRot-style/SpinQuant W4AFP8 export with backend-mandated group-128 GPTQ, no activation ordering, and no weight clipping; real-vLLM correctness on GH200 remains untested until resubmitted and accepted"
 }

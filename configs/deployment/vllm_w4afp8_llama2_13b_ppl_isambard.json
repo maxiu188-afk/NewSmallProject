@@ -1,14 +1,14 @@
 {
   "config_version": 1,
-  "status": "prepared_not_submitted",
+  "status": "source_gate_accepted_ready_for_submission",
   "source_gate": {
-    "status": "pending",
-    "job_id": null,
+    "status": "accepted",
+    "job_id": "5874345",
     "required_marker": "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_GATE_PASSED",
-    "result": null,
-    "result_sha256": null,
-    "capability_result": null,
-    "capability_result_sha256": null,
+    "result": "results/vllm-w4afp8-llama2-13b/joint-offline-inference-5874345.json",
+    "result_sha256": "6a22855a720b95e7230dd15644ced73b28297a960e29d5d2823666de28254f2a",
+    "capability_result": "results/vllm-w4afp8-llama2-13b/backend-capability-5874345.json",
+    "capability_result_sha256": "048fce61ad390e0ac4dfb89db2f1801c5f47468e993a5ffbdb6b4b4e7d61633a",
     "expected_models": [
       "bf16",
       "unrotated_w4afp8",

@@ -1,0 +1,104 @@
+{
+  "config_version": 1,
+  "status": "prepared_for_isolated_gate",
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "expected_decoder_linears": 280
+  },
+  "variants": [
+    "unrotated_mse_w4afp8",
+    "quarot_mse_w4afp8"
+  ],
+  "accepted_minmax_source": {
+    "job_id": "5874345",
+    "result": "results/vllm-w4afp8-llama2-13b/joint-offline-inference-5874345.json",
+    "result_sha256": "6a22855a720b95e7230dd15644ced73b28297a960e29d5d2823666de28254f2a",
+    "capability_result": "results/vllm-w4afp8-llama2-13b/backend-capability-5874345.json",
+    "capability_result_sha256": "048fce61ad390e0ac4dfb89db2f1801c5f47468e993a5ffbdb6b4b4e7d61633a"
+  },
+  "calibration": {
+    "dataset_id": "Salesforce/wikitext",
+    "dataset_subset": "wikitext-2-raw-v1",
+    "dataset_split": "train",
+    "dataset_revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "samples": 128,
+    "sequence_length": 2048,
+    "seed": 0,
+    "manifest_sha256": "d060b7d48b7d0aa4a1a3df6f3c38f345c8bd45b5ca7f5d5e1d0541b1857c2925",
+    "token_ids_sha256": "4499fa8446b64b07b1feabe1cb81ca07b333db21fe46bc13a1c678be96cf21a0"
+  },
+  "quantization": {
+    "algorithm": "GPTQ",
+    "scheme": "W4AFP8",
+    "targets": "Linear",
+    "ignore": ["lm_head"],
+    "weight_bits": 4,
+    "weight_type": "int",
+    "weight_strategy": "group",
+    "weight_group_size": 128,
+    "weight_block_size": 128,
+    "dampening_frac": 0.01,
+    "weight_symmetric": true,
+    "weight_actorder": null,
+    "weight_observer": "mse",
+    "weight_observer_kwargs": {
+      "maxshrink": 0.8,
+      "grid": 100.0,
+      "norm": 2.4,
+      "patience": 100
+    },
+    "resolved_weight_observers": ["mse", "memoryless_mse"],
+    "weight_clipping": true,
+    "activation_bits": 8,
+    "activation_type": "float",
+    "activation_strategy": "token",
+    "activation_dynamic": true,
+    "activation_symmetric": true,
+    "format": "pack-quantized",
+    "key_bits": 16,
+    "value_bits": 16,
+    "quantize_lm_head": false
+  },
+  "tokens": {
+    "source_config": "configs/deployment/vllm_w4a16_llama2_13b_ppl_isambard.json",
+    "manifest_sha256": "b6ed5f122ba85a9752b3dda699d73405e5a86b7db19050c1f395cbbea450f1cf",
+    "token_ids_sha256": "0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9",
+    "samples": 162,
+    "sequence_length": 2048,
+    "expected_scored_tokens": 331614
+  },
+  "inference": {
+    "prompt": "The capital of France is",
+    "max_new_tokens": 8,
+    "max_model_len": 256,
+    "max_logprobs": 128,
+    "gpu_memory_utilization": 0.75
+  },
+  "engine": {
+    "dtype": "bfloat16",
+    "max_model_len": 2049,
+    "max_num_seqs": 8,
+    "gpu_memory_utilization": 0.75,
+    "enforce_eager": false,
+    "enable_prefix_caching": false,
+    "disable_log_stats": true,
+    "prompt_logprobs": 1,
+    "max_tokens": 1,
+    "temperature": 0.0,
+    "seed": 0
+  },
+  "runtime": {
+    "torch_version": "2.11.0+cu129",
+    "vllm_version": "0.25.1",
+    "llmcompressor_version": "0.12.0",
+    "quantizer_compressed_tensors_version": "0.17.1",
+    "serving_compressed_tensors_version": "0.17.0",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [9, 0]
+  },
+  "scope": "Isolated group-128 W4AFP8 GPTQ observer diagnostic: accepted min/max checkpoints versus MSE-clipped unrotated and QuaRot-style checkpoints on identical calibration and evaluation tokens"
+}

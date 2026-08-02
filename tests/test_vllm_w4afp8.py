@@ -37,6 +37,7 @@ from repro.vllm_w4afp8 import (  # noqa: E402
     validate_export_config,
     validate_kernel_shapes,
     validate_no_runtime_g_idx,
+    validate_resolved_weight_observer,
 )
 
 
@@ -77,7 +78,7 @@ def _valid_quantization_config():
                     "group_size": 128,
                     "symmetric": True,
                     "dynamic": False,
-                    "actorder": "static",
+                    "actorder": None,
                 },
                 "input_activations": {
                     "num_bits": 8,
@@ -135,14 +136,41 @@ class VllmW4AFP8Tests(unittest.TestCase):
         validate_export_config(config)
         self.assertEqual(tuple(config["variants"]), EXPECTED_VARIANTS[1:])
         self.assertEqual(config["quantization"]["scheme"], "W4AFP8")
-        self.assertEqual(config["quantization"]["weight_actorder"], "static")
+        self.assertIsNone(config["quantization"]["weight_actorder"])
+        self.assertEqual(config["quantization"]["weight_observer"], "minmax")
+        self.assertFalse(config["quantization"]["weight_clipping"])
         self.assertFalse(config["kernel"]["runtime_g_idx"])
 
-    def test_checkpoint_metadata_requires_fp8_tokens_and_no_group_actorder(self):
+    def test_resolved_weight_observer_accepts_minmax_alias_only(self):
+        self.assertEqual(
+            validate_resolved_weight_observer("minmax", "memoryless_minmax"),
+            "memoryless_minmax",
+        )
+        with self.assertRaisesRegex(ValueError, "memoryless_mse"):
+            validate_resolved_weight_observer("minmax", "memoryless_mse")
+
+    def test_ppl_config_freezes_accepted_joint_source_gate(self):
+        config = json.loads(PPL_CONFIG.read_text(encoding="utf-8"))
+        source_gate = config["source_gate"]
+        self.assertEqual(config["status"], "source_gate_accepted_ready_for_submission")
+        self.assertEqual(source_gate["status"], "accepted")
+        self.assertEqual(source_gate["job_id"], "5874345")
+        self.assertIn("joint-offline-inference-5874345.json", source_gate["result"])
+        self.assertIn(
+            "backend-capability-5874345.json",
+            source_gate["capability_result"],
+        )
+        self.assertEqual(len(source_gate["result_sha256"]), 64)
+        self.assertEqual(len(source_gate["capability_result_sha256"]), 64)
+
+    def test_checkpoint_metadata_requires_fp8_tokens_and_no_actorder(self):
         metadata = _valid_quantization_config()
         validate_checkpoint_quantization_config(metadata)
+        metadata["config_groups"]["group_0"]["weights"]["actorder"] = "static"
+        with self.assertRaisesRegex(ValueError, "actorder=None"):
+            validate_checkpoint_quantization_config(metadata)
         metadata["config_groups"]["group_0"]["weights"]["actorder"] = "group"
-        with self.assertRaisesRegex(ValueError, "runtime g_idx"):
+        with self.assertRaisesRegex(ValueError, "actorder=None"):
             validate_checkpoint_quantization_config(metadata)
 
     def test_kernel_shape_and_tensor_gates_reject_incompatible_inputs(self):
@@ -191,7 +219,6 @@ class VllmW4AFP8Tests(unittest.TestCase):
 
     def test_ppl_parent_runs_four_fresh_workers_and_preserves_token_count(self):
         config = json.loads(PPL_CONFIG.read_text(encoding="utf-8"))
-        config["source_gate"]["status"] = "accepted"
         runtime = {
             "vllm": "0.25.1+cu129",
             "torch": "2.11.0+cu129",
@@ -237,6 +264,7 @@ class VllmW4AFP8Tests(unittest.TestCase):
 
     def test_pending_source_gate_blocks_quality_execution(self):
         config = json.loads(PPL_CONFIG.read_text(encoding="utf-8"))
+        config["source_gate"]["status"] = "pending"
         with self.assertRaisesRegex(RuntimeError, "still pending"):
             PPL.run(
                 config=config,

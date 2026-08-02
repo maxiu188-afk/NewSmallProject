@@ -37,6 +37,7 @@ from repro.vllm_w4afp8 import (
     validate_checkpoint_quantization_config,
     validate_export_config,
     validate_no_runtime_g_idx,
+    validate_resolved_weight_observer,
 )
 
 
@@ -70,6 +71,30 @@ def _checkpoint_tensor_names(output_dir: Path) -> list[str]:
         with safe_open(path, framework="pt", device="cpu") as tensors:
             names.extend(tensors.keys())
     return sorted(names)
+
+
+def _validate_resolved_gptq_recipe(
+    recipe: GPTQModifier,
+    quant: dict[str, Any],
+) -> str:
+    """Fail if a dependency update silently strengthens the frozen protocol."""
+
+    resolved = recipe.resolve_quantization_config()
+    groups = tuple(resolved.config_groups.values())
+    if len(groups) != 1:
+        raise RuntimeError(f"expected one W4AFP8 recipe group, found {len(groups)}")
+    weights = groups[0].weights
+    if weights.group_size != int(quant["weight_group_size"]):
+        raise RuntimeError(f"unexpected resolved GPTQ group size: {weights.group_size}")
+    if weights.actorder is not None:
+        raise RuntimeError(f"unexpected resolved GPTQ actorder: {weights.actorder}")
+    try:
+        return validate_resolved_weight_observer(
+            quant["weight_observer"],
+            weights.observer,
+        )
+    except ValueError as error:
+        raise RuntimeError(str(error)) from error
 
 
 def _spinquant_rotations(model: Any, seed: int) -> SpinQuantRotations:
@@ -227,6 +252,8 @@ def export(
         dampening_frac=float(quant["dampening_frac"]),
         actorder=quant["weight_actorder"],
     )
+    resolved_weight_observer = _validate_resolved_gptq_recipe(recipe, quant)
+    print(f"VLLM_W4AFP8_RESOLVED_WEIGHT_OBSERVER={resolved_weight_observer}")
     oneshot(
         model=model,
         dataset=dataset,
@@ -277,6 +304,7 @@ def export(
         "model": model_spec,
         "rotation": rotation,
         "prequant_rotation_max_absolute_logit_error": rotation_error,
+        "resolved_weight_observer": resolved_weight_observer,
         "quantization_config": quantization_config,
         "runtime_g_idx_tensors": 0,
         "packed_decoder_linear_count": len(packed_linears),

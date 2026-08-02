@@ -3,30 +3,65 @@
 ## Decision and sequence
 
 This is a hardware-aligned extension for Isambard GH200, not a relabelling of
-the papers' INT8-activation experiments. The QuaRot-only export/load gate is
-queued independently, and the corrected SpinQuant no-had fake-quant chain has
-completed in its own checkout and artifact root.
+the papers' INT8-activation experiments. QuaRot-only validation job `5873544`,
+its dependent SpinQuant-transfer job `5873545`, and joint four-model source gate
+`5874345` have passed. The joint provenance hashes are frozen in revision
+`1f3e4cb`; PPL smoke `5874806` and formal job `5874807` completed `0:0` through
+`afterok:5874806`. The corrected SpinQuant no-had fake-quant chain remains
+complete in its own checkout and artifact root.
 
 The first SpinQuant no-had chain (`5850956` -> `5850958`) was accepted and is
-retained as an old-QDQ baseline. The active order is now fixed:
+retained as an old-QDQ baseline. QuaRot Gate 1 job `5854439` and SpinQuant
+transfer Gate 1 job `5857916` were cancelled before allocation on 2026-08-01
+after the GPTQ protocol was changed. Jobs `5859043`/`5859044` failed
+same-revision calibration validation, and jobs `5873446`/`5873447` passed
+calibration and backend capability checks but stopped before quantization on an
+over-strict observer-alias assertion. None produced a deployment checkpoint or
+result. The active order is now fixed:
 
-1. accept queued QuaRot W4AFP8 gate `5854439`;
-2. accept queued isolated BF16/unrotated/SpinQuant-transfer W4AFP8 gate
-   `5857916`;
-3. evaluate deployed-checkpoint quality and serving performance only after
-   each isolated gate has frozen its checkpoint provenance;
-4. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
+1. retain accepted QuaRot W4AFP8 validation gate `5873544` from fix revision
+   `9d691e9cf828`;
+2. retain accepted isolated BF16/unrotated/SpinQuant-transfer W4AFP8 gate
+   `5873545`, which ran through scheduler dependency `afterok:5873544`;
+3. retain accepted joint source-gate job `5874345` and its result/capability
+   hashes;
+4. retain accepted PPL smoke `5874806` and dependent formal job `5874807` over
+   all 331,614 scored targets;
+5. evaluate serving performance only after freezing the same joint source-gate
+   provenance in the serving config;
+6. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
    FP8-targeted learning later if deployed quality is not competitive.
 
-The QuaRot work remains isolated from the Isambard checkout, artifacts,
-environments, and jobs used by the SpinQuant redo. The existing W4A8
-fake-quant result answers the paper-aligned
-INT8 quality question only. It cannot be reused, converted, or extrapolated
-into a W4AFP8 accuracy result because FP8 changes the activation quantizer,
-error distribution, calibration/learning objective, and executed kernel.
+The W4AFP8 checkout and artifacts remain isolated from the SpinQuant fake-quant
+redo. Within W4AFP8, the scheduler dependency gates allocation only: the
+QuaRot-only mode does not read the learned rotation, and the SpinQuant mode
+must pass its own packed-checkpoint and inference checks. The existing W4A8
+fake-quant result answers the paper-aligned INT8 quality question only. It
+cannot be reused, converted, or extrapolated into a W4AFP8 accuracy result
+because FP8 changes the activation quantizer, error distribution,
+calibration/learning objective, and executed kernel.
 
 The online-Hadamard `SpinQuant_had` path remains a separate paper extension. It
 is not a dependency for the offline-only W4AFP8 deployment defined here.
+
+### Isolated min/max versus MSE diagnostic
+
+The accepted quality result uses ordinary min/max weight ranges. To test the
+specific hypothesis that paper-style MSE clipping changes the QuaRot versus
+unrotated ranking, revision `6f609b0` adds two isolated checkpoints while
+preserving the accepted min/max checkpoints as controls. The resulting PPL
+matrix is BF16 plus unrotated/QuaRot under min/max and unrotated/QuaRot under
+MSE clipping. Group-128, no activation ordering, calibration data, retained
+evaluation tokens, activation format, and serving runtime remain unchanged.
+
+Gate job `5875320` is queued. Smoke job `5875322` is queued only through
+`afterok:5875320`. The smoke script also rejects execution without an `afterok`
+dependency. Formal has deliberately not been submitted: after smoke finishes,
+its JSON, logs, observer metadata, packed-linear coverage, runtime `g_idx`
+absence, token counts, and source revision must be reviewed before a formal job
+may be submitted with a dependency on the accepted smoke job. These diagnostic
+jobs do not replace the accepted W4AFP8 result or close the outstanding serving
+half of deployment acceptance.
 
 ## Frozen runtime target
 
@@ -35,6 +70,8 @@ accepted vLLM `0.25.1+cu129` serving environment and a compatible LLM
 Compressor export environment. The intended common runtime form is:
 
 - symmetric group-128 INT4 decoder weights;
+- GPTQ without activation ordering and with ordinary min/max weight ranges; no
+  additional MSE weight clipping;
 - dynamic per-token FP8 activations, with the exact FP8 dtype and scale contract
   recorded from the selected vLLM kernel;
 - BF16 outputs, normalization, residual arithmetic, embeddings, and `lm_head`;
@@ -43,6 +80,14 @@ Compressor export environment. The intended common runtime form is:
 - no online R3/R4 Hadamard transforms and no custom attention or KV-cache code;
 - no runtime activation-order `g_idx` if the selected Hopper W4AFP8 kernel does
   not support it.
+
+Group size 128 is a backend constraint, not an accuracy tuning choice: the
+pinned `CutlassW4A8LinearKernel` rejects any other group size. Consequently
+this real-deployment GPTQ cannot be made identical to the paper-oriented
+`group_size=-1` protocol. It is instead the weaker option still executable by
+the selected accelerated backend: group-128 with activation ordering disabled.
+Its PPL must be compared only across the matched W4AFP8 variants, not directly
+against fake-quant rows produced by a different GPTQ protocol.
 
 Every decoder projection must remain covered after packing. The exporter must
 record the 280 expected packed linears, validate all Llama-2-13B matrix shapes
@@ -125,6 +170,18 @@ only as secondary explanation.
 ### Gate 4: acceptance and reporting
 
 A variant is deployment-complete only after it passes both Gate 2 and Gate 3.
+The formal deployment experiment therefore consists of two required formal
+jobs after their respective smokes:
+
+1. a deployed-checkpoint accuracy job that records total NLL, PPL, scored-token
+   count, and PPL deltas against both BF16 and unrotated W4AFP8;
+2. a matched full-model serving job that records throughput, TTFT, TPOT,
+   end-to-end latency, GPU memory, request success/failure counts, and the
+   selected W4AFP8 kernel.
+
+Neither formal job can substitute for the other. A successful serving speedup
+without deployed-checkpoint PPL is an incomplete performance result, while PPL
+without the serving benchmark is an incomplete quality result.
 The final comparison must present the quality/performance trade-off for BF16,
 unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant W4AFP8, while keeping the
 completed QuaRot-style W4A16 result as a separately named reference point.
@@ -140,13 +197,24 @@ The final claims are bounded as follows:
 
 ## Current execution boundary
 
-QuaRot gate `5854439` remains queued in its isolated checkout. The corrected
-SpinQuant rotation provenance is now frozen, and separate `spinquant` Gate 1
-job `5857916` is queued. It exports the unrotated control and SpinQuant-transfer
-W4AFP8 checkpoint, then loads BF16 plus those two checkpoints in fresh vLLM
-processes. This first checkpoint is explicitly an INT8-trained rotation
-transfer diagnostic, not an FP8-optimized endpoint.
+The prior QuaRot gate `5854439` and SpinQuant-transfer gate `5857916` are
+cancelled with zero runtime because they carried the superseded static
+activation-order protocol. The two subsequent failed pairs are diagnostic only:
+the first exposed stale calibration provenance, while the second proved the
+calibration and backend audit before exposing the observer-alias check. The
+corrected SpinQuant rotation provenance remains frozen. Validation job
+`5873544` and dependent main job `5873545` completed from revision
+`9d691e9cf828`; both use the same group-128/no-actorder configuration. They
+produced the three expected compressed checkpoints and passed isolated vLLM
+load/inference gates. Joint four-model source-gate job `5874345` also completed
+from the same revision and its result/capability hashes are frozen in PPL
+revision `1f3e4cb`. PPL smoke `5874806` and dependent formal job `5874807`
+completed `0:0`; the latter accepted formal PPL of 5.007820 BF16, 5.136105
+unrotated, 5.248356 QuaRot-style, and 5.230155 SpinQuant-transfer over 331,614
+targets. The deployed-quality gate is complete, but no formal serving speedup
+exists. The first SpinQuant checkpoint remains an
+INT8-trained rotation transfer diagnostic, not an FP8-optimized endpoint.
 
 The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
-rotation. Deployed PPL and serving still require accepted gate results and
-frozen hashes before submission.
+rotation. Deployed PPL is accepted against the frozen joint gate; serving
+remains unsubmitted and must freeze the same provenance before submission.
