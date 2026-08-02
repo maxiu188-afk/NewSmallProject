@@ -184,6 +184,12 @@ must be exported with the frozen group-128/no-actorder/min-max recipe and pass:
    throughput, TTFT, TPOT, end-to-end latency, GPU memory, request failures,
    recovery, and `CutlassW4A8LinearKernel` log evidence.
 
-Only the one-step training smoke is submitted initially. Formal 100-step
-training remains blocked on manual smoke acceptance, and the quality and
-acceleration jobs remain blocked until a new rotation and checkpoint exist.
+One-step training smoke `5876912` completed `0:0` in 2m48s and was manually
+accepted. Its result SHA-256 is
+`bf1c927f2a821c76aeb7b39d2ef1fbe291bbbf135c33e50af09322631e8a83f2`,
+and its rotation tensor SHA-256 is
+`a88e745beaf9601d04af0bd07a2c92798bf86062332319782e553fbca9092194`.
+Read-only acceptance job `5876983` and dependent 100-step formal training job
+`5876984` were `PENDING` at the 2026-08-02 snapshot. The quality and
+acceleration jobs remain blocked until the formal rotation is accepted and a
+new packed checkpoint exists.

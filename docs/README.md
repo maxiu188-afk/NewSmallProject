@@ -5,6 +5,27 @@ Start with the documents in **Current status and results**. Material under
 [`archive/`](archive/README.md) is retained for provenance and reproduction,
 but it is not the current project plan.
 
+## Slurm smoke submission rule
+
+Classify every smoke before submitting its formal job:
+
+1. **Result-gated smoke:** if formal submission requires reading or accepting
+   the smoke JSON, logs, numerical values, hashes, or artifacts, submit only
+   the smoke. Do not prequeue formal. Wait for the user to report completion,
+   then review the result and submit formal only after acceptance. If Slurm no
+   longer accepts the completed smoke as a dependency, use a read-only
+   acceptance job when the formal wrapper requires `afterok`; never rerun the
+   same smoke merely to recreate a scheduler dependency.
+2. **Runnability-only smoke:** if the smoke only proves that the fixed job can
+   execute and formal does not require a separate result decision, submit
+   smoke and formal together with `formal --dependency=afterok:<smoke-job>`.
+   Do not continuously monitor the smoke.
+
+The presence of an `afterok` option does not determine the category. The
+controlling question is whether a smoke result must be inspected before formal
+is authorized. Record the category in the relevant runbook and never convert a
+result-gated smoke into an automatically queued formal job.
+
 ## Current status and results
 
 - [`PHASE_STATUS.md`](PHASE_STATUS.md): concise current state, latest accepted

@@ -305,12 +305,32 @@ sbatch scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
 ```
 
 Do not submit formal training until the one-step artifact, gradients,
-orthogonality, provenance, and runtime-form metadata are accepted. Afterwards:
+orthogonality, provenance, and runtime-form metadata are accepted. This is a
+**result-gated smoke** under the repository Slurm rule: submit smoke only, do
+not prequeue formal with `afterok`, and wait for the user to report completion
+before reviewing it. Afterwards:
 
 ```bash
 sbatch --dependency=afterok:<SMOKE_JOB_ID> \
   scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch formal <SMOKE_JOB_ID>
 ```
+
+Execution snapshot on 2026-08-02: result-gated smoke `5876912` completed
+`0:0` in 2m48s and was manually accepted. It used 8 x 2048 calibration tokens,
+produced a non-zero maximum rotation gradient of `0.1236076877`, and reported
+R1/R2 training orthogonality errors of `1.4305e-6` and `5.3644e-7`. The smoke
+result SHA-256 is
+`bf1c927f2a821c76aeb7b39d2ef1fbe291bbbf135c33e50af09322631e8a83f2`;
+the rotation tensor SHA-256 is
+`a88e745beaf9601d04af0bd07a2c92798bf86062332319782e553fbca9092194`.
+
+Slurm no longer accepted `afterok:5876912` after the completed job left the
+controller's dependency window. The accepted smoke was not rerun. Read-only
+acceptance job `5876983` rechecks its JSON and frozen source hashes, and formal
+100-step job `5876984` is queued through `afterok:5876983` while still naming
+`5876912` as the accepted smoke artifact. At the recorded snapshot both jobs
+were `PENDING`, with formal waiting on `Dependency`. No export, PPL, BoolQ, or
+serving task has been submitted for the new rotation.
 
 The resulting rotation must not overwrite the accepted INT8-transfer artifact.
 After export with the frozen group-128/no-actorder/min-max W4AFP8 recipe, it

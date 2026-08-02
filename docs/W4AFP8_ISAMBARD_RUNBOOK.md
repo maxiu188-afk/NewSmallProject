@@ -167,6 +167,20 @@ serving formal job. The final report must join both accepted formal results by
 checkpoint hashes and present quality and performance together. Do not label a
 variant as real-deployment complete when only one side has passed.
 
+Apply the repository smoke rule before queueing either formal job. If the next
+step requires inspection of directional PPL, request failures, kernel logs,
+hashes, or another smoke artifact, submit smoke only and wait for the user to
+report completion. Queue `formal --dependency=afterok:<smoke-job>` immediately
+only when the smoke is explicitly classified as runnability-only and no result
+decision is required. In neither case should the smoke be continuously
+monitored.
+
+For a result-gated smoke that has already been accepted but is no longer a
+valid Slurm dependency target, do not rerun training solely to obtain a fresh
+job ID. A short read-only acceptance job may revalidate the existing result and
+source hashes, with formal depending on that job and continuing to name the
+original accepted smoke artifact.
+
 ## SpinQuant transfer execution sequence
 
 The first W4AFP8 SpinQuant checkpoint is a transfer diagnostic from the
@@ -201,6 +215,14 @@ sbatch scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
 Do not submit its formal mode until the smoke result is manually accepted.
 Training does not alter the frozen transfer checkpoint and does not by itself
 satisfy either the W4AFP8 quality or serving-acceleration gate.
+
+Accepted FP8-targeted training smoke `5876912` completed `0:0` in 2m48s. Its
+result and rotation SHA-256 values are respectively
+`bf1c927f2a821c76aeb7b39d2ef1fbe291bbbf135c33e50af09322631e8a83f2` and
+`a88e745beaf9601d04af0bd07a2c92798bf86062332319782e553fbca9092194`.
+Read-only acceptance job `5876983` and dependent formal training job `5876984`
+were both `PENDING` at the 2026-08-02 snapshot. The acceptance job does not
+retrain rotations; formal still consumes and validates smoke `5876912`.
 
 ## Result boundaries
 

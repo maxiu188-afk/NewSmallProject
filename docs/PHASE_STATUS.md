@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; FP8-targeted SpinQuant training prepared; matched serving remains unsubmitted | Formal BoolQ job 5876591 reached 79.6024% SpinQuant-transfer versus 78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16. No W4AFP8 acceleration claim exists yet |
+| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; FP8-targeted SpinQuant smoke 5876912 accepted; read-only acceptance 5876983 and formal training 5876984 pending; matched serving remains unsubmitted | Formal BoolQ job 5876591 reached 79.6024% SpinQuant-transfer versus 78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16. No new checkpoint or W4AFP8 acceleration claim exists yet |
 
 ## Current deployment decision
 
