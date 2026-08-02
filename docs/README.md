@@ -16,7 +16,8 @@ but it is not the current project plan.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
   full-model serving result and same-environment layer-0 diagnostic.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
-  for BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant transfer.
+  for BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant transfer, plus
+  the explicitly pending min/max-versus-MSE observer diagnostic.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the
   corrected no-had W4A8 deployment boundary.
@@ -25,7 +26,8 @@ but it is not the current project plan.
   staged reproduction plan.
 - [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): active joint
   QuaRot/SpinQuant GH200 deployment plan; deployed-checkpoint quality is
-  accepted and matched full-model acceleration remains.
+  accepted, the MSE diagnostic formal task is blocked on smoke review, and
+  matched full-model acceleration remains.
 - [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md): isolated local
   preparation, accepted GH200 export/PPL evidence, and remaining serving
   procedure.
