@@ -6,7 +6,7 @@ This is a hardware-aligned extension for Isambard GH200, not a relabelling of
 the papers' INT8-activation experiments. QuaRot-only validation job `5873544`,
 its dependent SpinQuant-transfer job `5873545`, and joint four-model source gate
 `5874345` have passed. The joint provenance hashes are frozen in revision
-`1f3e4cb`; PPL smoke `5874806` and formal job `5874807` are submitted with
+`1f3e4cb`; PPL smoke `5874806` and formal job `5874807` completed `0:0` through
 `afterok:5874806`. The corrected SpinQuant no-had fake-quant chain remains
 complete in its own checkout and artifact root.
 
@@ -25,7 +25,7 @@ result. The active order is now fixed:
    `5873545`, which ran through scheduler dependency `afterok:5873544`;
 3. retain accepted joint source-gate job `5874345` and its result/capability
    hashes;
-4. accept submitted PPL smoke `5874806`, then dependent formal job `5874807` over
+4. retain accepted PPL smoke `5874806` and dependent formal job `5874807` over
    all 331,614 scored targets;
 5. evaluate serving performance only after freezing the same joint source-gate
    provenance in the serving config;
@@ -189,12 +189,13 @@ corrected SpinQuant rotation provenance remains frozen. Validation job
 produced the three expected compressed checkpoints and passed isolated vLLM
 load/inference gates. Joint four-model source-gate job `5874345` also completed
 from the same revision and its result/capability hashes are frozen in PPL
-revision `1f3e4cb`. PPL smoke `5874806` and dependent formal job `5874807` are
-submitted. Gate 1 records neither the formal 331,614-token PPL result nor the
-formal serving speedup. No deployment evidence is accepted until the accuracy
-and serving formal jobs both pass. The first SpinQuant checkpoint remains an
+revision `1f3e4cb`. PPL smoke `5874806` and dependent formal job `5874807`
+completed `0:0`; the latter accepted formal PPL of 5.007820 BF16, 5.136105
+unrotated, 5.248356 QuaRot-style, and 5.230155 SpinQuant-transfer over 331,614
+targets. The deployed-quality gate is complete, but no formal serving speedup
+exists. The first SpinQuant checkpoint remains an
 INT8-trained rotation transfer diagnostic, not an FP8-optimized endpoint.
 
 The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
-rotation. Deployed PPL is submitted against the frozen joint gate; serving
+rotation. Deployed PPL is accepted against the frozen joint gate; serving
 remains unsubmitted and must freeze the same provenance before submission.

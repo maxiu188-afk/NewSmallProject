@@ -42,6 +42,10 @@ checks kept separate from real CUDA deployment and performance work.
   improved request throughput by 1.37--1.54x, and reduced p50 E2E by
   26.9--35.2%. A dependent real-vLLM layer-0 diagnostic found shape-dependent
   0.96--1.05x speed and 74.2% fewer parameter bytes.
+- An accepted Llama-2-13B deployed-checkpoint W4AFP8 PPL study through vLLM on
+  Isambard GH200. Over 331,614 targets, PPL was 5.007820 BF16, 5.136105
+  unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8, and 5.230155
+  SpinQuant-transfer W4AFP8. Matched W4AFP8 serving remains pending.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
@@ -55,7 +59,8 @@ the [official QuaRot result](docs/OFFICIAL_QUAROT_RESULTS.md). The owned
 packed-W4/A8 path remains documented in the
 [W4A8 kernel record](docs/W4A8_CUDA_KERNEL_RESULTS.md). The practical serving
 evidence is consolidated in the
-[vLLM W4A16 result](docs/VLLM_W4A16_RESULTS.md). Completed runbooks and detailed
+[vLLM W4A16 result](docs/VLLM_W4A16_RESULTS.md); deployed W4AFP8 quality is in
+the [W4AFP8 result](docs/W4AFP8_RESULTS.md). Completed runbooks and detailed
 source records remain available under
 [`docs/archive/`](docs/archive/README.md).
 
@@ -95,3 +100,6 @@ NVIDIA GPUs, so the first serving format is W4A16 GPTQ on Ada/Hopper. This is
 QuaRot-style engineering and is not labelled as original QuaRot W4A4. See
 [the real-deployment roadmap](docs/QUAROT_REAL_DEPLOYMENT_ROADMAP.md) and the
 [Isambard vLLM W4A16 result](docs/VLLM_W4A16_RESULTS.md).
+The later backend-aligned W4AFP8 route now has accepted packed-checkpoint PPL,
+but it is not deployment-complete until its matched serving gate passes; see
+the [W4AFP8 result](docs/W4AFP8_RESULTS.md).

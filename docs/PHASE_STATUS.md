@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving | Complete on GH200 for the matched Llama-2-13B serving and layer-0 diagnostic protocols | W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; rotation had no material performance effect; no deployed-checkpoint PPL or downstream-quality result |
-| vLLM W4AFP8 deployment | Gate 1 accepted on GH200: isolated jobs 5873544/5873545 and joint four-model source gate 5874345 completed `0:0`. Joint result and capability hashes are frozen in revision `1f3e4cb`; PPL smoke 5874806 and formal job 5874807 are submitted with `afterok:5874806` | All three checkpoints have 280 packed decoder linears and no runtime `g_idx`; fixed-token inference and CUTLASS selection passed. No PPL exists until the formal 331,614-target result completes; matched serving remains untested |
+| vLLM W4AFP8 deployment | Deployed quality accepted on GH200: PPL smoke 5874806 and formal job 5874807 completed `0:0`; BF16 5.007820, unrotated 5.136105, QuaRot-style 5.248356, SpinQuant-transfer 5.230155 over 331,614 targets | Gate 1, packed-checkpoint vLLM execution, token provenance, and formal PPL passed. Both rotations were worse than unrotated W4AFP8; matched serving remains untested, so W4AFP8 deployment is not complete |
 
 ## Current deployment decision
 
@@ -56,9 +56,13 @@ validation job `5873544` completed in 38m30s, and SpinQuant-transfer job
 `0:0`; all fixed-token outputs matched BF16. Joint four-model source-gate job
 `5874345` then completed `0:0` in 4m35s. Its inference and capability SHA-256
 hashes are frozen in PPL revision `1f3e4cb`, whose provenance and retained-token
-preflights passed. PPL smoke `5874806` is submitted with a two-hour limit;
-formal job `5874807` is submitted with a twelve-hour limit and
-`afterok:5874806`. No deployed-accuracy result exists until they pass.
+preflights passed. PPL smoke `5874806` completed `0:0` in 6m24s; formal job
+`5874807` then completed `0:0` in 5m00s through `afterok:5874806`. Formal PPL
+was 5.007820 BF16, 5.136105 unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8,
+and 5.230155 SpinQuant-transfer W4AFP8. Both rotations were worse than the
+matched unrotated control; SpinQuant-transfer was slightly better than
+QuaRot-style. See [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md). The deployed-quality
+half is complete, while matched serving remains required.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
@@ -73,6 +77,14 @@ kernel evidence. A method is not deployment-complete if either formal accuracy
 or formal serving evidence is missing.
 
 ## Latest accepted result
+
+The latest accepted result is formal deployed-checkpoint W4AFP8 PPL job
+`5874807`. It scored 331,614 retained WikiText-2 targets for each of BF16,
+unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant-transfer W4AFP8. PPL was
+5.007820, 5.136105, 5.248356, and 5.230155 respectively. The formal result
+SHA-256 is
+`78a81dcdb17d8393247abd65d2f7e00b030e78817dc6d8b0699a8c15e48481f3`.
+This is accepted deployed-quality evidence, not serving acceleration.
 
 The Isambard evidence chain is complete through Llama-2-13B offline inference,
 OpenAI-compatible service smoke, matched full-model serving, and the dependent

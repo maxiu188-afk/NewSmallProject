@@ -29,10 +29,14 @@ same revision. Its combined inference result SHA-256 is
 `6a22855a720b95e7230dd15644ced73b28297a960e29d5d2823666de28254f2a`; its
 capability result SHA-256 is
 `048fce61ad390e0ac4dfb89db2f1801c5f47468e993a5ffbdb6b4b4e7d61633a`.
-Those hashes are frozen in PPL revision `1f3e4cb`. PPL smoke job `5874806` and
-formal job `5874807` are submitted with dependency `afterok:5874806`. The
-scheduler dependencies and joint gate are operational; the evidence boundaries
-remain distinct because:
+Those hashes are frozen in PPL revision `1f3e4cb`. PPL smoke job `5874806`
+completed `0:0` in 6m24s, and formal job `5874807` completed `0:0` in 5m00s
+through `afterok:5874806`. The formal job scored 331,614 targets per model:
+PPL was 5.007820 BF16, 5.136105 unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8,
+and 5.230155 SpinQuant-transfer W4AFP8. The formal result SHA-256 is
+`78a81dcdb17d8393247abd65d2f7e00b030e78817dc6d8b0699a8c15e48481f3`.
+The scheduler dependencies and joint gate are operational; the evidence
+boundaries remain distinct because:
 
 - W4AFP8 uses a separate Isambard checkout from the fake-quant runs;
 - W4AFP8 uses a separate
@@ -81,7 +85,7 @@ Official references:
 2. Isolated jobs `5873544`/`5873545` and joint job `5874345` passed terminal,
    marker, capability, export, inference, and checkpoint-provenance checks.
 3. The joint result and capability hashes are frozen in the four-model PPL
-   config. Smoke `5874806` and dependent formal job `5874807` are submitted. The
+   config. Smoke `5874806` and dependent formal job `5874807` passed. The
    serving config remains pending and must freeze the same joint gate before
    its own smoke/formal chain is submitted.
 
@@ -131,8 +135,8 @@ serving from this gate until its result and checkpoint hashes are frozen.
   formal accuracy or acceleration evidence.
 - Joint source-gate job `5874345` passed, but it is still correctness and
   provenance evidence rather than a PPL result.
-- PPL smoke `5874806` and formal job `5874807` are submitted; neither provides
-  a result until it passes.
+- PPL smoke `5874806` and formal job `5874807` passed; the formal JSON is
+  accepted deployed-quality evidence.
 - Backend capability selection is not checkpoint correctness, PPL, or speed.
 - Fixed-token inference is not full held-out accuracy.
 - Deployed PPL is not acceleration.
