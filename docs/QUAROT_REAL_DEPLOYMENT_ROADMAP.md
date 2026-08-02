@@ -71,9 +71,9 @@ The 2026-07-22 login-node preparation froze the official vLLM
 Compressor `0.12.0` environment. The serving and quantizer environments remain
 separate because they pin compressed-tensors 0.17.0 and 0.17.1 respectively.
 The full evidence chain has since passed on GH200: tiny checkpoint execution,
-Llama-2-13B export and fixed-token inference, service smoke, matched serving,
-and a dependent real-layer diagnostic. The two complete W4A16 checkpoints each
-contain 280 packed decoder linears.
+Llama-2-13B export and fixed-token inference, deployed-checkpoint WikiText-2
+PPL, service smoke, matched serving, and a dependent real-layer diagnostic. The
+two complete W4A16 checkpoints each contain 280 packed decoder linears.
 
 The serving checkpoint may use the residual Hadamard and the paired per-head
 V/O Hadamard because these can be absorbed into standard Llama weights. It
@@ -187,12 +187,18 @@ concurrency 1 and 1.37x at concurrency 8; p50 E2E fell by 26.9--35.2%.
 Unrotated and offline-rotated W4A16 had effectively the same deployment
 performance.
 
+The matched deployed-checkpoint quality job scored 331,614 WikiText-2 targets
+through vLLM. PPL was 5.007820 for BF16, 5.289677 for unrotated W4A16, and
+5.132755 for rotated W4A16. Offline rotation therefore reduced PPL by 2.97%
+relative to unrotated W4A16 and recovered 55.67% of its PPL gap to BF16 without
+materially separating serving performance.
+
 The dependent eager-mode layer-0 diagnostic found a 74.2% parameter-byte
 reduction, while median speed ranged from 0.96x to 1.05x versus BF16 depending
 on shape. It confirms execution of the real packed vLLM layer but does not
 replace the compiled full-model result.
 
-The remaining boundary is deployed-checkpoint quality. Fixed-token inference
-passed, but no W4A16 WikiText-2 PPL or downstream-task result has been measured.
-Results from Routes A and B remain separately named and must not be merged into
-one precision or performance label. See `VLLM_W4A16_RESULTS.md`.
+The remaining Route B quality boundary is downstream-task or broader generation
+evaluation; deployed-checkpoint WikiText-2 PPL is complete. Results from Routes
+A and B remain separately named and must not be merged into one precision or
+performance label. See `VLLM_W4A16_RESULTS.md`.

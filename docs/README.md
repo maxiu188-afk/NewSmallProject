@@ -14,7 +14,8 @@ but it is not the current project plan.
 - [`OFFICIAL_QUAROT_RESULTS.md`](OFFICIAL_QUAROT_RESULTS.md): consolidated
   official-backend full-model and paper-aligned single-block results.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
-  full-model serving result and same-environment layer-0 diagnostic.
+  deployed-checkpoint PPL, full-model serving result, and same-environment
+  layer-0 diagnostic.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the
   corrected no-had W4A8 deployment boundary.
