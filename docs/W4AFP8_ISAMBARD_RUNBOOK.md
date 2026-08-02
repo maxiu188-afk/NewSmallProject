@@ -53,6 +53,7 @@ The prepared path covers all later evidence gates:
 | Backend capability | `scripts/audit_vllm_w4afp8_backend.py` | GH200 selects `CutlassW4A8LinearKernel` for every Llama-2-13B shape and rejects runtime `g_idx` |
 | Export and load | `scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch` | Three separate packed checkpoints, 280 decoder linears each, fresh-process vLLM inference |
 | Deployed accuracy | `scripts/run_isambard_vllm_w4afp8_llama2_13b_ppl.sbatch` | BF16 plus three W4AFP8 checkpoints on the retained 162 x 2048 WikiText-2 tokens |
+| Downstream diagnostic | `scripts/run_isambard_vllm_w4afp8_llama2_13b_boolq.sbatch` | Zero-shot BoolQ validation accuracy for the same four checkpoints under the QuaRot-pinned LM Evaluation Harness task definition |
 | Service and acceleration | `scripts/run_isambard_vllm_w4afp8_llama2_13b_serving.sbatch` | Kernel log proof, endpoint smoke, concurrency-1/8 latency and throughput, memory and recovery |
 
 The official LLM Compressor `W4AFP8` preset is group-128 symmetric INT4
@@ -91,6 +92,57 @@ Official references:
 
 The main PPL and serving jobs depend on accepted smoke results. They do not use
 smoke outcomes to change the formal protocol.
+
+## BoolQ downstream diagnostic
+
+The BoolQ diagnostic is motivated by the larger separation in SpinQuant Table
+7 for LLaMA-2-13B W4A8KV16: 75.3% GPTQ versus 81.5% SpinQuant without online
+Hadamard transforms. The current deployed checkpoints are W4AFP8, and the
+SpinQuant checkpoint transfers a rotation trained against INT8 activations.
+Consequently, this experiment can test whether the current deployed rotations
+help a downstream task, but it cannot reproduce or refute the paper's W4A8
+endpoint.
+
+The public SpinQuant repository states that its reported table was produced
+with an internal LLaMA codebase and its released evaluator covers WikiText-2
+PPL only. The closest public frozen task protocol is the LM Evaluation Harness
+commit pinned by QuaRot, `9b0b15b1ccace3534ffbd13298c569869ce8eaf3`:
+zero-shot BoolQ validation, prompt
+`{passage}\nQuestion: {question}?\nAnswer:`, choices `no`/`yes` with one leading
+delimiter space, and raw accuracy. The local runner reproduces that
+log-likelihood construction while executing the packed checkpoints through
+vLLM.
+
+Materialize the immutable 3,270-example validation artifact on the login node:
+
+```bash
+module load cray-python/3.11.7
+export HF_HOME="$HOME/.cache/huggingface"
+export HF_HUB_CACHE="$HF_HOME"
+"$HOME/.venvs/newsmallproject-llmcompressor-0.12.0/bin/python" \
+  scripts/prepare_boolq_validation.py \
+  --config configs/deployment/vllm_w4afp8_llama2_13b_boolq_isambard.json \
+  --output-dir \
+  "${PROJECTDIR}/${USER}/newsmallproject-vllm/boolq-lm-eval-v1-3de24cf"
+```
+
+Then submit smoke only:
+
+```bash
+mkdir -p results/vllm-w4afp8-boolq-llama2-13b
+sbatch --test-only \
+  scripts/run_isambard_vllm_w4afp8_llama2_13b_boolq.sbatch smoke
+sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_boolq.sbatch smoke
+```
+
+Do not submit formal until the 32-example smoke JSON and logs have been
+reviewed. After acceptance, submit the full validation split with the required
+dependency:
+
+```bash
+sbatch --dependency=afterok:<SMOKE_JOB_ID> \
+  scripts/run_isambard_vllm_w4afp8_llama2_13b_boolq.sbatch formal
+```
 
 ## Formal deployment evidence contract
 

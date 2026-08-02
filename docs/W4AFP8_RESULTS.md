@@ -126,3 +126,17 @@ variant is labelled deployment-complete.
 The SpinQuant checkpoint remains an INT8-trained rotation transfer to W4AFP8,
 not an FP8-targeted learned endpoint. Its slightly better PPL than QuaRot does
 not show that FP8-targeted SpinQuant training is complete.
+
+## BoolQ diagnostic status
+
+A matched downstream diagnostic is prepared but has no accepted result yet.
+It will compare BF16, unrotated min/max W4AFP8, QuaRot-style min/max W4AFP8,
+and SpinQuant-transfer min/max W4AFP8 on all 3,270 BoolQ validation examples.
+The protocol freezes the zero-shot prompt, `no`/`yes` choices, and raw accuracy
+from the LM Evaluation Harness commit pinned by QuaRot. A 32-example smoke must
+be reviewed before the formal job is submitted.
+
+This is deliberately labelled a W4AFP8 downstream diagnostic. SpinQuant Table
+7 reports LLaMA-2-13B W4A8KV16 BoolQ accuracy of 75.3% for GPTQ and 81.5% for
+SpinQuant without online Hadamard transforms; those values are motivation, not
+acceptance targets for the current FP8-activation checkpoints.

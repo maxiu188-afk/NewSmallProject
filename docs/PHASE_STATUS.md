@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed quality accepted on GH200; isolated min/max-versus-MSE gate 5875320, dependent smoke 5875322, and formal 5875865 all completed `0:0` | Formal MSE PPL was 5.163774 unrotated and 5.216687 QuaRot-style versus 5.136105/5.248356 under min/max. MSE halved but did not reverse the rotation gap; matched serving remains untested |
+| vLLM W4AFP8 deployment | Deployed quality accepted on GH200; isolated min/max-versus-MSE gate 5875320, dependent smoke 5875322, and formal 5875865 all completed `0:0`; matched BoolQ diagnostic prepared, not yet run | Formal MSE PPL was 5.163774 unrotated and 5.216687 QuaRot-style versus 5.136105/5.248356 under min/max. MSE halved but did not reverse the rotation gap; BoolQ and matched serving remain untested |
 
 ## Current deployment decision
 
