@@ -15,11 +15,19 @@ checkpoint.
 
 Revision `9d691e9cf828` accepts those two equivalent names while continuing to
 reject `memoryless_mse`; the pinned quantizer preflight and all ten W4AFP8 unit
-tests passed on Isambard. QuaRot validation job `5873544` is queued from that
-revision with a six-hour limit. SpinQuant-transfer main job `5873545` is queued
-with `afterok:5873544`, so it cannot start unless validation succeeds. Neither
-queued job currently provides a deployment result. The scheduler dependency is
-operational; the evidence boundaries remain distinct because:
+tests passed on Isambard. QuaRot validation job `5873544` completed `0:0` in
+38m30s. SpinQuant-transfer main job `5873545` then completed `0:0` in 19m44s
+through `afterok:5873544`. All three compressed checkpoints report 280 packed
+decoder linears, zero runtime `g_idx` tensors, and 7,202,132,925 bytes. Both
+isolated gates selected `CutlassW4A8LinearKernel`, loaded their checkpoints
+through vLLM, and reproduced the same fixed eight tokens as BF16.
+
+The four-model PPL and serving validators require one complete source-gate
+result rather than a synthetic merge of the two isolated results. Joint job
+`5874345` is therefore queued from the same revision; it reuses all three
+checkpoints and performs only the combined backend/load gate. This queued job
+does not yet provide a deployment result. The scheduler dependency and joint
+gate are operational; the evidence boundaries remain distinct because:
 
 - W4AFP8 uses a separate Isambard checkout from the fake-quant runs;
 - W4AFP8 uses a separate
@@ -117,8 +125,9 @@ serving from this gate until its result and checkpoint hashes are frozen.
 ## Result boundaries
 
 - The current INT8 W4A8 fake-quant result is not W4AFP8 quality evidence.
-- Gate 1 jobs `5873544` and `5873545` are export/load correctness only, not
+- Accepted Gate 1 jobs `5873544` and `5873545` are export/load correctness only, not
   formal accuracy or acceleration evidence.
+- Joint source-gate job `5874345` is queued and provides no result while pending.
 - Backend capability selection is not checkpoint correctness, PPL, or speed.
 - Fixed-token inference is not full held-out accuracy.
 - Deployed PPL is not acceleration.

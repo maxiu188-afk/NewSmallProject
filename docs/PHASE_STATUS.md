@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving | Complete on GH200 for the matched Llama-2-13B serving and layer-0 diagnostic protocols | W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; rotation had no material performance effect; no deployed-checkpoint PPL or downstream-quality result |
-| vLLM W4AFP8 deployment | Jobs 5859043/5859044 failed stale-calibration validation; jobs 5873446/5873447 then passed calibration and the CUTLASS audit but stopped before quantization on an over-strict `minmax` alias check. Revision `9d691e9` fixes that check; QuaRot validation job 5873544 is queued and SpinQuant-transfer job 5873545 is queued with `afterok:5873544` | Neither failed pair produced a W4AFP8 checkpoint or quality result. CUTLASS still requires group-128/no-actorder GPTQ with no MSE clipping; deployed PPL and matched serving remain untested |
+| vLLM W4AFP8 deployment | Gate 1 accepted on GH200: QuaRot job 5873544 and dependent SpinQuant-transfer job 5873545 completed `0:0` from revision `9d691e9`. All three W4AFP8 checkpoints have 280 packed decoder linears and no runtime `g_idx`; joint four-model source-gate job 5874345 is queued | Fixed-token vLLM inference and CUTLASS selection passed, but this is checkpoint correctness only. Deployed PPL and matched serving remain untested |
 
 ## Current deployment decision
 
@@ -51,8 +51,12 @@ were cancelled before allocation when the GPTQ protocol changed. Jobs
 observer-name check rejected LLM Compressor's canonical `memoryless_minmax`
 name. Revision `9d691e9` accepts only the equivalent
 `minmax`/`memoryless_minmax` names and still rejects MSE observers. QuaRot
-validation job `5873544` is queued from that revision; SpinQuant-transfer main
-job `5873545` is queued with `afterok:5873544`. Neither queued job is a result.
+validation job `5873544` completed in 38m30s, and SpinQuant-transfer job
+`5873545` then completed in 19m44s through `afterok:5873544`. Both returned
+`0:0`; all fixed-token outputs matched BF16. Joint four-model source-gate job
+`5874345` is queued so the formal PPL and serving validators can consume one
+complete provenance record. No deployed-accuracy or acceleration result exists
+yet.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 

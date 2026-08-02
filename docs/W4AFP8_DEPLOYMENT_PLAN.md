@@ -3,10 +3,11 @@
 ## Decision and sequence
 
 This is a hardware-aligned extension for Isambard GH200, not a relabelling of
-the papers' INT8-activation experiments. The QuaRot-only export/load gate is
-queued as the validation job, and the SpinQuant-transfer main job has an
-`afterok` scheduler dependency on it. The corrected SpinQuant no-had fake-quant
-chain remains complete in its own checkout and artifact root.
+the papers' INT8-activation experiments. QuaRot-only validation job `5873544`
+and its dependent SpinQuant-transfer job `5873545` have passed. Joint
+four-model source-gate job `5874345` is queued to freeze the single provenance
+record required by formal PPL and serving validation. The corrected SpinQuant
+no-had fake-quant chain remains complete in its own checkout and artifact root.
 
 The first SpinQuant no-had chain (`5850956` -> `5850958`) was accepted and is
 retained as an old-QDQ baseline. QuaRot Gate 1 job `5854439` and SpinQuant
@@ -17,13 +18,15 @@ calibration and backend capability checks but stopped before quantization on an
 over-strict observer-alias assertion. None produced a deployment checkpoint or
 result. The active order is now fixed:
 
-1. accept queued QuaRot W4AFP8 validation gate `5873544` from fix revision
+1. retain accepted QuaRot W4AFP8 validation gate `5873544` from fix revision
    `9d691e9cf828`;
-2. accept queued isolated BF16/unrotated/SpinQuant-transfer W4AFP8 gate
-   `5873545`, which has scheduler dependency `afterok:5873544`;
-3. evaluate deployed-checkpoint quality and serving performance only after
-   each isolated gate has frozen its checkpoint provenance;
-4. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
+2. retain accepted isolated BF16/unrotated/SpinQuant-transfer W4AFP8 gate
+   `5873545`, which ran through scheduler dependency `afterok:5873544`;
+3. accept queued joint source-gate job `5874345`, then freeze its result and
+   capability hashes into the formal PPL and serving configs;
+4. evaluate deployed-checkpoint quality and serving performance only after the
+   joint source gate has frozen checkpoint provenance;
+5. treat the INT8-trained SpinQuant rotation as a transfer diagnostic and run
    FP8-targeted learning later if deployed quality is not competitive.
 
 The W4AFP8 checkout and artifacts remain isolated from the SpinQuant fake-quant
@@ -177,16 +180,17 @@ cancelled with zero runtime because they carried the superseded static
 activation-order protocol. The two subsequent failed pairs are diagnostic only:
 the first exposed stale calibration provenance, while the second proved the
 calibration and backend audit before exposing the observer-alias check. The
-corrected SpinQuant rotation provenance remains frozen. Current validation job
-`5873544` and dependent main job `5873545` are queued from revision
-`9d691e9cf828`; both use the same group-128/no-actorder configuration, and the
-main job cannot start unless validation succeeds. These are Gate 1 export/load
-jobs only: they record neither the formal 331,614-token PPL result nor the
-formal serving speedup. No deployment evidence is accepted until each Gate 1
-job terminates successfully, its artifacts pass provenance checks, and the
-later accuracy and serving formal jobs both pass. The first SpinQuant checkpoint
-remains an INT8-trained rotation transfer diagnostic, not an FP8-optimized
-endpoint.
+corrected SpinQuant rotation provenance remains frozen. Validation job
+`5873544` and dependent main job `5873545` completed from revision
+`9d691e9cf828`; both use the same group-128/no-actorder configuration. They
+produced the three expected compressed checkpoints and passed isolated vLLM
+load/inference gates. Joint four-model source-gate job `5874345` is queued from
+the same revision because later validators require one complete result and
+capability hash. These Gate 1 jobs record neither the formal 331,614-token PPL
+result nor the formal serving speedup. No deployment evidence is accepted
+until the joint gate artifacts pass provenance checks and the later accuracy
+and serving formal jobs both pass. The first SpinQuant checkpoint remains an
+INT8-trained rotation transfer diagnostic, not an FP8-optimized endpoint.
 
 The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
 rotation. Deployed PPL and serving still require accepted gate results and
