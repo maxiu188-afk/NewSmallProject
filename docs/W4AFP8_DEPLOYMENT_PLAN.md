@@ -54,14 +54,20 @@ matrix is BF16 plus unrotated/QuaRot under min/max and unrotated/QuaRot under
 MSE clipping. Group-128, no activation ordering, calibration data, retained
 evaluation tokens, activation format, and serving runtime remain unchanged.
 
-Gate job `5875320` is queued. Smoke job `5875322` is queued only through
-`afterok:5875320`. The smoke script also rejects execution without an `afterok`
-dependency. Formal has deliberately not been submitted: after smoke finishes,
-its JSON, logs, observer metadata, packed-linear coverage, runtime `g_idx`
-absence, token counts, and source revision must be reviewed before a formal job
-may be submitted with a dependency on the accepted smoke job. These diagnostic
-jobs do not replace the accepted W4AFP8 result or close the outstanding serving
-half of deployment acceptance.
+Gate job `5875320` completed `0:0`; dependent smoke job `5875322` also
+completed `0:0` through `afterok:5875320`. Review accepted the smoke JSON,
+logs, observer metadata, 280-linear packed coverage, absence of runtime
+`g_idx`, fixed token counts, hashes, and source revision. Its directional PPL
+was 4.823038 BF16, 4.985051/5.130191 for unrotated/QuaRot min/max, and
+4.993155/5.036449 for unrotated/QuaRot MSE over 4,094 targets per model.
+
+Formal job `5875865` was consequently submitted with
+`afterok:5875322`. The dependency was already satisfied at submission because
+the accepted smoke had completed, so Slurm cleared it from the active job
+record while retaining the dependency option in the accounting submit line.
+Formal remains unaccepted until its complete 331,614-target artifact is
+reviewed. These diagnostic jobs do not replace the accepted W4AFP8 result or
+close the outstanding serving half of deployment acceptance.
 
 ## Frozen runtime target
 

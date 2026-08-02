@@ -56,16 +56,36 @@ ignored copies retained for review. They are intentionally excluded from Git
 by the repository's generated-result policy; the hashes above bind this
 reviewed summary to those artifacts.
 
-## Active GPTQ observer diagnostic (no result yet)
+## Active GPTQ observer diagnostic (formal pending)
 
 An isolated 2 x 2 diagnostic was submitted from revision
 `6f609b04d1051a60a7d0443796c53d874a9c2144` to test whether the accepted
 min/max range selection explains why the unrotated checkpoint beat the
-QuaRot-style checkpoint. Gate job `5875320` exports and loads new unrotated and
-QuaRot-style checkpoints using MSE-clipped weight ranges. Smoke job `5875322`
-is queued with scheduler dependency `afterok:5875320`. No formal job has been
-submitted; it remains blocked on manual review and acceptance of the smoke
-artifact.
+QuaRot-style checkpoint. Gate job `5875320` completed `0:0` in 38m05s and
+exported and loaded new unrotated and QuaRot-style checkpoints using
+MSE-clipped weight ranges. Smoke job `5875322` then completed `0:0` in 7m35s
+through `afterok:5875320`. Both exports contain 280 packed decoder linears,
+use the `mse` weight observer with `actorder=None`, and contain no runtime
+`g_idx`. Gate and smoke artifacts passed source-revision, observer, retained
+token, runtime, and model-set checks.
+
+The two-sequence smoke scored 4,094 targets per model. PPL was 4.823038 BF16,
+4.985051 unrotated min/max, 5.130191 QuaRot min/max, 4.993155 unrotated MSE,
+and 5.036449 QuaRot MSE. MSE clipping therefore reduced the smoke QuaRot gap
+relative to unrotated from 0.145140 to 0.043294 PPL, but this small smoke is
+directional evidence only. Formal job `5875865` was submitted with explicit
+dependency `afterok:5875322` after manual smoke acceptance; because the smoke
+was already successful, Slurm immediately marked that dependency satisfied.
+No formal diagnostic result is accepted yet.
+
+Artifact SHA-256 values are `4d4e938e5fd1cf17e2910d3791d29e35a6bbd56a54be1cabf581ec541c3c8163`
+for the unrotated export report,
+`629d2a105f4d0e0c924b1a82c60eebcabe209c9cba3afa9a4d9494386380bb0a`
+for the QuaRot export report,
+`5cf902bdc05e0376247d681ceb2900cadc3525f620d9feac9fd3a8480e991eea`
+for the gate result, and
+`4058fc424c7dd328b6b9959ec74cf5c5216560c2b43817bc2310c04f67b0e736`
+for the smoke result.
 
 The comparison freezes group size 128, block size 128, `actorder=None`,
 128 x 2048 calibration tokens, retained PPL tokens, FP8 activation metadata,
@@ -74,8 +94,8 @@ weight observer: accepted `memoryless_minmax` controls versus MSE clipping with
 `maxshrink=0.8`, `grid=100`, and error norm 2.4. This matches the clipping
 search range used by the paper code while retaining the deployable group-128
 backend contract; it is therefore a deployment-oriented observer diagnostic,
-not an exact reproduction of the paper's GPTQ protocol and not an accepted
-accuracy result until the formal artifact is reviewed.
+not an exact reproduction of the paper's GPTQ protocol. Only the formal
+162-sequence artifact can become an accepted accuracy diagnostic.
 
 ## Evidence boundary
 

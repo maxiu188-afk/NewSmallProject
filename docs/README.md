@@ -27,7 +27,7 @@ but it is not the current project plan.
   staged reproduction plan.
 - [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): active joint
   QuaRot/SpinQuant GH200 deployment plan; deployed-checkpoint quality is
-  accepted, the MSE diagnostic formal task is blocked on smoke review, and
+  accepted, the MSE diagnostic formal task is submitted after smoke review, and
   matched full-model acceleration remains.
 - [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md): isolated local
   preparation, accepted GH200 export/PPL evidence, and remaining serving
