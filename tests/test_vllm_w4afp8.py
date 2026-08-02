@@ -149,6 +149,20 @@ class VllmW4AFP8Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "memoryless_mse"):
             validate_resolved_weight_observer("minmax", "memoryless_mse")
 
+    def test_ppl_config_freezes_accepted_joint_source_gate(self):
+        config = json.loads(PPL_CONFIG.read_text(encoding="utf-8"))
+        source_gate = config["source_gate"]
+        self.assertEqual(config["status"], "source_gate_accepted_ready_for_submission")
+        self.assertEqual(source_gate["status"], "accepted")
+        self.assertEqual(source_gate["job_id"], "5874345")
+        self.assertIn("joint-offline-inference-5874345.json", source_gate["result"])
+        self.assertIn(
+            "backend-capability-5874345.json",
+            source_gate["capability_result"],
+        )
+        self.assertEqual(len(source_gate["result_sha256"]), 64)
+        self.assertEqual(len(source_gate["capability_result_sha256"]), 64)
+
     def test_checkpoint_metadata_requires_fp8_tokens_and_no_actorder(self):
         metadata = _valid_quantization_config()
         validate_checkpoint_quantization_config(metadata)
@@ -205,7 +219,6 @@ class VllmW4AFP8Tests(unittest.TestCase):
 
     def test_ppl_parent_runs_four_fresh_workers_and_preserves_token_count(self):
         config = json.loads(PPL_CONFIG.read_text(encoding="utf-8"))
-        config["source_gate"]["status"] = "accepted"
         runtime = {
             "vllm": "0.25.1+cu129",
             "torch": "2.11.0+cu129",
@@ -251,6 +264,7 @@ class VllmW4AFP8Tests(unittest.TestCase):
 
     def test_pending_source_gate_blocks_quality_execution(self):
         config = json.loads(PPL_CONFIG.read_text(encoding="utf-8"))
+        config["source_gate"]["status"] = "pending"
         with self.assertRaisesRegex(RuntimeError, "still pending"):
             PPL.run(
                 config=config,
