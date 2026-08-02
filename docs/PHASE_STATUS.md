@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving | Complete on GH200 for the matched Llama-2-13B serving and layer-0 diagnostic protocols | W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; rotation had no material performance effect; no deployed-checkpoint PPL or downstream-quality result |
-| vLLM W4AFP8 deployment | Gate 1 accepted on GH200: QuaRot job 5873544 and dependent SpinQuant-transfer job 5873545 completed `0:0` from revision `9d691e9`. All three W4AFP8 checkpoints have 280 packed decoder linears and no runtime `g_idx`; joint four-model source-gate job 5874345 is queued | Fixed-token vLLM inference and CUTLASS selection passed, but this is checkpoint correctness only. Deployed PPL and matched serving remain untested |
+| vLLM W4AFP8 deployment | Gate 1 accepted on GH200: isolated jobs 5873544/5873545 and joint four-model source gate 5874345 completed `0:0`. Joint result and capability hashes are frozen in revision `1f3e4cb`; PPL smoke 5874806 and formal job 5874807 are submitted with `afterok:5874806` | All three checkpoints have 280 packed decoder linears and no runtime `g_idx`; fixed-token inference and CUTLASS selection passed. No PPL exists until the formal 331,614-target result completes; matched serving remains untested |
 
 ## Current deployment decision
 
@@ -54,9 +54,11 @@ name. Revision `9d691e9` accepts only the equivalent
 validation job `5873544` completed in 38m30s, and SpinQuant-transfer job
 `5873545` then completed in 19m44s through `afterok:5873544`. Both returned
 `0:0`; all fixed-token outputs matched BF16. Joint four-model source-gate job
-`5874345` is queued so the formal PPL and serving validators can consume one
-complete provenance record. No deployed-accuracy or acceleration result exists
-yet.
+`5874345` then completed `0:0` in 4m35s. Its inference and capability SHA-256
+hashes are frozen in PPL revision `1f3e4cb`, whose provenance and retained-token
+preflights passed. PPL smoke `5874806` is submitted with a two-hour limit;
+formal job `5874807` is submitted with a twelve-hour limit and
+`afterok:5874806`. No deployed-accuracy result exists until they pass.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 

@@ -24,10 +24,15 @@ through vLLM, and reproduced the same fixed eight tokens as BF16.
 
 The four-model PPL and serving validators require one complete source-gate
 result rather than a synthetic merge of the two isolated results. Joint job
-`5874345` is therefore queued from the same revision; it reuses all three
-checkpoints and performs only the combined backend/load gate. This queued job
-does not yet provide a deployment result. The scheduler dependency and joint
-gate are operational; the evidence boundaries remain distinct because:
+`5874345` reused all three checkpoints and completed `0:0` in 4m35s from the
+same revision. Its combined inference result SHA-256 is
+`6a22855a720b95e7230dd15644ced73b28297a960e29d5d2823666de28254f2a`; its
+capability result SHA-256 is
+`048fce61ad390e0ac4dfb89db2f1801c5f47468e993a5ffbdb6b4b4e7d61633a`.
+Those hashes are frozen in PPL revision `1f3e4cb`. PPL smoke job `5874806` and
+formal job `5874807` are submitted with dependency `afterok:5874806`. The
+scheduler dependencies and joint gate are operational; the evidence boundaries
+remain distinct because:
 
 - W4AFP8 uses a separate Isambard checkout from the fake-quant runs;
 - W4AFP8 uses a separate
@@ -73,15 +78,12 @@ Official references:
    sbatch scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch quarot
    ```
 
-2. Inspect the terminal state, exit code, stage markers, capability report,
-   two export reports, offline-inference result, and checkpoint provenance.
-   Only after acceptance, replace the pending `source_gate` fields in the PPL
-   and serving configs with the gate job ID, relative result paths, and SHA-256
-   hashes.
-3. After Gate 1 acceptance, freeze its paths and hashes into QuaRot-only PPL
-   and serving configs, then submit smoke before each formal job. The currently
-   prepared PPL and serving configs still describe the later four-model joint
-   study and must not be submitted against a three-model QuaRot gate.
+2. Isolated jobs `5873544`/`5873545` and joint job `5874345` passed terminal,
+   marker, capability, export, inference, and checkpoint-provenance checks.
+3. The joint result and capability hashes are frozen in the four-model PPL
+   config. Smoke `5874806` and dependent formal job `5874807` are submitted. The
+   serving config remains pending and must freeze the same joint gate before
+   its own smoke/formal chain is submitted.
 
 The main PPL and serving jobs depend on accepted smoke results. They do not use
 smoke outcomes to change the formal protocol.
@@ -127,7 +129,10 @@ serving from this gate until its result and checkpoint hashes are frozen.
 - The current INT8 W4A8 fake-quant result is not W4AFP8 quality evidence.
 - Accepted Gate 1 jobs `5873544` and `5873545` are export/load correctness only, not
   formal accuracy or acceleration evidence.
-- Joint source-gate job `5874345` is queued and provides no result while pending.
+- Joint source-gate job `5874345` passed, but it is still correctness and
+  provenance evidence rather than a PPL result.
+- PPL smoke `5874806` and formal job `5874807` are submitted; neither provides
+  a result until it passes.
 - Backend capability selection is not checkpoint correctness, PPL, or speed.
 - Fixed-token inference is not full held-out accuracy.
 - Deployed PPL is not acceleration.
