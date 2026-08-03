@@ -115,8 +115,10 @@ import importlib.metadata as metadata
 import torch
 
 assert metadata.version("sglang") == "0.5.16"
-assert metadata.version("sglang-kernel") == "0.4.5"
-assert metadata.version("sgl-deep-gemm") == "0.1.4.post1"
+assert metadata.version("sglang-kernel") == "0.4.5+cu129"
+assert metadata.version("sgl-deep-gemm") == "0.1.4.post1+cu129"
+assert metadata.version("cuda-python") == "12.9.4"
+assert metadata.version("cuda-bindings") == "12.9.7"
 assert torch.__version__ == "2.11.0+cu129", torch.__version__
 assert torch.version.cuda == "12.9", torch.version.cuda
 assert torch.cuda.is_available()
