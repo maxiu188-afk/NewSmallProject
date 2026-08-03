@@ -34,6 +34,18 @@ SERVING_CONFIG = (
     / "deployment"
     / "vllm_w4afp8_llama2_13b_serving_isambard.json"
 )
+FP8_TARGETED_PPL_CONFIG = (
+    PROJECT_ROOT
+    / "configs"
+    / "deployment"
+    / "vllm_w4afp8_fp8_spinquant_llama2_13b_ppl_isambard.json"
+)
+FP8_TARGETED_SERVING_CONFIG = (
+    PROJECT_ROOT
+    / "configs"
+    / "deployment"
+    / "vllm_w4afp8_fp8_spinquant_llama2_13b_serving_isambard.json"
+)
 
 from repro.vllm_w4afp8 import (  # noqa: E402
     EXPECTED_VARIANTS,
@@ -170,6 +182,36 @@ class VllmW4AFP8Tests(unittest.TestCase):
         self.assertIn("VLLM_W4AFP8_SPINQUANT_CHECKPOINT_DIR", text)
         self.assertIn("VLLM_W4AFP8_RESULTS_DIR", text)
         self.assertIn("SPINQUANT_ROTATION_MANIFEST", text)
+
+    def test_quality_and_serving_support_isolated_fp8_targeted_paths(self):
+        ppl_text = (
+            PROJECT_ROOT
+            / "scripts/run_isambard_vllm_w4afp8_llama2_13b_ppl.sbatch"
+        ).read_text(encoding="utf-8")
+        serving_text = (
+            PROJECT_ROOT
+            / "scripts/run_isambard_vllm_w4afp8_llama2_13b_serving.sbatch"
+        ).read_text(encoding="utf-8")
+        self.assertIn("VLLM_W4AFP8_PPL_CONFIG", ppl_text)
+        self.assertIn("VLLM_W4AFP8_SERVING_CONFIG", serving_text)
+        for text in (ppl_text, serving_text):
+            self.assertIn("VLLM_W4AFP8_SPINQUANT_CHECKPOINT_DIR", text)
+            self.assertIn("VLLM_W4AFP8_RESULTS_DIR", text)
+
+    def test_fp8_targeted_downstream_configs_freeze_source_gate(self):
+        for path in (FP8_TARGETED_PPL_CONFIG, FP8_TARGETED_SERVING_CONFIG):
+            config = json.loads(path.read_text(encoding="utf-8"))
+            source_gate = config["source_gate"]
+            self.assertEqual(source_gate["status"], "accepted")
+            self.assertEqual(source_gate["job_id"], "5881273")
+            self.assertEqual(
+                source_gate["result_sha256"],
+                "c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55",
+            )
+            self.assertEqual(
+                source_gate["capability_result_sha256"],
+                "495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62",
+            )
 
     def test_resolved_weight_observer_accepts_minmax_alias_only(self):
         self.assertEqual(
