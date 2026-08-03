@@ -39,7 +39,7 @@ result-gated smoke into an automatically queued formal job.
   layer-0 diagnostic.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
   and matched serving for the INT8-trained transfer and FP8-targeted SpinQuant
-  endpoints, plus the accepted min/max-versus-MSE and transfer-only BoolQ
+  endpoints, plus the accepted min/max-versus-MSE and old/new SpinQuant BoolQ
   diagnostics.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the

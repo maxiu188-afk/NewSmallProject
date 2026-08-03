@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL and matched serving are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint; BoolQ is accepted only for the old transfer | FP8-targeted SpinQuant reached PPL 5.219583 and W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16; rotation adds no material serving speedup over unrotated W4AFP8 |
+| vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
 
@@ -130,15 +130,25 @@ concurrency 1 and 1.385x at concurrency 8, while ready GPU memory fell from
 W4AFP8 by only +0.52% and +0.07%, so acceleration is attributed to W4AFP8
 deployment rather than rotation. The formal serving JSON SHA-256 is
 `a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
-The serving comparison retains BF16 KV cache; FP8 KV and FP8-targeted BoolQ
-remain outside this accepted result. Separately rooted BoolQ revision
-`183bd8f` passed source/data preflight, but initial smoke `5886682` failed
-`1:0` in five seconds before model execution because the immutable dataset
-manifest recorded the original BoolQ config hash. Revision `3639cc4` fixes
-this fail-closed by explicitly freezing that original hash while retaining the
-same revision, fingerprint, examples SHA, and row-count checks. Corrected smoke
-`5886913` is queued with a one-hour limit; formal job `5886914` is queued with
-`afterok:5886913` and a six-hour limit.
+The serving comparison retains BF16 KV cache; FP8 KV remains outside this
+accepted result. Separately rooted BoolQ revision `183bd8f` passed source/data
+preflight, but initial smoke `5886682` failed `1:0` in five seconds before model
+execution because the immutable dataset manifest recorded the original BoolQ
+config hash. Revision `3639cc4` fixes this fail-closed by explicitly freezing
+that original hash while retaining the same revision, fingerprint, examples
+SHA, and row-count checks. Corrected result-gated smoke `5886913` completed
+`0:0` in 4m30s. Dependent formal job `5886914` then completed `0:0` in 7m48s
+through `afterok:5886913`, scoring all 3,270 validation examples: 80.5810%
+BF16, 78.4098% unrotated, 78.5627% QuaRot-style, and 80.2752% FP8-targeted
+SpinQuant. The new endpoint is +1.8654 pp over unrotated, +1.7125 pp over
+QuaRot-style, and -0.3058 pp from BF16. Its formal JSON SHA-256 is
+`8e596efea2aeda06d705188060e06db081dd751f610bbef02002c972943f9a4a`.
+Against the old transfer rotation it gains 0.6728 pp and 22 correct answers,
+but the paired new-only/old-only counts of 174/152 give an exploratory exact
+McNemar p-value of `0.244754`. The accepted old/new serving results differ by
+less than 1% in throughput and end-to-end latency with effectively identical
+ready memory;
+no additional FP8-targeted serving run is needed or planned.
 
 The previously missing serving experiment for the accepted INT8-trained
 rotation transfer is complete. Result-gated service smoke `5882787` completed
@@ -156,8 +166,8 @@ accepted acceleration is attributed to W4AFP8 deployment, not rotation. The
 formal result SHA-256 is
 `df63917675621f891280cf2cf5960e1b394a815f14fd8096125085ea02edae6f`.
 
-The latest accepted diagnostic is formal BoolQ job `5876591`, submitted after
-manual acceptance of smoke `5876321`. It scored all 3,270 validation examples:
+The earlier transfer-only BoolQ diagnostic is formal job `5876591`, submitted
+after manual acceptance of smoke `5876321`. It scored all 3,270 validation examples:
 80.5810% BF16, 78.4098% unrotated W4AFP8, 78.5627% QuaRot-style W4AFP8, and
 79.6024% SpinQuant-transfer W4AFP8. The formal JSON SHA-256 is
 `b278567aae262fdd6f4379d4004817f17faba51fa304077f03dd1479b8bdb824`.

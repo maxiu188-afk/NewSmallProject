@@ -276,10 +276,10 @@ FP8-targeted SpinQuant is 5.219583, versus 5.136105 unrotated and 5.248356
 QuaRot-style. The benchmark completed 512/512 requests with no failures and
 measured 2.486/15.701 requests/s at concurrency 1/8, versus 1.752/11.338 for
 BF16, with ready memory 16,803 versus 34,099 MiB. This accepts core deployment
-quality and acceleration with BF16 KV. It does not establish FP8 KV or an
-FP8-targeted BoolQ result.
+quality and acceleration with BF16 KV. It does not establish FP8 KV; the
+separate FP8-targeted BoolQ diagnostic is recorded below.
 
-The FP8-targeted BoolQ follow-up uses
+The FP8-targeted BoolQ diagnostic uses
 `configs/deployment/vllm_w4afp8_fp8_spinquant_llama2_13b_boolq_isambard.json`
 and the accepted source gate `5881273`. The batch wrapper accepts isolated
 config, SpinQuant-checkpoint, artifact-root, and result-directory overrides.
@@ -308,8 +308,17 @@ SHA, while the new model-source config had a different SHA. Revision `3639cc4`
 adds an explicit `expected_manifest_config_sha256` equal to the recorded
 manifest value; it still verifies dataset revision, fingerprint, examples SHA,
 and row count and rejects any other manifest config hash. Corrected smoke
-`5886913` is queued with a one-hour limit. Formal `5886914` is queued with a
-six-hour limit and `afterok:5886913`.
+`5886913` completed `0:0` in 4m30s with its one-hour limit and passed manual
+review. Formal `5886914` then completed `0:0` in 7m48s with its six-hour limit
+and `afterok:5886913` dependency. Formal accuracy over all 3,270 examples was
+80.5810% BF16, 78.4098% unrotated W4AFP8, 78.5627% QuaRot-style W4AFP8, and
+80.2752% FP8-targeted SpinQuant W4AFP8. The formal result SHA-256 is
+`8e596efea2aeda06d705188060e06db081dd751f610bbef02002c972943f9a4a`.
+Compared with the old transfer endpoint, the new rotation gained 22 correct
+answers, but its paired new-only/old-only counts were 174/152 (`p=0.244754`).
+Accepted old/new serving throughput and p50 E2E differ by less than 1%, so the
+existing benchmark `5884998` closes acceleration evidence and no repeat is
+required.
 
 ## Result boundaries
 
@@ -325,9 +334,10 @@ six-hour limit and `afterok:5886913`.
 - Deployed PPL is not acceleration.
 - Accepted BoolQ smoke `5876321` and formal `5876591` are downstream-quality
   evidence, not PPL or acceleration.
+- Accepted FP8-targeted BoolQ smoke `5886913` and formal `5886914` are likewise
+  downstream-quality evidence, not PPL or acceleration.
 - Acceleration requires the matched full-model service result plus the selected
   W4AFP8 kernel pattern in every quantized server log.
 - The initial SpinQuant checkpoint remains labelled `INT8-trained rotation
   transfer to W4AFP8`. The separately named FP8-targeted rotation has passed
-  export, PPL, and serving gates. BoolQ remains required only before making a
-  downstream-task claim for that endpoint.
+  export, PPL, serving, and BoolQ gates. FP8 KV remains untested.

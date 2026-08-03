@@ -206,8 +206,13 @@ every quantized case. FP8-targeted SpinQuant improved request throughput by
 1.42x at concurrency 1 and 1.385x at concurrency 8 versus BF16 while reducing
 ready GPU memory from 34,099 to 16,803 MiB. It remained effectively tied with
 unrotated W4AFP8 in serving, so this is backend acceleration rather than a
-rotation-specific speedup. The result retains BF16 KV; FP8-targeted BoolQ and
-FP8 KV are not claimed.
+rotation-specific speedup. FP8-targeted BoolQ formal job `5886914` also passed:
+the new endpoint reached 80.2752%, compared with 79.6024% for the old transfer,
+78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16. Its 0.6728 pp
+gain over the old rotation was not significant in the paired comparison
+(`p=0.244754`). Because accepted old/new serving throughput and p50 E2E differ
+by less than 1%, no repeat new-rotation acceleration experiment is planned.
+The result retains BF16 KV; FP8 KV is not claimed.
 
 The remaining Route B quality boundary is downstream-task or broader generation
 evaluation; deployed-checkpoint WikiText-2 PPL is complete. Results from Routes

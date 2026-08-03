@@ -158,10 +158,10 @@ deployment acceleration, but it does not establish an additional acceleration
 effect from rotation itself.
 
 The SpinQuant checkpoint remains an INT8-trained rotation transfer to W4AFP8,
-not an FP8-targeted learned endpoint. Its slightly better PPL than QuaRot does
-not show that FP8-targeted SpinQuant training is complete.
+not an FP8-targeted learned endpoint. Its result is retained as the old-rotation
+baseline for the separately accepted FP8-targeted endpoint below.
 
-## Accepted BoolQ downstream diagnostic
+## Accepted transfer-only BoolQ downstream diagnostic
 
 Smoke job `5876321` completed `0:0` and was reviewed before formal job
 `5876591` was submitted through `afterok:5876321`. The formal run evaluated all
@@ -316,11 +316,52 @@ The formal JSON SHA-256 is
 `a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
 
 Together, formal PPL `5884996` and formal serving `5884998` complete the
-FP8-targeted endpoint's core deployment acceptance. BoolQ remains unmeasured
-for this endpoint, and FP8 KV was not used or claimed. Result-gated BoolQ smoke
-`5886682` was subsequently submitted from clean revision `183bd8f`, but failed
-before model execution because the frozen dataset manifest named the original
-BoolQ config hash. Corrected revision `3639cc4` explicitly accepts only that
-recorded hash while preserving all dataset revision, fingerprint, example SHA,
-and row-count checks. Replacement smoke `5886913` and dependent formal job
-`5886914` are queued through `afterok:5886913`; neither has produced a result.
+FP8-targeted endpoint's core deployment acceptance. FP8 KV was not used or
+claimed. Result-gated BoolQ smoke `5886682` was subsequently submitted from
+clean revision `183bd8f`, but failed before model execution because the frozen
+dataset manifest named the original BoolQ config hash. Corrected revision
+`3639cc4` explicitly accepts only that recorded hash while preserving all
+dataset revision, fingerprint, example SHA, and row-count checks.
+
+### Accepted FP8-targeted BoolQ downstream diagnostic
+
+Corrected smoke `5886913` completed `0:0` in 4m30s and passed review. Formal
+job `5886914` then completed `0:0` in 7m48s through `afterok:5886913`. It
+evaluated the same 3,270 examples and 6,540 choice requests per model as the
+old-transfer diagnostic.
+
+| Model | Correct | Accuracy | Delta vs unrotated |
+|---|---:|---:|---:|
+| BF16 | 2,635 / 3,270 | 80.5810% | +2.1713 pp |
+| Unrotated W4AFP8 | 2,564 / 3,270 | 78.4098% | baseline |
+| QuaRot-style W4AFP8 | 2,569 / 3,270 | 78.5627% | +0.1529 pp |
+| FP8-targeted SpinQuant W4AFP8 | 2,625 / 3,270 | 80.2752% | +1.8654 pp |
+
+FP8-targeted SpinQuant gains 61 correct answers over unrotated and 56 over
+QuaRot-style. Paired prediction comparisons give new-only/other-only counts of
+223/162 versus unrotated (exact McNemar `p=0.00218795`) and 174/118 versus
+QuaRot-style (`p=0.00124947`). It remains 10 correct answers and 0.3058 pp
+below BF16; the paired 163/173 discordance is not significant (`p=0.623499`).
+
+Compared with the old INT8-trained transfer rotation, the FP8-targeted endpoint
+improves BoolQ by 22 correct answers and 0.6728 pp. The paired new-only/old-only
+counts are 174/152 (`p=0.244754`), so this old/new improvement is not
+statistically significant at the conventional 0.05 level. Its PPL is also only
+0.010572 (0.2021%) lower than the old transfer. On serving, the new endpoint is
+0.80%/0.48% slower in request throughput and 0.79%/0.57% higher in p50 E2E at
+concurrency 1/8, with effectively identical ready memory. These sub-1%
+differences are treated as run-to-run equivalence, not a rotation effect;
+accepted benchmark `5884998` is sufficient and no repeated new-rotation
+acceleration experiment is planned.
+
+The smoke and formal JSON SHA-256 values are respectively
+`1aeadb5307a328b15f80eb7377afa4012495b92e3dcd50a347e40cc08e90135a`
+and `8e596efea2aeda06d705188060e06db081dd751f610bbef02002c972943f9a4a`.
+The formal result records project revision
+`3639cc4902297ba1c801824ce4c9e9aaecee9897`, config SHA-256
+`78c7b9b578cb3cba116340a8947d73fa77051ebed23d931d24b7fd30cc7f5b15`,
+dataset-manifest SHA-256
+`66b7a80e9ef1df7d3bd1f07a111824bffcccff56b1ff47c4d9e81afebd1146d5`,
+and examples SHA-256
+`475e56b71939a8e3db8be48bcc4d344569b36cc660f4086c9ae15858d46a297f`.
+This remains downstream quality evidence, not serving-acceleration evidence.

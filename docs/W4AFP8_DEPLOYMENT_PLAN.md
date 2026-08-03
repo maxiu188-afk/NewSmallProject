@@ -36,7 +36,11 @@ result. The active order is now fixed:
    export/load source gate `5881273`; downstream revision `318bac2` completed
    runnability-only PPL smoke `5884993` -> accepted formal `5884996` and service
    smoke `5884997` -> accepted benchmark `5884998`, while the accepted transfer
-   artifacts remain unchanged. FP8-targeted BoolQ is a separate follow-up.
+   artifacts remain unchanged;
+8. retain corrected FP8-targeted BoolQ revision `3639cc4`, accepted result-gated
+   smoke `5886913`, and accepted formal `5886914` over all 3,270 examples. The
+   old/new serving comparison is already within 1%, so do not schedule another
+   FP8-targeted acceleration run.
 
 The W4AFP8 checkout and artifacts remain isolated from the SpinQuant fake-quant
 redo. Within W4AFP8, the scheduler dependency gates allocation only: the
@@ -245,5 +249,12 @@ completed `0:0`; all 512/512 benchmark requests succeeded, every quantized
 case selected CUTLASS, and FP8-targeted SpinQuant reached 1.42x/1.385x BF16
 request throughput with 50.7% lower ready GPU memory. Its performance was
 effectively tied with unrotated W4AFP8, so no rotation-specific acceleration
-is claimed. This closes the required PPL-plus-serving package with BF16 KV;
-FP8-targeted BoolQ and FP8 KV remain outside the accepted result.
+is claimed. This closes the required PPL-plus-serving package with BF16 KV.
+Corrected FP8-targeted BoolQ smoke `5886913` and formal `5886914` also
+completed `0:0`; the new endpoint reached 80.2752%, versus 79.6024% for the old
+transfer, 78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16. The
+old/new gain is 0.6728 pp, but paired discordance of 174/152 gives `p=0.244754`.
+Serving throughput and p50 E2E differ by less than 1% between the old and new
+rotation benchmarks, with effectively identical ready memory, so `5884998` is
+the terminal serving record and no repeat acceleration experiment is planned.
+FP8 KV remains outside the accepted result.
