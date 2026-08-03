@@ -16,6 +16,12 @@ EXPORT_CONFIG = (
     / "deployment"
     / "vllm_w4afp8_llama2_13b_isambard.json"
 )
+FP8_TARGETED_EXPORT_CONFIG = (
+    PROJECT_ROOT
+    / "configs"
+    / "deployment"
+    / "vllm_w4afp8_fp8_spinquant_llama2_13b_isambard.json"
+)
 PPL_CONFIG = (
     PROJECT_ROOT
     / "configs"
@@ -122,6 +128,7 @@ class VllmW4AFP8Tests(unittest.TestCase):
             PROJECT_ROOT
             / "scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch"
         ).read_text(encoding="utf-8")
+        self.assertIn("#SBATCH --time=06:00:00", text)
         self.assertIn('variant_set="${1:-}"', text)
         self.assertIn("{quarot|spinquant|joint}", text)
         self.assertIn("--variant-set", text)
@@ -140,6 +147,29 @@ class VllmW4AFP8Tests(unittest.TestCase):
         self.assertEqual(config["quantization"]["weight_observer"], "minmax")
         self.assertFalse(config["quantization"]["weight_clipping"])
         self.assertFalse(config["kernel"]["runtime_g_idx"])
+
+    def test_fp8_targeted_export_config_freezes_accepted_rotation(self):
+        config = json.loads(FP8_TARGETED_EXPORT_CONFIG.read_text(encoding="utf-8"))
+        validate_export_config(config)
+        rotation = config["rotation"]
+        self.assertEqual(rotation["spinquant_training_job_id"], "5876984")
+        self.assertEqual(
+            rotation["spinquant_evidence_label"],
+            "W16AFP8_FP8_targeted_rotation_to_W4AFP8",
+        )
+        self.assertEqual(len(rotation["spinquant_training_result_sha256"]), 64)
+        self.assertEqual(len(rotation["spinquant_rotation_manifest_sha256"]), 64)
+        self.assertEqual(len(rotation["spinquant_rotation_safetensors_sha256"]), 64)
+
+    def test_gate_supports_isolated_fp8_targeted_paths(self):
+        text = (
+            PROJECT_ROOT
+            / "scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch"
+        ).read_text(encoding="utf-8")
+        self.assertIn("VLLM_W4AFP8_CONFIG", text)
+        self.assertIn("VLLM_W4AFP8_SPINQUANT_CHECKPOINT_DIR", text)
+        self.assertIn("VLLM_W4AFP8_RESULTS_DIR", text)
+        self.assertIn("SPINQUANT_ROTATION_MANIFEST", text)
 
     def test_resolved_weight_observer_accepts_minmax_alias_only(self):
         self.assertEqual(

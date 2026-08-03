@@ -17,7 +17,10 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from repro.qdq import qdq_last_axis
-from repro.spinquant.activation_qdq import ste_spinquant_activation_qdq
+from repro.spinquant.activation_qdq import (
+    ste_spinquant_activation_qdq,
+    ste_spinquant_fp8_activation_qdq,
+)
 from repro.spinquant.rotations import SpinQuantRotations
 from repro.torch_smoke import UnitRMSNorm
 
@@ -30,6 +33,7 @@ class SpinQuantFakeQuantSpec:
     activation_bits: int = 16
     weight_group_size: int = -1
     weight_symmetric: bool = True
+    activation_type: str = "int"
     activation_symmetric: bool = False
     activation_o_proj_group_size: int = -1
     quantize_lm_head: bool = False
@@ -50,6 +54,15 @@ class SpinQuantFakeQuantSpec:
             raise ValueError(
                 "activation_o_proj_group_size must be -1 or positive"
             )
+        if self.activation_type not in {"int", "float"}:
+            raise ValueError("activation_type must be int or float")
+        if self.activation_type == "float":
+            if self.activation_bits != 8:
+                raise ValueError("float activations require activation_bits=8")
+            if not self.activation_symmetric:
+                raise ValueError("FP8 activations require symmetric scaling")
+            if self.activation_o_proj_group_size != -1:
+                raise ValueError("FP8 activations require ungrouped per-token scaling")
 
 
 def ste_qdq(
@@ -266,17 +279,20 @@ class SpinQuantLinear(nn.Module):
     def forward(self, values: Tensor) -> Tensor:
         quantize_activation = self.role != "lm_head"
         if quantize_activation:
-            group_size = (
-                self.spec.activation_o_proj_group_size
-                if self.role == "o_writer"
-                else -1
-            )
-            values = ste_spinquant_activation_qdq(
-                values,
-                self.spec.activation_bits,
-                symmetric=self.spec.activation_symmetric,
-                group_size=group_size,
-            )
+            if self.spec.activation_type == "float":
+                values = ste_spinquant_fp8_activation_qdq(values)
+            else:
+                group_size = (
+                    self.spec.activation_o_proj_group_size
+                    if self.role == "o_writer"
+                    else -1
+                )
+                values = ste_spinquant_activation_qdq(
+                    values,
+                    self.spec.activation_bits,
+                    symmetric=self.spec.activation_symmetric,
+                    group_size=group_size,
+                )
         return F.linear(values, self._transformed_weight(), self._transformed_bias())
 
 
@@ -410,6 +426,10 @@ def apply_spinquant_llama_training_adapter(
         "tied_embeddings_retained_as_shared_frozen_weight": tied_embeddings,
         "weight_bits": spec.weight_bits,
         "activation_bits": spec.activation_bits,
+        "activation_type": spec.activation_type,
+        "activation_dtype": (
+            "float8_e4m3fn" if spec.activation_type == "float" else "integer"
+        ),
         "activation_o_proj_group_size": spec.activation_o_proj_group_size,
         "activation_ungrouped_include_zero": True,
         "weight_group_size": spec.weight_group_size,
@@ -417,9 +437,13 @@ def apply_spinquant_llama_training_adapter(
             "floating_qdq_with_ste" if spec.weight_bits < 16 else "unquantized"
         ),
         "activation_runtime_form": (
-            "floating_qdq_with_ste"
-            if spec.activation_bits < 16
-            else "unquantized"
+            "vllm_dynamic_per_token_fp8_e4m3fn_qdq_with_ste"
+            if spec.activation_type == "float"
+            else (
+                "floating_qdq_with_ste"
+                if spec.activation_bits < 16
+                else "unquantized"
+            )
         ),
         "activation_granularity": (
             "per_token_last_axis_o_proj_grouped"

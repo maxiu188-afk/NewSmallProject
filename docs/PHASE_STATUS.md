@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed quality accepted on GH200: PPL smoke 5874806 and formal job 5874807 completed `0:0`; an isolated min/max-versus-MSE diagnostic is queued as gate 5875320 and dependent smoke 5875322 | Accepted PPL remains BF16 5.007820, unrotated 5.136105, QuaRot-style 5.248356, and SpinQuant-transfer 5.230155 over 331,614 targets. The MSE diagnostic has no result yet and its formal task is intentionally not submitted; matched serving also remains untested |
+| vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
 
@@ -62,18 +62,22 @@ was 5.007820 BF16, 5.136105 unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8,
 and 5.230155 SpinQuant-transfer W4AFP8. Both rotations were worse than the
 matched unrotated control; SpinQuant-transfer was slightly better than
 QuaRot-style. See [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md). The deployed-quality
-half is complete, while matched serving remains required.
+result is paired with accepted matched serving benchmark `5883004`.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
 To isolate why the backend-compatible unrotated GPTQ checkpoint outperformed
 the QuaRot-style checkpoint, revision `6f609b0` adds a matched MSE-clipping
 diagnostic without replacing the accepted min/max artifacts. Gate `5875320`
-and smoke `5875322` are queued, with smoke constrained by
-`afterok:5875320`. Formal is not submitted: the smoke logs and JSON must first
-be reviewed for source revision, observer metadata, packed coverage, absence
-of runtime `g_idx`, and fixed token counts. Until then, this is planned
-diagnostic evidence rather than a new accuracy result.
+and smoke `5875322` completed `0:0`, with smoke constrained by
+`afterok:5875320`. Review accepted the source revision, observer metadata,
+packed coverage, absence of runtime `g_idx`, fixed token counts, and artifact
+hashes. Formal job `5875865` was then submitted through
+`afterok:5875322` and completed `0:0` in 7m02s. Over 331,614 targets, MSE
+PPL was 5.163774 unrotated and 5.216687 QuaRot-style. The matched min/max PPL
+was 5.136105 and 5.248356, so MSE reduced the rotation gap by 52.8622% without
+changing the winner. The accepted four-model deployment result above remains
+unchanged.
 
 The W4AFP8 **formal deployment result is a two-part evidence package**, not a
 performance-only benchmark. Accuracy must be measured from the packed
@@ -87,13 +91,96 @@ or formal serving evidence is missing.
 
 ## Latest accepted result
 
-The latest accepted result is formal deployed-checkpoint W4AFP8 PPL job
-`5874807`. It scored 331,614 retained WikiText-2 targets for each of BF16,
-unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant-transfer W4AFP8. PPL was
-5.007820, 5.136105, 5.248356, and 5.230155 respectively. The formal result
-SHA-256 is
-`78a81dcdb17d8393247abd65d2f7e00b030e78817dc6d8b0699a8c15e48481f3`.
-This is accepted deployed-quality evidence, not serving acceleration.
+FP8-targeted SpinQuant formal training job `5876984` completed `0:0` in
+2h10m04s and is accepted as rotation-training evidence. It recorded 100 finite
+losses and 100 non-zero gradient maxima over 800 x 2048 calibration tokens.
+Training R1/R2 orthogonality errors were `1.7285e-6` and `5.9605e-7`; the
+rotation SafeTensors SHA-256 is
+`383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
+This does not by itself establish W4AFP8 quality or acceleration. Isolated
+source gate `5881273` completed `0:0` in 54m02s from clean revision `60aa629`
+without replacing the accepted INT8-transfer artifacts. It is accepted for
+export/load correctness: all three W4AFP8 checkpoints contain 280 packed
+decoder linears, use group-128 min/max W4 with dynamic per-token FP8 inputs,
+have no runtime `g_idx`, load through the CUTLASS W4AFP8 kernel, and reproduce
+the same eight greedy tokens as BF16. The joint result SHA-256 is
+`c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55`.
+Its wall-time limit had been reduced in place from 24 hours to 6 hours without
+cancellation or resubmission.
+
+Revision `318bac2` freezes that accepted source gate into separate downstream
+PPL and serving configurations. Runnability-only PPL smoke `5884993` completed
+`0:0` in 7m00s, and formal PPL `5884996` completed `0:0` in 5m18s through
+`afterok:5884993`. Over 331,614 scored targets, PPL was 5.007820 BF16,
+5.136105 unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8, and 5.219583
+FP8-targeted SpinQuant W4AFP8. The new SpinQuant endpoint improves on QuaRot
+by 0.028773 PPL and on the old transfer endpoint by 0.010572 PPL, but remains
+0.083478 PPL (1.6253%) worse than the matched unrotated control. The formal
+PPL JSON SHA-256 is
+`9f17bc86ee664960400dd26f2182ceef72d76dce0a1b75f055331074a7ff7e0a`.
+
+Runnability-only service smoke `5884997` completed `0:0` in 8m31s, and formal
+serving benchmark `5884998` completed `0:0` in 18m47s through
+`afterok:5884997`. All eight model/concurrency groups completed 64/64 requests
+with zero failures; all six quantized logs selected
+`CutlassW4A8LinearKernel`, and every server recovered to 1--3 MiB. For the
+FP8-targeted SpinQuant endpoint, request throughput was 1.42x BF16 at
+concurrency 1 and 1.385x at concurrency 8, while ready GPU memory fell from
+34,099 MiB to 16,803 MiB (50.7%). Its throughput differed from unrotated
+W4AFP8 by only +0.52% and +0.07%, so acceleration is attributed to W4AFP8
+deployment rather than rotation. The formal serving JSON SHA-256 is
+`a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
+The serving comparison retains BF16 KV cache; FP8 KV remains outside this
+accepted result. Separately rooted BoolQ revision `183bd8f` passed source/data
+preflight, but initial smoke `5886682` failed `1:0` in five seconds before model
+execution because the immutable dataset manifest recorded the original BoolQ
+config hash. Revision `3639cc4` fixes this fail-closed by explicitly freezing
+that original hash while retaining the same revision, fingerprint, examples
+SHA, and row-count checks. Corrected result-gated smoke `5886913` completed
+`0:0` in 4m30s. Dependent formal job `5886914` then completed `0:0` in 7m48s
+through `afterok:5886913`, scoring all 3,270 validation examples: 80.5810%
+BF16, 78.4098% unrotated, 78.5627% QuaRot-style, and 80.2752% FP8-targeted
+SpinQuant. The new endpoint is +1.8654 pp over unrotated, +1.7125 pp over
+QuaRot-style, and -0.3058 pp from BF16. Its formal JSON SHA-256 is
+`8e596efea2aeda06d705188060e06db081dd751f610bbef02002c972943f9a4a`.
+Against the old transfer rotation it gains 0.6728 pp and 22 correct answers,
+but the paired new-only/old-only counts of 174/152 give an exploratory exact
+McNemar p-value of `0.244754`. The accepted old/new serving results differ by
+less than 1% in throughput and end-to-end latency with effectively identical
+ready memory;
+no additional FP8-targeted serving run is needed or planned.
+
+The previously missing serving experiment for the accepted INT8-trained
+rotation transfer is complete. Result-gated service smoke `5882787` completed
+`0:0` in 8m09s and is accepted: all four endpoints succeeded, all generated
+texts matched, GPU memory recovered after shutdown, and all three quantized
+logs selected `CutlassW4A8LinearKernel`. Its result SHA-256 is
+`d3acdc424cd6796700a9ad937ceb26efca735a9a07adfed1b645a1403d09af7c`.
+Benchmark formal `5883004` was then submitted from the same frozen revision
+`ad971f9` and completed `0:0` in 19m48s. All eight model/concurrency groups
+completed 64/64 requests with zero failures. The three W4AFP8 checkpoints cut
+ready GPU memory from 34,099 MiB to 16,803--16,805 MiB and improved request
+throughput by 1.42x at concurrency 1 and 1.39--1.40x at concurrency 8 versus
+BF16. QuaRot and SpinQuant were effectively tied with unrotated W4AFP8, so the
+accepted acceleration is attributed to W4AFP8 deployment, not rotation. The
+formal result SHA-256 is
+`df63917675621f891280cf2cf5960e1b394a815f14fd8096125085ea02edae6f`.
+
+The earlier transfer-only BoolQ diagnostic is formal job `5876591`, submitted
+after manual acceptance of smoke `5876321`. It scored all 3,270 validation examples:
+80.5810% BF16, 78.4098% unrotated W4AFP8, 78.5627% QuaRot-style W4AFP8, and
+79.6024% SpinQuant-transfer W4AFP8. The formal JSON SHA-256 is
+`b278567aae262fdd6f4379d4004817f17faba51fa304077f03dd1479b8bdb824`.
+This is downstream quality evidence, not serving-acceleration evidence.
+
+The accepted min/max-versus-MSE job `5875865` remains the latest observer
+diagnostic.
+It scored 331,614 retained WikiText-2 targets per model and confirmed that MSE
+clipping improves QuaRot PPL from 5.248356 to 5.216687 while worsening the
+unrotated control from 5.136105 to 5.163774. Its formal result SHA-256 is
+`c6e0d88b06f27c6147c069db4f7b06e479ab9566348aa28e9cd7953ba97cbbdf`.
+The primary four-model deployed-quality result remains job `5874807`, including
+SpinQuant-transfer; neither result is serving-acceleration evidence.
 
 The Isambard evidence chain is complete through Llama-2-13B offline inference,
 OpenAI-compatible service smoke, matched full-model serving, and the dependent

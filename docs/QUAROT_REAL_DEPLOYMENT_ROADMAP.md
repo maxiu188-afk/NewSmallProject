@@ -6,7 +6,7 @@ The completed deliverable contains two separate QuaRot evidence tracks. The
 official-backend track reproduces upstream QuaRot W4A4 execution. The serving
 track combines only offline-fusible QuaRot rotations with a low-bit format
 natively supported by stable vLLM; it is reported as **QuaRot-style**, not as
-original QuaRot W4A4. A third, planned W4AFP8 route will compare QuaRot-style
+original QuaRot W4A4. A third, completed W4AFP8 route compares QuaRot-style
 and SpinQuant offline rotations under one GH200 deployment protocol.
 
 The existing owned W4A8 correctness kernel remains useful evidence that all
@@ -15,7 +15,7 @@ smoke reduced peak allocated memory from about 26.2 GB to 7.4--7.5 GB but was
 slower than BF16, so it is no longer the default deployment backend. No new
 full CUDA kernel was developed for the completed routes. SpinQuant is excluded
 from those completed QuaRot results, but is included as a separately named
-method in the planned W4AFP8 comparison.
+method in the completed W4AFP8 comparison.
 
 ## Feasibility decisions from the current repository
 
@@ -93,16 +93,16 @@ Current references:
 
 ### Route C: joint hardware-aligned W4AFP8 extension
 
-Route C is planned but not started. It begins only after the current SpinQuant
-`no_had` W4A8 fake-quant dependency chain is complete and accepted. It will
-export four matched Llama-2-13B cases: BF16, unrotated W4AFP8, QuaRot-style
-W4AFP8, and SpinQuant W4AFP8. All rotations remain offline; KV cache and
-non-linear components remain 16-bit for the first study.
+Route C is complete on Isambard GH200. It exported four matched Llama-2-13B
+cases: BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant W4AFP8. The
+old SpinQuant checkpoint transfers an INT8-trained rotation; the separately
+rooted endpoint uses FP8-targeted rotation training. All rotations remain
+offline, and KV cache plus non-linear components remain 16-bit in this study.
 
-This route must prove the selected Hopper W4AFP8 kernel, then measure both
+This route proves the selected Hopper W4AFP8 kernel and measures both
 deployed-checkpoint WikiText-2 PPL and full-model service performance. Existing
-INT8 W4A8 fake-quant numbers cannot be used as FP8 accuracy evidence. The
-complete dependency, export, quality, serving, and acceptance gates are frozen
+INT8 W4A8 fake-quant numbers are not used as FP8 accuracy evidence. The
+complete dependency, export, quality, serving, and acceptance record is frozen
 in [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md).
 
 ## Execution gates
@@ -197,6 +197,22 @@ The dependent eager-mode layer-0 diagnostic found a 74.2% parameter-byte
 reduction, while median speed ranged from 0.96x to 1.05x versus BF16 depending
 on shape. It confirms execution of the real packed vLLM layer but does not
 replace the compiled full-model result.
+
+Route C has also completed on Isambard GH200. For the FP8-targeted endpoint,
+formal deployed PPL was 5.219583, compared with 5.007820 BF16, 5.136105
+unrotated W4AFP8, and 5.248356 QuaRot-style W4AFP8. Matched serving completed
+512/512 requests with zero failures and selected the CUTLASS W4AFP8 kernel in
+every quantized case. FP8-targeted SpinQuant improved request throughput by
+1.42x at concurrency 1 and 1.385x at concurrency 8 versus BF16 while reducing
+ready GPU memory from 34,099 to 16,803 MiB. It remained effectively tied with
+unrotated W4AFP8 in serving, so this is backend acceleration rather than a
+rotation-specific speedup. FP8-targeted BoolQ formal job `5886914` also passed:
+the new endpoint reached 80.2752%, compared with 79.6024% for the old transfer,
+78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16. Its 0.6728 pp
+gain over the old rotation was not significant in the paired comparison
+(`p=0.244754`). Because accepted old/new serving throughput and p50 E2E differ
+by less than 1%, no repeat new-rotation acceleration experiment is planned.
+The result retains BF16 KV; FP8 KV is not claimed.
 
 The remaining Route B quality boundary is downstream-task or broader generation
 evaluation; deployed-checkpoint WikiText-2 PPL is complete. Results from Routes

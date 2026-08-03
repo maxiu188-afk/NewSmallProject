@@ -5,6 +5,27 @@ Start with the documents in **Current status and results**. Material under
 [`archive/`](archive/README.md) is retained for provenance and reproduction,
 but it is not the current project plan.
 
+## Slurm smoke submission rule
+
+Classify every smoke before submitting its formal job:
+
+1. **Result-gated smoke:** if formal submission requires reading or accepting
+   the smoke JSON, logs, numerical values, hashes, or artifacts, submit only
+   the smoke. Do not prequeue formal. Wait for the user to report completion,
+   then review the result and submit formal only after acceptance. If Slurm no
+   longer accepts the completed smoke as a dependency, use a read-only
+   acceptance job when the formal wrapper requires `afterok`; never rerun the
+   same smoke merely to recreate a scheduler dependency.
+2. **Runnability-only smoke:** if the smoke only proves that the fixed job can
+   execute and formal does not require a separate result decision, submit
+   smoke and formal together with `formal --dependency=afterok:<smoke-job>`.
+   Do not continuously monitor the smoke.
+
+The presence of an `afterok` option does not determine the category. The
+controlling question is whether a smoke result must be inspected before formal
+is authorized. Record the category in the relevant runbook and never convert a
+result-gated smoke into an automatically queued formal job.
+
 ## Current status and results
 
 - [`PHASE_STATUS.md`](PHASE_STATUS.md): concise current state, latest accepted
@@ -17,23 +38,23 @@ but it is not the current project plan.
   deployed-checkpoint PPL, full-model serving result, and same-environment
   layer-0 diagnostic.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
-  for BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant transfer, plus
-  the explicitly pending min/max-versus-MSE observer diagnostic.
+  and matched serving for the INT8-trained transfer and FP8-targeted SpinQuant
+  endpoints, plus the accepted min/max-versus-MSE and old/new SpinQuant BoolQ
+  diagnostics.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the
   corrected no-had W4A8 deployment boundary.
 - [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): independent SpinQuant fake-quant
   implementation status, clean-room boundary, W4A8 migration assessment, and
   staged reproduction plan.
-- [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): active joint
-  QuaRot/SpinQuant GH200 deployment plan; deployed-checkpoint quality is
-  accepted, the MSE diagnostic formal task is blocked on smoke review, and
-  matched full-model acceleration remains.
+- [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): completed joint
+  QuaRot/SpinQuant GH200 deployment plan, including FP8-targeted PPL and matched
+  full-model serving acceptance.
 - [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md): isolated local
-  preparation, accepted GH200 export/PPL evidence, and remaining serving
-  procedure.
+  preparation and accepted GH200 export, PPL, downstream-diagnostic, and
+  serving evidence.
 - [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md):
-  completed QuaRot routes plus the planned joint W4AFP8 extension.
+  completed QuaRot routes plus the completed joint W4AFP8 extension.
 - [`QUAROT_PROGRESS_REPORT_ZH.tex`](QUAROT_PROGRESS_REPORT_ZH.tex): concise
   Chinese progress report for XeLaTeX/Overleaf.
 

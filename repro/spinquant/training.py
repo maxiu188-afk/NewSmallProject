@@ -7,6 +7,10 @@ from typing import Any, Dict, Mapping, Sequence, Tuple
 import torch
 from torch import Tensor, nn
 
+from repro.spinquant.activation_qdq import (
+    FP8_E4M3FN_MAX,
+    FP8_MIN_SCALING_FACTOR,
+)
 from repro.spinquant.llama_adapter import (
     SpinQuantFakeQuantSpec,
     apply_spinquant_llama_training_adapter,
@@ -19,9 +23,10 @@ def _validate_rotation_objective(quantization: Mapping[str, Any]) -> str:
     """Validate the quantized network used to learn the rotations."""
 
     objective = str(quantization.get("rotation_objective", ""))
-    if objective not in {"weight_qdq", "activation_qdq"}:
+    if objective not in {"weight_qdq", "activation_qdq", "fp8_activation_qdq"}:
         raise ValueError(
-            "quantization.rotation_objective must be weight_qdq or activation_qdq"
+            "quantization.rotation_objective must be weight_qdq, activation_qdq, "
+            "or fp8_activation_qdq"
         )
     weight_bits = int(quantization["weight_bits"])
     activation_bits = int(quantization["activation_bits"])
@@ -51,6 +56,48 @@ def _validate_rotation_objective(quantization: Mapping[str, Any]) -> str:
             raise ValueError(
                 "paper-aligned activation_qdq must include zero in ungrouped ranges"
             )
+    if objective == "fp8_activation_qdq":
+        if weight_bits != 16 or activation_bits != 8:
+            raise ValueError(
+                "fp8_activation_qdq requires 16-bit weights and 8-bit activations"
+            )
+        if str(quantization.get("activation_type", "")) != "float":
+            raise ValueError("fp8_activation_qdq requires activation_type=float")
+        if str(quantization.get("activation_dtype", "")) != "float8_e4m3fn":
+            raise ValueError(
+                "fp8_activation_qdq requires activation_dtype=float8_e4m3fn"
+            )
+        if not bool(quantization.get("activation_dynamic", False)):
+            raise ValueError("fp8_activation_qdq requires dynamic activation scales")
+        if str(quantization.get("activation_strategy", "")) != "token":
+            raise ValueError("fp8_activation_qdq requires strategy=token")
+        if not bool(quantization.get("activation_symmetric", False)):
+            raise ValueError("fp8_activation_qdq requires symmetric activation scales")
+        if bool(quantization.get("activation_clipping", False)):
+            raise ValueError("fp8_activation_qdq does not support activation clipping")
+        if int(quantization.get("activation_o_proj_group_size", -1)) != -1:
+            raise ValueError(
+                "fp8_activation_qdq requires ungrouped per-token o_proj inputs"
+            )
+        if str(quantization.get("activation_granularity", "")) != (
+            "per_token_last_axis"
+        ):
+            raise ValueError(
+                "fp8_activation_qdq requires per_token_last_axis granularity"
+            )
+        if str(quantization.get("activation_scale_dtype", "")) != "float32":
+            raise ValueError("fp8_activation_qdq requires float32 scales")
+        if float(quantization.get("activation_maximum", 0.0)) != FP8_E4M3FN_MAX:
+            raise ValueError("fp8_activation_qdq requires an FP8 maximum of 448")
+        minimum_scale = float(quantization.get("activation_minimum_scale", 0.0))
+        if abs(minimum_scale - FP8_MIN_SCALING_FACTOR) > 1e-15:
+            raise ValueError(
+                "fp8_activation_qdq minimum scale does not match vLLM QuantFP8"
+            )
+        if str(quantization.get("runtime_form", "")) != (
+            "vllm_dynamic_per_token_fp8_e4m3fn_qdq_with_ste"
+        ):
+            raise ValueError("fp8_activation_qdq runtime form is not frozen")
     return objective
 
 
@@ -99,6 +146,7 @@ def train_llama_rotations(
             activation_bits=int(quantization["activation_bits"]),
             weight_group_size=int(quantization["weight_group_size"]),
             weight_symmetric=bool(quantization["weight_symmetric"]),
+            activation_type=str(quantization.get("activation_type", "int")),
             activation_symmetric=bool(quantization["activation_symmetric"]),
             activation_o_proj_group_size=int(
                 quantization.get("activation_o_proj_group_size", -1)

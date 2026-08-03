@@ -64,6 +64,45 @@ class ActivationAuditTests(unittest.TestCase):
         grouped_error = (grouped[..., 128:] - values[..., 128:]).square().sum()
         self.assertLess(grouped_error.item(), full_error.item())
 
+    def test_fp8_qdq_matches_vllm_native_reference(self):
+        import torch
+
+        from repro.spinquant.activation_qdq import (
+            FP8_E4M3FN_MAX,
+            FP8_MIN_SCALING_FACTOR,
+            spinquant_fp8_activation_qdq,
+        )
+
+        values = torch.tensor(
+            [
+                [[0.0, 0.0, 0.0, 0.0], [1.0, -0.5, 0.125, -2.0]],
+                [[448.0, -448.0, 0.01, -0.01], [1.0e-8, -1.0e-8, 0.0, 0.0]],
+            ],
+            dtype=torch.float32,
+        )
+        maximum = values.abs().amax(dim=-1, keepdim=True).to(torch.float32)
+        scale = (maximum / FP8_E4M3FN_MAX).clamp(
+            min=FP8_MIN_SCALING_FACTOR
+        )
+        reference = (
+            (values.float() * scale.reciprocal())
+            .clamp(-FP8_E4M3FN_MAX, FP8_E4M3FN_MAX)
+            .to(torch.float8_e4m3fn)
+            .float()
+            * scale
+        ).to(values.dtype)
+
+        self.assertTrue(torch.equal(spinquant_fp8_activation_qdq(values), reference))
+
+    def test_fp8_qdq_ste_has_identity_gradient(self):
+        import torch
+
+        from repro.spinquant.activation_qdq import ste_spinquant_fp8_activation_qdq
+
+        values = torch.tensor([[0.125, -0.5, 1.0, -2.0]], requires_grad=True)
+        ste_spinquant_fp8_activation_qdq(values).sum().backward()
+        self.assertTrue(torch.equal(values.grad, torch.ones_like(values)))
+
     def test_collector_observes_all_seven_linears_per_layer(self):
         import torch
 

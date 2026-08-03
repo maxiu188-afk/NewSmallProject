@@ -276,3 +276,70 @@ deployment checkout and artifacts. The later joint W4AFP8 deployment work can
 reuse the accepted vLLM process and provenance gates without modifying the
 completed QuaRot evidence, but it cannot reuse W4A16 or INT8 W4A8 fake-quant
 results as W4AFP8 accuracy evidence.
+
+## FP8-targeted rotation training
+
+The accepted W4AFP8 BoolQ diagnostic showed that the existing INT8-trained
+rotation transfers usefully: SpinQuant-transfer reached 79.6024%, versus
+78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16 over all 3,270
+examples. This motivates a controlled FP8-targeted training run rather than
+task-specific BoolQ fine-tuning.
+
+The new configs are
+`configs/spinquant/llama2_13b_w16afp8_rotation_train_1step_smoke.json` and
+`configs/spinquant/llama2_13b_w16afp8_rotation_train_100.json`. They preserve
+the existing calibration tokens, signed structured-Hadamard initialization,
+Cayley optimizer, learning rate, accumulation, and 1/100-step scale. The sole
+intended objective change is from asymmetric INT8 activation QDQ to the exact
+vLLM `0.25.1+cu129` CUTLASS input contract: dynamic symmetric per-token
+`float8_e4m3fn`, FP32 scale, range +/-448, and minimum scale
+`1 / (448 * 512)`. The adapter applies it to every decoder Linear input and
+keeps `lm_head` unquantized.
+
+The isolated entry point is
+`scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch`. Submit smoke first:
+
+```bash
+sbatch --test-only scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
+sbatch scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
+```
+
+Do not submit formal training until the one-step artifact, gradients,
+orthogonality, provenance, and runtime-form metadata are accepted. This is a
+**result-gated smoke** under the repository Slurm rule: submit smoke only, do
+not prequeue formal with `afterok`, and wait for the user to report completion
+before reviewing it. Afterwards:
+
+```bash
+sbatch --dependency=afterok:<SMOKE_JOB_ID> \
+  scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch formal <SMOKE_JOB_ID>
+```
+
+Execution snapshot on 2026-08-02: result-gated smoke `5876912` completed
+`0:0` in 2m48s and was manually accepted. It used 8 x 2048 calibration tokens,
+produced a non-zero maximum rotation gradient of `0.1236076877`, and reported
+R1/R2 training orthogonality errors of `1.4305e-6` and `5.3644e-7`. The smoke
+result SHA-256 is
+`bf1c927f2a821c76aeb7b39d2ef1fbe291bbbf135c33e50af09322631e8a83f2`;
+the rotation tensor SHA-256 is
+`a88e745beaf9601d04af0bd07a2c92798bf86062332319782e553fbca9092194`.
+
+Slurm no longer accepted `afterok:5876912` after the completed job left the
+controller's dependency window. The accepted smoke was not rerun. Read-only
+acceptance job `5876983` completed `0:0` in one second, and formal 100-step job
+`5876984` then completed `0:0` in 2h10m04s through `afterok:5876983` while
+still naming `5876912` as the accepted smoke artifact. All 100 loss and
+gradient records passed. The formal result SHA-256 is
+`f34f450e03dd59ec9b26942731b470b080908399f9d53089da2fd38bb903f1d1`;
+the accepted rotation SafeTensors SHA-256 is
+`383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
+
+The separate FP8-targeted W4AFP8 source gate is `5881273`, submitted from
+revision `60aa629` with no smoke or formal task prequeued. It must be reviewed
+after completion before any PPL, BoolQ, or serving formal task is authorized.
+
+The resulting rotation must not overwrite the accepted INT8-transfer artifact.
+After export with the frozen group-128/no-actorder/min-max W4AFP8 recipe, it
+must pass both quality (PPL and BoolQ) and matched full-model serving
+acceleration. Training loss or fake-quant output alone is not deployment
+evidence.

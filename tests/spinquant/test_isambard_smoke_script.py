@@ -11,6 +11,9 @@ PAPER_ALIGNED_SCRIPT = (
     PROJECT_ROOT
     / "scripts/run_isambard_spinquant_llama2_13b_w16a8_1step_smoke.sbatch"
 )
+FP8_SCRIPT = (
+    PROJECT_ROOT / "scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch"
+)
 
 
 class SpinQuantIsambardSmokeScriptTests(unittest.TestCase):
@@ -51,6 +54,16 @@ class SpinQuantIsambardSmokeScriptTests(unittest.TestCase):
             "ISAMBARD_SPINQUANT_LLAMA2_13B_W16A8_1STEP_SMOKE_PASSED",
             text,
         )
+
+    def test_fp8_smoke_freezes_vllm_quantizer_contract(self):
+        text = FP8_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("llama2_13b_w16afp8_rotation_train_1step_smoke.json", text)
+        self.assertIn("llama2-13b-fp8-targeted", text)
+        self.assertIn('training["rotation_objective"] == "fp8_activation_qdq"', text)
+        self.assertIn('training["adapter"]["activation_dtype"] == "float8_e4m3fn"', text)
+        self.assertIn("vllm_dynamic_per_token_fp8_e4m3fn_qdq_with_ste", text)
+        self.assertIn('training["adapter"]["activation_o_proj_group_size"] == -1', text)
+        self.assertIn("SPINQUANT_13B_FP8_STAGE=train", text)
 
 
 if __name__ == "__main__":

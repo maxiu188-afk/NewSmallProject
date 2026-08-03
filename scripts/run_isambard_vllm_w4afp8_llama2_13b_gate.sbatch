@@ -8,7 +8,7 @@
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --gpus=1
-#SBATCH --time=24:00:00
+#SBATCH --time=06:00:00
 #SBATCH --output=results/vllm-w4afp8-llama2-13b/%x-%j.out
 #SBATCH --error=results/vllm-w4afp8-llama2-13b/%x-%j.err
 
@@ -27,18 +27,18 @@ module load cray-python/3.11.7
 
 project_root="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "${project_root}"
-config="${project_root}/configs/deployment/vllm_w4afp8_llama2_13b_isambard.json"
+config="${VLLM_W4AFP8_CONFIG:-${project_root}/configs/deployment/vllm_w4afp8_llama2_13b_isambard.json}"
 serving_env="${HOME}/.venvs/newsmallproject-vllm-0.25.1"
 quantizer_env="${HOME}/.venvs/newsmallproject-llmcompressor-0.12.0"
 artifact_root="${VLLM_W4AFP8_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4afp8}"
 calibration_dir="${artifact_root}/calibration-128x2048"
 unrotated_dir="${artifact_root}/unrotated-w4afp8"
 quarot_dir="${artifact_root}/quarot-w4afp8"
-spinquant_dir="${artifact_root}/spinquant-w4afp8-int8-transfer"
-results_dir="${project_root}/results/vllm-w4afp8-llama2-13b"
+spinquant_dir="${VLLM_W4AFP8_SPINQUANT_CHECKPOINT_DIR:-${artifact_root}/spinquant-w4afp8-int8-transfer}"
+results_dir="${VLLM_W4AFP8_RESULTS_DIR:-${project_root}/results/vllm-w4afp8-llama2-13b}"
 model_snapshot="${HOME}/.cache/huggingface/models--meta-llama--Llama-2-13b-hf/snapshots/5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1"
 spinquant_artifact_root="${SPINQUANT_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-spinquant/llama2-13b-paper-nohad-w16a8}"
-rotation_manifest="${spinquant_artifact_root}/rotations-100step-5854269/rotation-manifest.json"
+rotation_manifest="${SPINQUANT_ROTATION_MANIFEST:-${spinquant_artifact_root}/rotations-100step-5854269/rotation-manifest.json}"
 
 task_tmp_parent="${SCRATCHDIR:-/tmp}"
 export SCRATCHDIR="${task_tmp_parent%/}/newsmallproject-vllm-w4afp8-${SLURM_JOB_ID}"
@@ -117,7 +117,9 @@ echo "VLLM_W4AFP8_STAGE=source_manifest"
     printf 'variant_set=%s\n' "${variant_set}"
     printf 'git_revision=%s\n' "${git_revision}"
     printf 'git_status=clean\n'
+    printf 'config=%s\n' "${config}"
     printf 'artifact_root=%s\n' "${artifact_root}"
+    printf 'results_dir=%s\n' "${results_dir}"
     sha256sum \
         "${config}" \
         "${project_root}/repro/vllm_w4afp8.py" \
