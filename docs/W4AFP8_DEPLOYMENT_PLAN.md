@@ -33,8 +33,10 @@ result. The active order is now fixed:
 6. retain accepted BoolQ smoke `5876321` and formal `5876591`, where the
    INT8-trained SpinQuant transfer reached 79.6024% versus 78.4098% unrotated;
 7. retain accepted FP8-targeted training job `5876984` and separately rooted
-   export/load source gate `5881273`; quality and serving gates remain pending,
-   and the accepted transfer artifacts are not replaced.
+   export/load source gate `5881273`; downstream revision `318bac2` submits
+   runnability-only PPL smoke `5884993` -> formal `5884996` and service smoke
+   `5884997` -> benchmark `5884998`, while the accepted transfer artifacts are
+   not replaced. Results remain pending.
 
 The W4AFP8 checkout and artifacts remain isolated from the SpinQuant fake-quant
 redo. Within W4AFP8, the scheduler dependency gates allocation only: the

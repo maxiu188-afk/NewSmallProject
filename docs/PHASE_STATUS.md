@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL, BoolQ, and matched serving are accepted on GH200 for the old INT8-trained SpinQuant transfer; new FP8-targeted export/load source gate 5881273 is accepted | W4AFP8 cuts ready GPU memory by 50.7% and improves request throughput by 1.39--1.42x versus BF16; the new FP8-targeted checkpoint still needs separate quality and serving evidence |
+| vLLM W4AFP8 deployment | Deployed PPL, BoolQ, and matched serving are accepted on GH200 for the old INT8-trained SpinQuant transfer; new FP8-targeted export/load source gate 5881273 is accepted and formal PPL/serving chains are submitted | W4AFP8 cuts ready GPU memory by 50.7% and improves request throughput by 1.39--1.42x versus BF16; jobs 5884993/5884996 and 5884997/5884998 are pending and do not yet establish new FP8-targeted results |
 
 ## Current deployment decision
 
@@ -107,6 +107,17 @@ the same eight greedy tokens as BF16. The joint result SHA-256 is
 `c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55`.
 Its wall-time limit had been reduced in place from 24 hours to 6 hours without
 cancellation or resubmission.
+
+Revision `318bac2` freezes that accepted source gate into separate downstream
+PPL and serving configurations. PPL smoke `5884993` and service smoke `5884997`
+were submitted independently with one-hour limits; formal PPL `5884996` uses
+`afterok:5884993`, and formal serving benchmark `5884998` uses
+`afterok:5884997`. The smokes are runnability-only gates, so the formal jobs
+start automatically after success. The two tracks may run concurrently on
+different GPUs, but accuracy and timing are not mixed in one process. The
+serving comparison retains BF16 KV cache; FP8 KV and BoolQ are outside these
+submissions. All four jobs are pending, so no FP8-targeted quality or
+acceleration result is claimed yet.
 
 The missing serving experiment for the accepted INT8-trained rotation transfer
 is being run independently. Result-gated service smoke `5882787` completed

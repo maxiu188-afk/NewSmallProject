@@ -253,3 +253,15 @@ the capability and source-manifest SHA-256 values are
 and `df05eae813350c33608acbda2e5c054661cd99d7cfc321d92ee22101b5b96f84`.
 This is export/load correctness only; FP8-targeted PPL, BoolQ, serving, and
 acceleration remain unmeasured.
+
+Downstream evaluation revision `318bac2` was prepared without changing the
+accepted source artifacts. PPL smoke `5884993` and formal PPL `5884996`
+(`afterok:5884993`) evaluate the same retained 162 x 2048 WikiText-2 tokens.
+Service smoke `5884997` and matched benchmark `5884998`
+(`afterok:5884997`) measure BF16 versus the three W4AFP8 checkpoints at
+concurrency 1 and 8. These are independent GPU job chains so that service
+timing and memory are not contaminated by PPL evaluation. Both smokes are
+runnability-only gates and the dependent formal jobs start automatically. The
+serving protocol keeps BF16 KV cache; FP8 KV and BoolQ are separate follow-ups.
+All four jobs were pending at submission, so this paragraph records execution
+state only and adds no accepted FP8-targeted result.
