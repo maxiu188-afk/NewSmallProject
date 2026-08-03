@@ -254,3 +254,5 @@ was unset. This second environment failure is also invalid as model
 compatibility evidence. A login-node import check passed after binding the
 environment toolkit and disabling unused JIT DeepGEMM; one final corrected
 compatibility smoke is required before any formal comparison decision.
+That final corrected smoke is submitted as job `5896201` from clean revision
+`f33d002`, without a formal-job dependency; its result remains pending review.

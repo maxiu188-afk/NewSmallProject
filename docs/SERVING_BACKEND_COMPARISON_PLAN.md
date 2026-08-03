@@ -74,6 +74,11 @@ toolkit shipped inside the isolated SGLang environment and
 BF16/compressed-W4AFP8 smoke. These environment values are now frozen in the
 config, recorded in result provenance, and validated before the four cases run.
 
+The final corrected replacement was accepted by `sbatch --test-only` and
+submitted as job `5896201` from clean revision
+`f33d0029cf6f164aa85ccf715a7b9eb1d752af80`. It has no formal-job dependency;
+no compatibility claim is made before artifact review.
+
 ## Research questions
 
 1. On the same GH200, how do SGLang and vLLM compare for the same BF16
