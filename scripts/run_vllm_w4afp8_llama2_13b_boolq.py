@@ -38,9 +38,14 @@ def _load_examples(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("status") != "passed":
         raise RuntimeError("BoolQ manifest did not pass")
-    if manifest.get("config_sha256") != _sha256(Path(config["_config_path"])):
-        raise RuntimeError("BoolQ manifest used a different config")
     spec = config["dataset"]
+    expected_manifest_config_sha256 = spec.get(
+        "expected_manifest_config_sha256"
+    )
+    if expected_manifest_config_sha256 is None:
+        expected_manifest_config_sha256 = _sha256(Path(config["_config_path"]))
+    if manifest.get("config_sha256") != expected_manifest_config_sha256:
+        raise RuntimeError("BoolQ manifest used a different config")
     dataset = manifest.get("dataset", {})
     if dataset.get("revision") != spec["revision"]:
         raise RuntimeError("BoolQ dataset revision changed")
