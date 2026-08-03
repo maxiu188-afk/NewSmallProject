@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; old INT8-trained-transfer service smoke 5882787 is accepted and benchmark formal 5883004 is running; new FP8-targeted export/load source gate 5881273 remains pending | No W4AFP8 acceleration result exists until benchmark 5883004 completes and is accepted |
+| vLLM W4AFP8 deployment | Deployed PPL, BoolQ, and matched serving are accepted on GH200 for the old INT8-trained SpinQuant transfer; new FP8-targeted export/load source gate 5881273 is running | W4AFP8 cuts ready GPU memory by 50.7% and improves request throughput by 1.39--1.42x versus BF16; rotation does not add a material serving-speed gain over unrotated W4AFP8 |
 
 ## Current deployment decision
 
@@ -111,8 +111,14 @@ texts matched, GPU memory recovered after shutdown, and all three quantized
 logs selected `CutlassW4A8LinearKernel`. Its result SHA-256 is
 `d3acdc424cd6796700a9ad937ceb26efca735a9a07adfed1b645a1403d09af7c`.
 Benchmark formal `5883004` was then submitted from the same frozen revision
-`ad971f9`; it entered `RUNNING` at 2026-08-03 09:20:13 and is not yet
-acceleration evidence.
+`ad971f9` and completed `0:0` in 19m48s. All eight model/concurrency groups
+completed 64/64 requests with zero failures. The three W4AFP8 checkpoints cut
+ready GPU memory from 34,099 MiB to 16,803--16,805 MiB and improved request
+throughput by 1.42x at concurrency 1 and 1.39--1.40x at concurrency 8 versus
+BF16. QuaRot and SpinQuant were effectively tied with unrotated W4AFP8, so the
+accepted acceleration is attributed to W4AFP8 deployment, not rotation. The
+formal result SHA-256 is
+`df63917675621f891280cf2cf5960e1b394a815f14fd8096125085ea02edae6f`.
 
 The latest accepted diagnostic is formal BoolQ job `5876591`, submitted after
 manual acceptance of smoke `5876321`. It scored all 3,270 validation examples:

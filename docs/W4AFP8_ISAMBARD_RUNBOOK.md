@@ -63,8 +63,11 @@ gate-producing input. Result-gated service smoke `5882787` completed `0:0` in
 recovery, hashes, and revision. Its result SHA-256 is
 `d3acdc424cd6796700a9ad937ceb26efca735a9a07adfed1b645a1403d09af7c`.
 Benchmark formal `5883004` was consequently submitted from the same checkout
-and entered `RUNNING` at 2026-08-03 09:20:13. Do not treat the smoke itself as
-throughput or latency evidence.
+and completed `0:0` in 19m48s. All eight model/case groups completed 64/64
+requests with zero failures, all six quantized cases selected
+`CutlassW4A8LinearKernel`, and every server recovered to 1--4 MiB after
+shutdown. The result SHA-256 is
+`df63917675621f891280cf2cf5960e1b394a815f14fd8096125085ea02edae6f`.
 
 The official LLM Compressor `W4AFP8` preset is group-128 symmetric INT4
 weights plus symmetric dynamic per-token FP8 activations. The pinned vLLM

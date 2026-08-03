@@ -116,12 +116,7 @@ not an exact reproduction of the paper's GPTQ protocol. The formal result is
 accepted for this isolated diagnostic only; it does not establish the paper's
 group-size -1 GPTQ endpoint or serving acceleration.
 
-## Evidence boundary
-
-This closes the deployed-checkpoint PPL half of the W4AFP8 experiment. It does
-not establish acceleration. Matched full-model serving smoke and formal
-throughput/latency/memory measurement remain required before any W4AFP8
-variant is labelled deployment-complete.
+## Accepted matched serving and acceleration
 
 For the accepted INT8-trained SpinQuant-transfer checkpoint set, serving
 revision `ad971f9` freezes source gate `5874345` and the existing checkpoint
@@ -135,10 +130,32 @@ SHA-256 is `d3acdc424cd6796700a9ad937ceb26efca735a9a07adfed1b645a1403d09af7c`.
 The optional DeepGEMM import warning was non-fatal and did not replace the
 selected CUTLASS path.
 
-Matched benchmark formal `5883004` was submitted only after this review. It
-entered `RUNNING` at 2026-08-03 09:20:13. The smoke is service correctness
-evidence, not acceleration; throughput, TTFT, TPOT, end-to-end latency,
-request counts, and peak memory remain pending formal results.
+Matched benchmark formal `5883004` was submitted only after this review and
+completed `0:0` in 19m48s. All eight model/case groups completed 64/64 measured
+requests with zero failures, using matched random 256-token inputs, forced
+64-token outputs, four warmups, and concurrency 1 or 8. All six quantized
+server logs selected `CutlassW4A8LinearKernel`; every server recovered to 1--4
+MiB after shutdown. The result SHA-256 is
+`df63917675621f891280cf2cf5960e1b394a815f14fd8096125085ea02edae6f`.
+
+| Model | Concurrency | Requests/s | p50 TTFT (ms) | p50 TPOT (ms) | p50 E2E (ms) | Ready GPU memory (MiB) |
+|---|---:|---:|---:|---:|---:|---:|
+| BF16 | 1 | 1.760 | 21.935 | 8.668 | 568.059 | 34,099 |
+| Unrotated W4AFP8 | 1 | 2.506 | 22.006 | 5.986 | 399.145 | 16,803 |
+| QuaRot-style W4AFP8 | 1 | 2.504 | 22.611 | 5.983 | 399.448 | 16,803 |
+| SpinQuant-transfer W4AFP8 | 1 | 2.506 | 22.208 | 5.981 | 399.154 | 16,803 |
+| BF16 | 8 | 11.357 | 104.734 | 9.518 | 703.946 | 34,099 |
+| Unrotated W4AFP8 | 8 | 15.807 | 74.066 | 6.873 | 506.352 | 16,803 |
+| QuaRot-style W4AFP8 | 8 | 15.919 | 72.081 | 6.850 | 502.254 | 16,805 |
+| SpinQuant-transfer W4AFP8 | 8 | 15.777 | 73.719 | 6.864 | 506.332 | 16,804 |
+
+Relative to BF16, the three W4AFP8 variants reduce ready GPU memory by 50.7%,
+improve request throughput by 1.42x at concurrency 1 and 1.39--1.40x at
+concurrency 8, and reduce p50 end-to-end latency by about 29.7% and 28.1--28.7%
+respectively. QuaRot-style and SpinQuant-transfer results remain within about
+1% of unrotated W4AFP8 throughput. This establishes the old transfer route's
+deployment acceleration, but it does not establish an additional acceleration
+effect from rotation itself.
 
 The SpinQuant checkpoint remains an INT8-trained rotation transfer to W4AFP8,
 not an FP8-targeted learned endpoint. Its slightly better PPL than QuaRot does

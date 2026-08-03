@@ -28,8 +28,8 @@ result. The active order is now fixed:
 4. retain accepted PPL smoke `5874806` and dependent formal job `5874807` over
    all 331,614 scored targets;
 5. retain serving revision `ad971f9`, accepted result-gated service smoke
-   `5882787`, and its reviewed JSON/log hashes; benchmark formal `5883004` is
-   submitted and running;
+   `5882787`, accepted benchmark formal `5883004`, and their reviewed JSON/log
+   hashes;
 6. retain accepted BoolQ smoke `5876321` and formal `5876591`, where the
    INT8-trained SpinQuant transfer reached 79.6024% versus 78.4098% unrotated;
 7. retain accepted FP8-targeted training job `5876984`, then review its
