@@ -25,6 +25,20 @@ The Slurm script intentionally prints a `SMOKE_RECORDED` marker rather than a
 pass marker. Slurm success proves only that the four-case compatibility record
 was written; it does not accept SGLang W4AFP8 support.
 
+### Execution status (2026-08-03)
+
+- Isambard preflight: `sbatch --test-only` accepted the script and resource
+  request.
+- Result-gated smoke: job `5895081`, submitted from clean revision
+  `3578427052c8239049635a99c5bad70ed9225d9c`.
+- Current state at submission closeout: `PENDING`, no dependency, start time
+  unknown. The scheduler's test-only estimate was 2026-08-09, not a guarantee.
+- SGLang environment manifest SHA-256:
+  `508ab49381b655d79f1148bd49912717890b56115e6980834673fab848afe8f1`.
+- No formal performance job is submitted. Compatibility remains unverified
+  until job `5895081` completes and its JSON, logs, marker, revision, and hashes
+  are reviewed.
+
 ## Research questions
 
 1. On the same GH200, how do SGLang and vLLM compare for the same BF16

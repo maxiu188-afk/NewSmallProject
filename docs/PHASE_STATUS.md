@@ -242,3 +242,5 @@ prepared, but no GH200 SGLang runtime or performance result is currently
 accepted. The source audit predicts that SGLang `0.5.16` cannot dispatch the
 unchanged dense compressed-tensors W4AFP8 checkpoint; the runtime smoke must
 record this boundary before any BF16-only formal comparison is considered.
+Result-gated smoke job `5895081` is queued from clean revision `3578427`; it has
+no formal-job dependency, and no result is claimed while it remains pending.
