@@ -1,0 +1,98 @@
+{
+  "config_version": 1,
+  "status": "source_gate_accepted_ready_for_boolq_smoke",
+  "source_gate": {
+    "status": "accepted",
+    "job_id": "5881273",
+    "required_marker": "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_GATE_PASSED",
+    "result": "results/vllm-w4afp8-fp8-targeted-5876984/joint-offline-inference-5881273.json",
+    "result_sha256": "c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55",
+    "capability_result": "results/vllm-w4afp8-fp8-targeted-5876984/backend-capability-5881273.json",
+    "capability_result_sha256": "495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62",
+    "expected_models": [
+      "bf16",
+      "unrotated_w4afp8",
+      "quarot_w4afp8",
+      "spinquant_w4afp8"
+    ]
+  },
+  "protocol": {
+    "task": "boolq",
+    "num_fewshot": 0,
+    "output_type": "multiple_choice",
+    "validation_split": "validation",
+    "prompt_template": "{passage}\nQuestion: {question}?\nAnswer:",
+    "target_delimiter": " ",
+    "choices": [
+      "no",
+      "yes"
+    ],
+    "metric": "accuracy",
+    "lm_eval_commit": "9b0b15b1ccace3534ffbd13298c569869ce8eaf3",
+    "lm_eval_task_path": "lm_eval/tasks/super_glue/boolq/default.yaml",
+    "lm_eval_task_sha256": "6bfa4bd7637b7fc6863d08ceb79735adf41e77feabf6d9327339df8fe0af78cd",
+    "quarot_requirements_sha256": "dec9004eaabcc726980759af682e21f249ab74310ca196bf581e0cf48c2d766e"
+  },
+  "dataset": {
+    "repository": "aps/super_glue",
+    "revision": "3de24cf8022e94f4ee4b9d55a6f539891524d646",
+    "subset": "boolq",
+    "split": "validation",
+    "expected_rows": 3270,
+    "expected_fingerprint": "3465575e190d308f",
+    "expected_examples_sha256": "475e56b71939a8e3db8be48bcc4d344569b36cc660f4086c9ae15858d46a297f",
+    "expected_label_counts": {
+      "0": 1237,
+      "1": 2033
+    },
+    "preparation_runtime": {
+      "datasets": "5.0.0"
+    }
+  },
+  "engine": {
+    "dtype": "bfloat16",
+    "max_model_len": 2049,
+    "max_num_seqs": 8,
+    "gpu_memory_utilization": 0.75,
+    "enforce_eager": false,
+    "enable_prefix_caching": false,
+    "disable_log_stats": true,
+    "prompt_logprobs": 1,
+    "max_tokens": 1,
+    "temperature": 0.0,
+    "seed": 0
+  },
+  "smoke": {
+    "examples": 32,
+    "expected_requests": 64
+  },
+  "formal": {
+    "examples": 3270,
+    "expected_requests": 6540
+  },
+  "paper_reference": {
+    "paper": "SpinQuant",
+    "table": "Table 7",
+    "model": "LLaMA-2-13B",
+    "paper_precision": "W4A8KV16",
+    "boolq_accuracy_percent": {
+      "full_precision": 79.8,
+      "gptq": 75.3,
+      "spinquant_no_had": 81.5,
+      "spinquant_had": 80.1
+    }
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "torch_version": "2.11.0+cu129",
+    "transformers_version": "5.14.1",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [
+      9,
+      0
+    ],
+    "vllm_use_flashinfer_sampler": "0"
+  },
+  "scope": "Zero-shot BoolQ validation accuracy through matched deployed BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and FP8-targeted SpinQuant W4AFP8 checkpoints; downstream deployment diagnostic only, not a reproduction of SpinQuant W4A8KV16"
+}

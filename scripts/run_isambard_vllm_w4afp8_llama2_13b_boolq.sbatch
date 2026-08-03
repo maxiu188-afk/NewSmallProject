@@ -6,7 +6,7 @@
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --gpus=1
-#SBATCH --time=12:00:00
+#SBATCH --time=06:00:00
 #SBATCH --output=results/vllm-w4afp8-boolq-llama2-13b/%x-%j.out
 #SBATCH --error=results/vllm-w4afp8-boolq-llama2-13b/%x-%j.err
 
@@ -22,15 +22,15 @@ module load cray-python/3.11.7
 project_root="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "${project_root}"
 serving_env="${HOME}/.venvs/newsmallproject-vllm-0.25.1"
-config="${project_root}/configs/deployment/vllm_w4afp8_llama2_13b_boolq_isambard.json"
+config="${VLLM_W4AFP8_BOOLQ_CONFIG:-${project_root}/configs/deployment/vllm_w4afp8_llama2_13b_boolq_isambard.json}"
 artifact_root="${VLLM_W4AFP8_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4afp8}"
 dataset_root="${BOOLQ_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-vllm/boolq-lm-eval-v1-3de24cf}"
 dataset_manifest="${dataset_root}/manifest.json"
 model_snapshot="${HOME}/.cache/huggingface/models--meta-llama--Llama-2-13b-hf/snapshots/5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1"
 unrotated_dir="${artifact_root}/unrotated-w4afp8"
 quarot_dir="${artifact_root}/quarot-w4afp8"
-spinquant_dir="${artifact_root}/spinquant-w4afp8-int8-transfer"
-results_dir="${project_root}/results/vllm-w4afp8-boolq-llama2-13b"
+spinquant_dir="${VLLM_W4AFP8_SPINQUANT_CHECKPOINT_DIR:-${artifact_root}/spinquant-w4afp8-int8-transfer}"
+results_dir="${VLLM_W4AFP8_RESULTS_DIR:-${project_root}/results/vllm-w4afp8-boolq-llama2-13b}"
 smoke_result="${results_dir}/boolq-smoke.json"
 formal_result="${results_dir}/boolq-formal.json"
 
