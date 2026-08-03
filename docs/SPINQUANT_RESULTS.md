@@ -68,9 +68,10 @@ zero for ungrouped asymmetric A8, left `lm_head` and KV at 16 bits, and scored
 the same 331,614 held-out targets. The result is retained as a completed
 matched **strong-GPTQ diagnostic** with no observed rotation benefit. It is not
 the paper-aligned GPTQ endpoint and must not be compared numerically with a
-paper-table PPL without an explicit protocol-change label. A later
-paper-aligned run will use `group_size=-1`, no activation ordering, and the
-paper's weight-clipping step; the existing result remains immutable.
+paper-table PPL without an explicit protocol-change label. A paper-aligned run
+would require `group_size=-1`, no activation ordering, and the paper's
+weight-clipping step. That endpoint is outside the closed phase; the existing
+result remains immutable.
 
 The formal PPL result SHA256 is
 `0b5403d3a0423efd9b3d7673107ed9b25d58350a7caf7643432aefcc2ef4c6fd`;
@@ -130,18 +131,16 @@ and the formal result SHA256 is
 The rotation artifact is accepted as the source of the completed corrected
 PPL result; its training loss alone is not quality evidence.
 
-The remaining stages are:
+## Closed deployment continuation
 
-1. run the separately labelled paper-GPTQ W4A8 endpoint without replacing the
-   accepted strong-GPTQ diagnostic;
-2. export the corrected learned rotation as a clearly labelled W4AFP8 transfer
-   diagnostic and test packed-checkpoint fresh-process loading using the
-   backend-constrained protocol: group-128, no activation ordering, and no
-   weight clipping;
-3. measure deployed-checkpoint PPL and matched full-model serving only after
-   the selected Hopper W4AFP8 kernel is proven in the runtime logs;
-4. run FP8-targeted rotation learning if the transfer checkpoint is not
-   competitive with the unrotated W4AFP8 control.
+The formerly planned W4AFP8 continuation is complete. The corrected learned
+rotation was retained as an INT8-trained transfer endpoint, and a separate
+FP8-targeted rotation was trained without overwriting it. Both were exported
+under the backend-constrained group-128/no-actorder/min-max W4AFP8 protocol.
+Packed fresh-process loading, formal deployed PPL, matched full-model serving,
+and BoolQ are accepted in [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md).
 
-The paper's online `had` R3/R4 extension remains deferred and outside the
-offline-only deployment path.
+No further experiment is planned in this phase. The separately labelled
+paper-GPTQ W4A8 endpoint, the paper's online `had` R3/R4 extension, FP8 KV, and
+new serving backends remain unmeasured scope boundaries rather than pending
+stages.

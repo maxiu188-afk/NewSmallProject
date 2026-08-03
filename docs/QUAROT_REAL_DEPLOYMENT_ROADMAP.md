@@ -214,7 +214,8 @@ gain over the old rotation was not significant in the paired comparison
 by less than 1%, no repeat new-rotation acceleration experiment is planned.
 The result retains BF16 KV; FP8 KV is not claimed.
 
-The remaining Route B quality boundary is downstream-task or broader generation
-evaluation; deployed-checkpoint WikiText-2 PPL is complete. Results from Routes
-A and B remain separately named and must not be merged into one precision or
-performance label. See `VLLM_W4A16_RESULTS.md`.
+Route B deployed-checkpoint WikiText-2 PPL is complete. Downstream-task or
+broader generation evaluation remains unmeasured but is outside the closed
+phase, not a pending gate. Results from Routes A and B remain separately named
+and must not be merged into one precision or performance label. See
+`VLLM_W4A16_RESULTS.md`.

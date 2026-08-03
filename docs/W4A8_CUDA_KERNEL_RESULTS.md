@@ -52,17 +52,18 @@ persistent server volume and SHA-256 verified locally:
 | `container-env-smoke.json` | `833342406c729a5d036427a4d3d7bbf2f3ff28e5233df94e5f3a10b61ce1d8e6` |
 | `container-pip-freeze.txt` | `7689a6a20d9ca00a39c84fa70a93fc5a63ab1550d97eb7b3fdb772b00ed158c9` |
 
-## Scope and next gate
+## Initial scope and subsequent gate
 
 This passes the `int4_gemm` numerical-correctness gate for the listed tensor
 shapes and the recorded GPU/toolchain.  It does **not** yet demonstrate a
 packed GPTQ checkpoint, transformer-layer integration, language-model PPL,
 KV4 cache, latency, throughput, or memory savings.
 
-The next work is Phase 2: export a GPTQ-transformed Llama linear tensor to the
-checksummed packed-W4 format, replace selected Llama linears with the verified
-W4A8 path, and compare fixed-token layer outputs against the existing GPTQ
-floating reference before adding KV4.
+The subsequent Phase-2 work exported a GPTQ-transformed Llama linear tensor to
+the checksummed packed-W4 format, replaced selected Llama linears with the
+verified W4A8 path, and compared fixed-token layer outputs against the existing
+GPTQ floating reference. The later sections record those completed gates; KV4
+was not added.
 
 ## Phase-2 integration smoke
 
@@ -78,8 +79,8 @@ The recovered `llama-q-proj-smoke.json` artifact has SHA-256
 `9b0e199bb3da22c7c319ba4f91d913a2207242e986d247fadb8f91841b90105d`.
 This is RTN-style W4 packing integration evidence only.  It is not a
 GPTQ-transformed packed checkpoint, full-layer/model equivalence, PPL, KV4, or
-performance result.  The next Phase-2 task remains exporting and integrating
-the formal GPTQ-transformed weights.
+performance result. The following Phase-2 sections record the later export and
+integration of the formal GPTQ-transformed weights.
 
 ## Formal F4 GPTQ W4 export
 
@@ -109,10 +110,10 @@ first value includes casting the GPTQ FP32 scale product to the model's BF16
 weight storage, while the second validates the owned packed deployment path.
 
 This is a self-describing **single-linear** formal-GPTQ deployment artifact and
-correctness result.  It is not yet a packed full-model checkpoint, transformer
-layer/model equivalence or PPL result, KV4 cache result, or performance claim.
-The next gate is to replace that selected Llama linear in a fixed-token layer
-execution while preserving the recorded rotation and input permutation.
+correctness result. At this point in the sequence it did not establish a
+packed full-model checkpoint, transformer layer/model equivalence or PPL, KV4,
+or performance. The following fixed-token layer and full-decoder sections
+record the later correctness gates.
 
 ## Formal fixed-token Llama layer gate
 
@@ -163,19 +164,19 @@ maximum/mean errors for both the fixed-token decoder-layer output and final
 logits. This completes the selected-`q_proj` Isambard portability gate only;
 all other linears and K/V remained BF16.
 
-## Full-decoder gate preparation
+## Full-decoder gate implementation
 
-The next gate is implemented locally but has no GPU result. It streams all 280
-decoder-linear GPTQ captures to independent checksum-protected tensor shards,
-publishes a complete manifest only after the expected set is present, and can
-install those exact tensors through either the independent packed oracle or
-the owned CUDA W4A8 module. The planned numerical gate compares every decoder
-layer output and final logits before a short BF16-K/V generation smoke.
+Before execution, the gate was implemented to stream all 280 decoder-linear
+GPTQ captures to independent checksum-protected tensor shards, publish a
+complete manifest only after the expected set was present, and install those
+exact tensors through either the independent packed oracle or the owned CUDA
+W4A8 module. Its numerical contract compared every decoder-layer output and
+the final logits before a short BF16-K/V generation smoke.
 
-This preparation does not upgrade the selected-linear result into a full-model
-claim. See `archive/runbooks/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md` for the
-Isambard-primary
-execution contract and RunPod fallback commands.
+Implementation alone did not upgrade the selected-linear result. The following
+section records the completed RunPod full-decoder correctness result; the
+historical execution contract remains in
+`archive/runbooks/PHASE2_GPTQ_W4A8_FULL_MODEL_RUNBOOK.md`.
 
 ## Full-decoder RunPod correctness result
 
@@ -193,6 +194,6 @@ finite logits. The recovered result JSON has SHA-256
 
 This establishes fixed-workload execution correctness for a complete W4A8
 decoder with BF16 embedding, `lm_head`, and K/V. It does not establish PPL,
-KV4, speed, throughput, or memory savings. The next permitted work is the
-matched BF16/W4A8 measurement protocol in
-`archive/runbooks/W4A8_PERFORMANCE_RUNBOOK.md`.
+KV4, speed, throughput, or memory savings. The later matched performance smoke
+was negative and is retained only as evidence that this owned path was not
+selected as the serving backend; no further W4A8 backend work is planned.

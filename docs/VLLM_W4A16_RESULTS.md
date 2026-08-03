@@ -127,7 +127,7 @@ not show a stable performance advantage over unrotated W4A16.
 The accepted diagnostic-result SHA-256 is
 `0a5e9658c3a2205b6e2465472f81bd004370ba7b4db1c46f07123fe3a538c5cb`.
 
-## Conclusions and remaining boundary
+## Conclusions and closed boundary
 
 The practical result is positive: stable vLLM W4A16 materially reduces memory,
 TPOT, E2E, and improves request throughput for the measured Llama-2-13B serving
@@ -138,6 +138,7 @@ and is not the primary performance claim.
 Offline rotation does not materially change deployment performance relative to
 unrotated W4A16, but the deployed-checkpoint PPL result shows a quality benefit:
 PPL improved from 5.289677 to 5.132755 and recovered 55.67% of the quantization
-gap to BF16. Downstream-task and broader generation-quality evaluation remain
-open. Fake-quant PPL from the algorithmic study remains a separate evidence
-route and must not be substituted for this packed vLLM result.
+gap to BF16. Downstream-task and broader generation-quality evaluation are
+unmeasured and outside this closed phase, not pending tasks. Fake-quant PPL
+from the algorithmic study remains a separate evidence route and must not be
+substituted for this packed vLLM result.

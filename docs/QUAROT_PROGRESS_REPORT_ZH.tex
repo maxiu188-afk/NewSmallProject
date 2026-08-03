@@ -17,9 +17,9 @@
 \setlist[enumerate]{leftmargin=2em,itemsep=0.35em,topsep=0.35em}
 \renewcommand{\arraystretch}{1.15}
 
-\title{QuaRot低比特量化复现与部署阶段性汇报}
+\title{QuaRot与SpinQuant低比特量化复现及部署证据总结}
 \author{}
-\date{2026年7月26日}
+\date{2026年8月3日}
 
 \begin{document}
 
@@ -28,13 +28,15 @@
 
 \section*{总体进展}
 
-目前已经完成三层递进验证：首先，fake quant实验表明QuaRot变换能够显著改善
+目前已经完成四层递进验证：首先，fake quant实验表明QuaRot变换能够显著改善
 Llama-2-13B在4-bit量化下的精度；其次，官方QuaRot后端的单个decoder block测试
-表明低比特计算在较大的prefill和高batch、长上下文场景中可以获得速度优势；最后，
+表明低比特计算在较大的prefill和高batch、长上下文场景中可以获得速度优势；第三，
 完整模型测试证明真实W4A4KV4部署能够大幅降低显存占用，但旧版官方kernel在
 RTX 6000 Ada的batch-1服务场景中仍慢于FP16。最终，Isambard GH200上的稳定vLLM
 W4A16完整模型服务测试同时获得显存、吞吐和TPOT/E2E收益；W4A8则保留为正确性与
-底层kernel研究路线。
+底层kernel研究路线。在此基础上，硬件对齐的W4AFP8路线已经完成packed checkpoint
+PPL、matched serving和BoolQ闭环，并同时保留QuaRot-style、旧SpinQuant transfer及
+FP8-targeted SpinQuant三种旋转端点的明确边界。
 
 \section{Fake quant：验证算法精度}
 
@@ -138,9 +140,8 @@ K/V cache为KV4。固定token生成测试通过了packed权重、scale、有限l
 收益}。旧版官方后端面向较早的CUDA和模型栈，量化、packing、整数GEMM和反量化
 仍包含多个kernel；在batch-1 decode中，这些额外开销超过了低比特权重带宽节省。
 
-当前尚未完成官方packed checkpoint的完整PPL评估，因此不能把前述fake quant的
-PPL直接作为官方部署后端的质量结果。后续如需完整的精度闭环，可以补充一个有界的
-WikiText-2 PPL测试。
+官方packed checkpoint未测完整PPL，因此不能把前述fake quant的PPL直接作为官方
+部署后端的质量结果。该缺口属于本阶段明确未覆盖范围，不再安排补测。
 
 \section{vLLM W4A8与W4A16结果}
 
@@ -152,9 +153,8 @@ WikiText-2 PPL测试。
 速度明显低于BF16，只适合作为正确性kernel，而不是服务后端。并且该结果中的
 embedding、\texttt{lm\_head}、attention非线性和K/V cache仍为BF16。
 
-按照项目冻结的vLLM支持范围，NVIDIA GPU上的W4A8目前不是稳定的原生服务格式。
-因此本阶段不开发额外的vLLM plugin或新的完整CUDA kernel；如果后续vLLM原生支持
-成熟，再重新评估W4A8服务路线。
+按照项目冻结的vLLM支持范围，NVIDIA GPU上的W4A8不是本阶段稳定的原生服务格式。
+因此本阶段不开发额外的vLLM plugin或新的完整CUDA kernel；该路线在本阶段关闭。
 
 \subsection*{W4A16：完整模型服务主结果}
 
@@ -212,16 +212,78 @@ BF16单层参数为605.0\,MiB，W4A16为156.0\,MiB，减少74.2\%；vLLM实际�
 prefill慢约3--4\%。旋转与未旋转版本之间同样没有稳定性能差异。这个结果用于解释
 真实packed layer路径，主要实践结论仍来自完整模型服务测试。
 
-\section*{阶段性结论}
+\section{W4AFP8与FP8-targeted SpinQuant闭环}
 
-现阶段已经形成三层结论：QuaRot在fake quant协议下可以把4-bit量化精度恢复到接近
+GH200上的硬件对齐路线采用group-128 GPTQ W4权重、\texttt{actorder=None}、
+min/max observer和动态逐token FP8 E4M3输入，运行时由vLLM选择
+\texttt{CutlassW4A8LinearKernel}。这里的kernel类名来自vLLM实现；本报告将运行格式
+统一称为W4AFP8。所有checkpoint均覆盖280个decoder linear，不包含运行时
+\texttt{g\_idx}，K/V cache保持BF16。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lrr@{}}
+    \toprule
+    模型 & WikiText-2 PPL & BoolQ准确率 \\
+    \midrule
+    BF16 & 5.007820 & 80.5810\% \\
+    普通W4AFP8 & 5.136105 & 78.4098\% \\
+    QuaRot-style W4AFP8 & 5.248356 & 78.5627\% \\
+    旧SpinQuant transfer W4AFP8 & 5.230155 & 79.6024\% \\
+    FP8-targeted SpinQuant W4AFP8 & 5.219583 & \textbf{80.2752\%} \\
+    \bottomrule
+  \end{tabular}
+  \caption{同一backend约束下的部署质量结果。PPL评估331,614个next-token目标，
+  BoolQ评估全部3,270个validation样本。}
+\end{table}
+
+FP8-targeted端点的PPL比QuaRot-style低0.028773，比旧transfer低0.010572，但仍比
+普通W4AFP8高0.083478。BoolQ达到80.2752\%，比普通W4AFP8高1.8654个百分点，距
+BF16仅0.3058个百分点；相对旧transfer的0.6728个百分点提升在配对McNemar检验中
+不显著（$p=0.244754$）。因此，任务质量上可以报告FP8-targeted端点的方向性收益，
+但不能把旧/新SpinQuant差异表述为已证实的普遍优势。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lrrrr@{}}
+    \toprule
+    模型/并发 & 请求/s & p50 TTFT/ms & p50 E2E/ms & Ready显存/MiB \\
+    \midrule
+    BF16 / 1 & 1.752 & 23.900 & 570.969 & 34,099 \\
+    FP8-targeted / 1 & 2.486 & 23.615 & 402.291 & 16,803 \\
+    BF16 / 8 & 11.338 & 106.725 & 705.890 & 34,099 \\
+    FP8-targeted / 8 & 15.701 & 74.828 & 509.220 & 16,803 \\
+    \bottomrule
+  \end{tabular}
+  \caption{FP8-targeted SpinQuant W4AFP8与BF16的matched serving结果。}
+\end{table}
+
+W4AFP8把ready GPU memory降低50.7\%，并将请求吞吐提高到BF16的1.42倍
+（concurrency 1）和1.385倍（concurrency 8）。但是FP8-targeted与普通W4AFP8的
+吞吐差异仅$+0.52\%$/$+0.07\%$，旧/新旋转端点的服务差异也小于1\%。因此加速归因于
+W4AFP8 backend，而不是旋转本身。正式PPL作业\texttt{5884996}、服务作业
+\texttt{5884998}和BoolQ作业\texttt{5886914}共同完成FP8-targeted端点的证据链。
+
+\section*{证据结论与关闭边界}
+
+现阶段已经形成四层结论：QuaRot在fake quant协议下可以把4-bit量化精度恢复到接近
 BF16；官方W4A4KV4后端证明了真实低比特执行的容量收益以及特定单block形状上的
 速度优势，但旧版完整模型batch-1路径仍慢；稳定vLLM W4A16则在GH200完整模型服务
-中同时获得约53\% ready显存下降、1.37--1.54倍请求吞吐和更低TPOT/E2E。
+中同时获得约53\% ready显存下降、1.37--1.54倍请求吞吐和更低TPOT/E2E；W4AFP8
+进一步完成packed PPL、matched serving与BoolQ联合验收。
 
-离线旋转没有改变W4A16部署性能，但正式部署checkpoint PPL已经证明其质量价值：
-PPL从5.289677降低到5.132755，并恢复55.67\%的量化差距。尚未完成的是下游任务或
-更广泛的生成质量评估；fake quant PPL仍属于独立证据，不能替代真实packed vLLM
-结果。
+离线旋转没有改变W4A16部署性能，但正式部署checkpoint PPL证明了其质量价值：
+PPL从5.289677降低到5.132755，并恢复55.67\%的量化差距。W4A16下游任务和更广泛的
+生成质量评估属于明确未覆盖范围，不是当前待办。W4AFP8的FP8-targeted
+SpinQuant端点达到PPL 5.219583和BoolQ 80.2752\%，同时保留50.7\% ready显存下降和
+1.38--1.42倍吞吐收益。fake quant、官方W4A4KV4、W4A16和W4AFP8仍是四条独立证据
+路线，任何一路的精度或性能数字都不能替代另一条路线。
+
+当前证据阶段关闭不等于停止serving系统研究。后续可以在独立研究中使用同一GH200、
+同一checkpoint、同一请求流、同一质量门和对齐后的资源预算，横向比较SGLang与vLLM。
+在exact checkpoint兼容性、matched PPL和matched serving通过之前，本报告不主张任何
+SGLang性能结论，也不把未来计划写入当前已接受结果。
 
 \end{document}
