@@ -77,6 +77,8 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("SGLang token pool does not match the 8 GiB KV derivation")
     if config["sglang"].get("offline_quantization_argument") is not None:
         raise ValueError("exact offline checkpoint smoke must not override quantization")
+    if config["sglang"].get("enable_jit_deep_gemm") is not False:
+        raise ValueError("comparison smoke must disable unused JIT DeepGEMM")
 
 
 def _parse_models(values: list[str], expected: list[str]) -> dict[str, Path]:
@@ -434,6 +436,12 @@ def main() -> int:
     runtimes = {
         "vllm": _runtime_probe(args.vllm_executable.parent / "python", ["vllm", "torch"]),
         "sglang": _runtime_probe(args.sglang_python, ["sglang", "torch"]),
+    }
+    runtimes["sglang"]["environment"] = {
+        "CUDA_HOME": os.environ.get("CUDA_HOME"),
+        "SGLANG_ENABLE_JIT_DEEPGEMM": os.environ.get(
+            "SGLANG_ENABLE_JIT_DEEPGEMM"
+        ),
     }
     executables = {
         "vllm": _absolute_executable(args.vllm_executable),

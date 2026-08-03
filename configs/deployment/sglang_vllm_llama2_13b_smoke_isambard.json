@@ -58,6 +58,8 @@
     "expected_torch_version": "2.11.0+cu129",
     "expected_kernel_version": "0.4.5+cu129",
     "expected_deep_gemm_version": "0.1.4.post1+cu129",
+    "cuda_home_source": "sglang_environment_nvidia_cu13",
+    "enable_jit_deep_gemm": false,
     "offline_quantization_argument": null,
     "sampling_defaults": "openai",
     "quantized_log_patterns": [

@@ -32,6 +32,11 @@ class SglangVllmLlamaSmokeTests(unittest.TestCase):
         self.assertEqual(self.config["server"]["kv_cache_memory_bytes"], 8 * 1024**3)
         self.assertEqual(self.config["server"]["max_total_tokens"], 10485)
         self.assertIsNone(self.config["sglang"]["offline_quantization_argument"])
+        self.assertFalse(self.config["sglang"]["enable_jit_deep_gemm"])
+        self.assertEqual(
+            self.config["sglang"]["cuda_home_source"],
+            "sglang_environment_nvidia_cu13",
+        )
 
     def test_vllm_command_preserves_accepted_resource_flags(self):
         command = MODULE._server_command(

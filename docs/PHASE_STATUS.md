@@ -248,4 +248,9 @@ Cray base interpreter after an erroneous virtual-environment symlink resolution
 and failed before model loading. The vLLM controls passed; the SGLang outcomes
 are invalid as compatibility evidence and require one corrected replacement
 smoke. Corrected job `5895358` is submitted from clean revision `5355df8`
-without a formal-job dependency; its result remains pending review.
+without a formal-job dependency. It completed, but both SGLang cases stopped
+before model loading because optional `sgl-deep-gemm` asserted that `CUDA_HOME`
+was unset. This second environment failure is also invalid as model
+compatibility evidence. A login-node import check passed after binding the
+environment toolkit and disabling unused JIT DeepGEMM; one final corrected
+compatibility smoke is required before any formal comparison decision.

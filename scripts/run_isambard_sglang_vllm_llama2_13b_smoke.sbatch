@@ -44,12 +44,15 @@ export HF_DATASETS_OFFLINE=1
 export VLLM_ENABLE_V1_MULTIPROCESSING=0
 export VLLM_USE_FLASHINFER_SAMPLER=0
 export TOKENIZERS_PARALLELISM=false
+export CUDA_HOME="${sglang_env}/lib/python3.11/site-packages/nvidia/cu13"
+export SGLANG_ENABLE_JIT_DEEPGEMM=0
 
 for required in \
     "${config}" \
     "${runner}" \
     "${vllm_env}/bin/vllm" \
     "${sglang_env}/bin/python" \
+    "${CUDA_HOME}/bin/nvcc" \
     "${model_snapshot}/config.json" \
     "${w4afp8_model}/config.json" \
     "${source_result}" \
@@ -112,6 +115,7 @@ PY
 
 "${sglang_env}/bin/python" - <<'PY'
 import importlib.metadata as metadata
+import os
 import torch
 
 assert metadata.version("sglang") == "0.5.16"
@@ -121,6 +125,8 @@ assert metadata.version("cuda-python") == "12.9.4"
 assert metadata.version("cuda-bindings") == "12.9.7"
 assert torch.__version__ == "2.11.0+cu129", torch.__version__
 assert torch.version.cuda == "12.9", torch.version.cuda
+assert os.path.isdir(os.environ["CUDA_HOME"]), os.environ["CUDA_HOME"]
+assert os.environ["SGLANG_ENABLE_JIT_DEEPGEMM"] == "0"
 assert torch.cuda.is_available()
 assert torch.cuda.get_device_name(0) == "NVIDIA GH200 120GB"
 assert torch.cuda.get_device_capability(0) == (9, 0)

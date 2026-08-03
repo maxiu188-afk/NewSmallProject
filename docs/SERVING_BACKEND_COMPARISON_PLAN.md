@@ -60,6 +60,20 @@ The corrected replacement was submitted as job `5895358` from clean revision
 accepted the script. It has no formal-job dependency. No compatibility claim
 is made until its retained artifacts are reviewed.
 
+Job `5895358` completed `0:0` in 4 minutes 20 seconds and recorded result JSON
+SHA-256 `82eb8ab6c14f05946102a9a533afad73e2e0c3305ac77617920db94e7b5a28cb`.
+It confirmed the virtual-environment path fix, but both SGLang cases still
+failed before model loading because the optional `sgl-deep-gemm` import asserted
+that `CUDA_HOME` was unset. The vLLM BF16/W4AFP8 controls again passed, including
+CUTLASS W4AFP8 selection and memory recovery. Therefore job `5895358` also
+contains no SGLang model-compatibility evidence.
+
+A read-only login-node import check then passed with `CUDA_HOME` bound to the
+toolkit shipped inside the isolated SGLang environment and
+`SGLANG_ENABLE_JIT_DEEPGEMM=0`. JIT DeepGEMM is not used by this dense Llama
+BF16/compressed-W4AFP8 smoke. These environment values are now frozen in the
+config, recorded in result provenance, and validated before the four cases run.
+
 ## Research questions
 
 1. On the same GH200, how do SGLang and vLLM compare for the same BF16
