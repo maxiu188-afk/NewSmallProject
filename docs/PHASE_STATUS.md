@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL, BoolQ, and matched serving are accepted on GH200 for the old INT8-trained SpinQuant transfer; new FP8-targeted export/load source gate 5881273 is running | W4AFP8 cuts ready GPU memory by 50.7% and improves request throughput by 1.39--1.42x versus BF16; rotation does not add a material serving-speed gain over unrotated W4AFP8 |
+| vLLM W4AFP8 deployment | Deployed PPL, BoolQ, and matched serving are accepted on GH200 for the old INT8-trained SpinQuant transfer; new FP8-targeted export/load source gate 5881273 is accepted | W4AFP8 cuts ready GPU memory by 50.7% and improves request throughput by 1.39--1.42x versus BF16; the new FP8-targeted checkpoint still needs separate quality and serving evidence |
 
 ## Current deployment decision
 
@@ -97,12 +97,16 @@ losses and 100 non-zero gradient maxima over 800 x 2048 calibration tokens.
 Training R1/R2 orthogonality errors were `1.7285e-6` and `5.9605e-7`; the
 rotation SafeTensors SHA-256 is
 `383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
-This does not establish W4AFP8 quality or acceleration. Isolated source gate
-`5881273` was submitted from revision `60aa629` to create and load the new
-packed checkpoint without replacing the accepted INT8-transfer artifacts; it
-was `PENDING` at the 2026-08-03 snapshot. Its wall-time limit was reduced in
-place from 24 hours to 6 hours, without cancellation or resubmission; prior
-comparable export/load gates completed in well under one hour.
+This does not by itself establish W4AFP8 quality or acceleration. Isolated
+source gate `5881273` completed `0:0` in 54m02s from clean revision `60aa629`
+without replacing the accepted INT8-transfer artifacts. It is accepted for
+export/load correctness: all three W4AFP8 checkpoints contain 280 packed
+decoder linears, use group-128 min/max W4 with dynamic per-token FP8 inputs,
+have no runtime `g_idx`, load through the CUTLASS W4AFP8 kernel, and reproduce
+the same eight greedy tokens as BF16. The joint result SHA-256 is
+`c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55`.
+Its wall-time limit had been reduced in place from 24 hours to 6 hours without
+cancellation or resubmission.
 
 The missing serving experiment for the accepted INT8-trained rotation transfer
 is being run independently. Result-gated service smoke `5882787` completed

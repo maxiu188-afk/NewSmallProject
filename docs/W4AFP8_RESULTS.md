@@ -234,11 +234,22 @@ the rotation manifest and SafeTensors SHA-256 values are respectively
 and `383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
 
 Revision `60aa629` adds a separately configured export/load path for this
-rotation. Joint source gate `5881273` was submitted without a smoke or formal
-dependency and was `PENDING` at the 2026-08-03 snapshot. Its Slurm wall-time
-limit was reduced in place from 24 hours to 6 hours; the job was not cancelled
-or resubmitted. It writes to a new artifact root and does not overwrite the
+rotation. Joint result-gated source job `5881273` completed `0:0` in 54m02s
+without a separate smoke or formal dependency. Its Slurm wall-time limit had
+been reduced in place from 24 hours to 6 hours; the job was not cancelled or
+resubmitted. It writes to a new artifact root and does not overwrite the
 accepted INT8-transfer checkpoint.
-PPL, BoolQ, serving, and acceleration remain blocked until this result-gated
-source gate completes and its checkpoint, logs, hashes, and kernel evidence
-are reviewed.
+
+Review accepted all three export reports, each with 280 packed decoder linears,
+group-128 min/max W4 weights, dynamic symmetric per-token FP8 inputs,
+`actorder=None`, and zero runtime `g_idx` tensors. The FP8-targeted SpinQuant
+report points to training job `5876984`; its observed R1/R2 orthogonality errors
+are `4.5449e-7` and `5.9605e-7`. All three quantized fresh-process loads selected
+`CutlassW4A8LinearKernel`, and all four variants generated the same eight
+greedy tokens. The joint result SHA-256 is
+`c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55`;
+the capability and source-manifest SHA-256 values are
+`495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62`
+and `df05eae813350c33608acbda2e5c054661cd99d7cfc321d92ee22101b5b96f84`.
+This is export/load correctness only; FP8-targeted PPL, BoolQ, serving, and
+acceleration remain unmeasured.

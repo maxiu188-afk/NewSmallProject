@@ -243,13 +243,18 @@ and its rotation SafeTensors SHA-256 is
 
 Revision `60aa629` adds isolated config and path overrides for the new
 FP8-targeted export without changing the accepted transfer artifacts. Joint
-source gate `5881273` was submitted with no dependency and was `PENDING` at
-the 2026-08-03 snapshot. Its time limit was reduced in place from 24 hours to
-6 hours, and the submission script now uses 6 hours by default. This gate is
-result-gated: inspect its export reports, packed coverage, runtime `g_idx`,
-fixed-token inference, selected CUTLASS kernel, hashes, and provenance before
-submitting any formal quality or serving task. No separate smoke is required
-for this gate.
+source gate `5881273` completed `0:0` in 54m02s and passed result review. Each
+W4AFP8 checkpoint has 280 packed decoder linears, group-128 min/max weights,
+dynamic per-token FP8 inputs, and zero runtime `g_idx` tensors. All three
+quantized fresh-process loads selected `CutlassW4A8LinearKernel`, and BF16 plus
+all three W4AFP8 variants generated the same eight greedy tokens. The joint
+result, capability result, and source-manifest SHA-256 values are respectively
+`c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55`,
+`495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62`,
+and `df05eae813350c33608acbda2e5c054661cd99d7cfc321d92ee22101b5b96f84`.
+The optional DeepGEMM import and post-exit NCCL cleanup warnings were non-fatal;
+CUTLASS was selected and the job reached its required pass marker. No separate
+smoke was required for this result-gated source gate.
 
 ## Result boundaries
 

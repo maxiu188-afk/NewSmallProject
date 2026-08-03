@@ -32,9 +32,9 @@ result. The active order is now fixed:
    hashes;
 6. retain accepted BoolQ smoke `5876321` and formal `5876591`, where the
    INT8-trained SpinQuant transfer reached 79.6024% versus 78.4098% unrotated;
-7. retain accepted FP8-targeted training job `5876984`, then review its
-   separately rooted export/load source gate `5881273` before rerunning quality
-   and serving gates; do not replace the accepted transfer artifacts.
+7. retain accepted FP8-targeted training job `5876984` and separately rooted
+   export/load source gate `5881273`; quality and serving gates remain pending,
+   and the accepted transfer artifacts are not replaced.
 
 The W4AFP8 checkout and artifacts remain isolated from the SpinQuant fake-quant
 redo. Within W4AFP8, the scheduler dependency gates allocation only: the
