@@ -13,6 +13,10 @@ CONFIG_PATH = (
     PROJECT_ROOT
     / "configs/deployment/vllm_w4afp8_llama2_13b_boolq_isambard.json"
 )
+FP8_TARGETED_CONFIG_PATH = (
+    PROJECT_ROOT
+    / "configs/deployment/vllm_w4afp8_fp8_spinquant_llama2_13b_boolq_isambard.json"
+)
 
 
 def _load_script(name: str, path: Path):
@@ -67,6 +71,22 @@ class VllmW4AFP8BoolQTests(unittest.TestCase):
         )
         self.assertEqual(bytes(whole).decode(), "passage\nQuestion: q?\nAnswer: yes")
         self.assertEqual(bytes(whole[continuation_start:]).decode(), " yes")
+
+    def test_fp8_targeted_config_freezes_accepted_source_gate(self):
+        config = json.loads(FP8_TARGETED_CONFIG_PATH.read_text(encoding="utf-8"))
+        gate = config["source_gate"]
+        self.assertEqual(gate["status"], "accepted")
+        self.assertEqual(gate["job_id"], "5881273")
+        self.assertEqual(
+            gate["result_sha256"],
+            "c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55",
+        )
+        self.assertEqual(
+            gate["capability_result_sha256"],
+            "495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62",
+        )
+        self.assertEqual(config["dataset"]["expected_rows"], 3270)
+        self.assertIn("FP8-targeted SpinQuant", config["scope"])
 
     def test_choice_loglikelihood_scores_only_continuation(self):
         tokens = [10, 11, 12, 13]
@@ -157,6 +177,9 @@ class VllmW4AFP8BoolQTests(unittest.TestCase):
         self.assertIn('max_examples=32', text)
         self.assertIn('max_examples=3270', text)
         self.assertIn("spinquant-w4afp8-int8-transfer", text)
+        self.assertIn("VLLM_W4AFP8_BOOLQ_CONFIG", text)
+        self.assertIn("VLLM_W4AFP8_SPINQUANT_CHECKPOINT_DIR", text)
+        self.assertIn("VLLM_W4AFP8_RESULTS_DIR", text)
 
 
 if __name__ == "__main__":

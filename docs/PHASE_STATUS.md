@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL, BoolQ, and matched serving are accepted on GH200 for the old INT8-trained SpinQuant transfer; new FP8-targeted export/load source gate 5881273 is accepted and formal PPL/serving chains are submitted | W4AFP8 cuts ready GPU memory by 50.7% and improves request throughput by 1.39--1.42x versus BF16; jobs 5884993/5884996 and 5884997/5884998 are pending and do not yet establish new FP8-targeted results |
+| vLLM W4AFP8 deployment | Deployed PPL and matched serving are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint; BoolQ is accepted only for the old transfer | FP8-targeted SpinQuant reached PPL 5.219583 and W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16; rotation adds no material serving speedup over unrotated W4AFP8 |
 
 ## Current deployment decision
 
@@ -62,7 +62,7 @@ was 5.007820 BF16, 5.136105 unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8,
 and 5.230155 SpinQuant-transfer W4AFP8. Both rotations were worse than the
 matched unrotated control; SpinQuant-transfer was slightly better than
 QuaRot-style. See [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md). The deployed-quality
-half is complete, while matched serving remains required.
+result is paired with accepted matched serving benchmark `5883004`.
 See [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
 [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md).
 
@@ -109,18 +109,32 @@ Its wall-time limit had been reduced in place from 24 hours to 6 hours without
 cancellation or resubmission.
 
 Revision `318bac2` freezes that accepted source gate into separate downstream
-PPL and serving configurations. PPL smoke `5884993` and service smoke `5884997`
-were submitted independently with one-hour limits; formal PPL `5884996` uses
-`afterok:5884993`, and formal serving benchmark `5884998` uses
-`afterok:5884997`. The smokes are runnability-only gates, so the formal jobs
-start automatically after success. The two tracks may run concurrently on
-different GPUs, but accuracy and timing are not mixed in one process. The
-serving comparison retains BF16 KV cache; FP8 KV and BoolQ are outside these
-submissions. All four jobs are pending, so no FP8-targeted quality or
-acceleration result is claimed yet.
+PPL and serving configurations. Runnability-only PPL smoke `5884993` completed
+`0:0` in 7m00s, and formal PPL `5884996` completed `0:0` in 5m18s through
+`afterok:5884993`. Over 331,614 scored targets, PPL was 5.007820 BF16,
+5.136105 unrotated W4AFP8, 5.248356 QuaRot-style W4AFP8, and 5.219583
+FP8-targeted SpinQuant W4AFP8. The new SpinQuant endpoint improves on QuaRot
+by 0.028773 PPL and on the old transfer endpoint by 0.010572 PPL, but remains
+0.083478 PPL (1.6253%) worse than the matched unrotated control. The formal
+PPL JSON SHA-256 is
+`9f17bc86ee664960400dd26f2182ceef72d76dce0a1b75f055331074a7ff7e0a`.
 
-The missing serving experiment for the accepted INT8-trained rotation transfer
-is being run independently. Result-gated service smoke `5882787` completed
+Runnability-only service smoke `5884997` completed `0:0` in 8m31s, and formal
+serving benchmark `5884998` completed `0:0` in 18m47s through
+`afterok:5884997`. All eight model/concurrency groups completed 64/64 requests
+with zero failures; all six quantized logs selected
+`CutlassW4A8LinearKernel`, and every server recovered to 1--3 MiB. For the
+FP8-targeted SpinQuant endpoint, request throughput was 1.42x BF16 at
+concurrency 1 and 1.385x at concurrency 8, while ready GPU memory fell from
+34,099 MiB to 16,803 MiB (50.7%). Its throughput differed from unrotated
+W4AFP8 by only +0.52% and +0.07%, so acceleration is attributed to W4AFP8
+deployment rather than rotation. The formal serving JSON SHA-256 is
+`a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
+The serving comparison retains BF16 KV cache; FP8 KV and FP8-targeted BoolQ
+remain outside this accepted result.
+
+The previously missing serving experiment for the accepted INT8-trained
+rotation transfer is complete. Result-gated service smoke `5882787` completed
 `0:0` in 8m09s and is accepted: all four endpoints succeeded, all generated
 texts matched, GPU memory recovered after shutdown, and all three quantized
 logs selected `CutlassW4A8LinearKernel`. Its result SHA-256 is

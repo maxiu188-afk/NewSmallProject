@@ -251,17 +251,70 @@ greedy tokens. The joint result SHA-256 is
 the capability and source-manifest SHA-256 values are
 `495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62`
 and `df05eae813350c33608acbda2e5c054661cd99d7cfc321d92ee22101b5b96f84`.
-This is export/load correctness only; FP8-targeted PPL, BoolQ, serving, and
-acceleration remain unmeasured.
+This source gate is export/load correctness only. The separately executed PPL
+and serving results below complete the core deployment evidence package; they
+do not add an FP8-targeted BoolQ result.
 
-Downstream evaluation revision `318bac2` was prepared without changing the
-accepted source artifacts. PPL smoke `5884993` and formal PPL `5884996`
-(`afterok:5884993`) evaluate the same retained 162 x 2048 WikiText-2 tokens.
-Service smoke `5884997` and matched benchmark `5884998`
-(`afterok:5884997`) measure BF16 versus the three W4AFP8 checkpoints at
-concurrency 1 and 8. These are independent GPU job chains so that service
-timing and memory are not contaminated by PPL evaluation. Both smokes are
-runnability-only gates and the dependent formal jobs start automatically. The
-serving protocol keeps BF16 KV cache; FP8 KV and BoolQ are separate follow-ups.
-All four jobs were pending at submission, so this paragraph records execution
-state only and adds no accepted FP8-targeted result.
+### Accepted FP8-targeted deployed PPL
+
+Downstream revision `318bac2` freezes the accepted source artifacts without
+changing their paths or hashes. Runnability-only smoke `5884993` completed
+`0:0` in 7m00s. Formal job `5884996` then completed `0:0` in 5m18s through
+`afterok:5884993`, evaluating 162 x 2048 WikiText-2 sequences and 331,614
+scored next-token targets per model.
+
+| Model | Total NLL | Mean NLL | PPL | PPL vs BF16 | PPL vs unrotated |
+|---|---:|---:|---:|---:|---:|
+| BF16 | 534,230.409917 | 1.611000772 | 5.007820 | baseline | -0.128285 (-2.4963%) |
+| Unrotated W4AFP8 | 542,618.332650 | 1.636295008 | 5.136105 | +0.128285 (+2.5617%) | baseline |
+| QuaRot-style W4AFP8 | 549,787.787161 | 1.657914886 | 5.248356 | +0.240536 (+4.8032%) | +0.112251 (+2.1855%) |
+| FP8-targeted SpinQuant W4AFP8 | 547,964.776632 | 1.652417499 | 5.219583 | +0.211763 (+4.2286%) | +0.083478 (+1.6253%) |
+
+FP8-targeted SpinQuant improves on QuaRot-style by 0.028773 PPL (0.5482%) and
+on the old INT8-trained transfer endpoint by 0.010572 PPL (0.2021%). It does
+not beat the matched unrotated W4AFP8 control. All three quantized evaluations
+record 280 packed decoder linears, group-128 min/max W4 weights,
+`actorder=None`, and dynamic symmetric per-token FP8 inputs. The smoke and
+formal summary SHA-256 values are respectively
+`a5cfc2e28ff23eb0baa7987a3e3f70577441d246c2c7eb8f3fe6d496000c6782`
+and `9f17bc86ee664960400dd26f2182ceef72d76dce0a1b75f055331074a7ff7e0a`.
+
+### Accepted FP8-targeted serving and acceleration
+
+Runnability-only service smoke `5884997` completed `0:0` in 8m31s. All four
+endpoints returned the same deterministic eight-token text, all three
+quantized logs selected `CutlassW4A8LinearKernel`, ready GPU memory was 34,100
+MiB for BF16 and 16,901--16,902 MiB for W4AFP8, and every process recovered to
+2--3 MiB. Its JSON SHA-256 is
+`a99bbf0a324460932623f8d853a107a89202c93ed27c5a244e6944786b45e694`.
+
+Formal benchmark `5884998` completed `0:0` in 18m47s through
+`afterok:5884997`. Every one of the eight model/case groups completed 64/64
+requests with zero failures, for 512/512 requests overall. The fixed protocol
+uses random 256-token inputs, forced 64-token outputs, four warmups,
+concurrency 1 or 8, an 8 GiB KV allocation, and BF16 KV dtype.
+
+| Model | Concurrency | Requests/s | p50 TTFT (ms) | p50 TPOT (ms) | p50 E2E (ms) | Ready GPU memory (MiB) |
+|---|---:|---:|---:|---:|---:|---:|
+| BF16 | 1 | 1.752 | 23.900 | 8.684 | 570.969 | 34,099 |
+| Unrotated W4AFP8 | 1 | 2.473 | 25.776 | 6.011 | 404.460 | 16,803 |
+| QuaRot-style W4AFP8 | 1 | 2.493 | 22.176 | 6.016 | 401.198 | 16,803 |
+| FP8-targeted SpinQuant W4AFP8 | 1 | 2.486 | 23.615 | 6.010 | 402.291 | 16,803 |
+| BF16 | 8 | 11.338 | 106.725 | 9.509 | 705.890 | 34,099 |
+| Unrotated W4AFP8 | 8 | 15.690 | 75.897 | 6.897 | 508.948 | 16,803 |
+| QuaRot-style W4AFP8 | 8 | 15.759 | 73.647 | 6.889 | 507.437 | 16,803 |
+| FP8-targeted SpinQuant W4AFP8 | 8 | 15.701 | 74.828 | 6.903 | 509.220 | 16,803 |
+
+For FP8-targeted SpinQuant, W4AFP8 reduces ready GPU memory by 50.7%, improves
+request throughput by 1.42x at concurrency 1 and 1.385x at concurrency 8, and
+reduces p50 end-to-end latency by 29.5% and 27.9% versus BF16. Relative to
+unrotated W4AFP8, throughput changes by only +0.52% and +0.07%. The accepted
+acceleration is therefore a W4AFP8 backend result, not evidence that learned
+rotation adds serving speed. All six quantized benchmark logs selected the
+required CUTLASS kernel, and every server recovered to 1--3 MiB after shutdown.
+The formal JSON SHA-256 is
+`a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
+
+Together, formal PPL `5884996` and formal serving `5884998` complete the
+FP8-targeted endpoint's core deployment acceptance. BoolQ remains unmeasured
+for this endpoint, and FP8 KV was not used or claimed.

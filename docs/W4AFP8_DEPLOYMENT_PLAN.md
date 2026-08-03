@@ -33,10 +33,10 @@ result. The active order is now fixed:
 6. retain accepted BoolQ smoke `5876321` and formal `5876591`, where the
    INT8-trained SpinQuant transfer reached 79.6024% versus 78.4098% unrotated;
 7. retain accepted FP8-targeted training job `5876984` and separately rooted
-   export/load source gate `5881273`; downstream revision `318bac2` submits
-   runnability-only PPL smoke `5884993` -> formal `5884996` and service smoke
-   `5884997` -> benchmark `5884998`, while the accepted transfer artifacts are
-   not replaced. Results remain pending.
+   export/load source gate `5881273`; downstream revision `318bac2` completed
+   runnability-only PPL smoke `5884993` -> accepted formal `5884996` and service
+   smoke `5884997` -> accepted benchmark `5884998`, while the accepted transfer
+   artifacts remain unchanged. FP8-targeted BoolQ is a separate follow-up.
 
 The W4AFP8 checkout and artifacts remain isolated from the SpinQuant fake-quant
 redo. Within W4AFP8, the scheduler dependency gates allocation only: the
@@ -225,16 +225,25 @@ from the same revision and its result/capability hashes are frozen in PPL
 revision `1f3e4cb`. PPL smoke `5874806` and dependent formal job `5874807`
 completed `0:0`; the latter accepted formal PPL of 5.007820 BF16, 5.136105
 unrotated, 5.248356 QuaRot-style, and 5.230155 SpinQuant-transfer over 331,614
-targets. The deployed-quality gate is complete, but no formal serving speedup
-exists. The first SpinQuant checkpoint remains an
-INT8-trained rotation transfer diagnostic, not an FP8-optimized endpoint.
+targets. The deployed-quality and serving gates are complete for that transfer
+diagnostic. The first SpinQuant checkpoint remains labelled an INT8-trained
+rotation transfer rather than an FP8-optimized endpoint.
 
 BoolQ smoke `5876321` and dependent formal job `5876591` also completed `0:0`.
 The transfer checkpoint reached 79.6024%, compared with 78.4098% unrotated,
 78.5627% QuaRot-style, and 80.5810% BF16. This motivates the isolated
-FP8-targeted training chain, but it does not close the serving half of
-deployment acceptance.
+FP8-targeted training chain, but it does not by itself establish that new
+endpoint's PPL or serving result.
 
 The QuaRot-only Gate 1 path remains isolated and does not read the SpinQuant
-rotation. Deployed PPL is accepted against the frozen joint gate; serving
-remains unsubmitted and must freeze the same provenance before submission.
+rotation. The separately rooted FP8-targeted chain is also complete for core
+deployment acceptance. Source gate `5881273` is frozen in revision `318bac2`.
+PPL smoke `5884993` and formal `5884996` completed `0:0`; formal PPL was
+5.007820 BF16, 5.136105 unrotated, 5.248356 QuaRot-style, and 5.219583
+FP8-targeted SpinQuant. Service smoke `5884997` and benchmark `5884998` also
+completed `0:0`; all 512/512 benchmark requests succeeded, every quantized
+case selected CUTLASS, and FP8-targeted SpinQuant reached 1.42x/1.385x BF16
+request throughput with 50.7% lower ready GPU memory. Its performance was
+effectively tied with unrotated W4AFP8, so no rotation-specific acceleration
+is claimed. This closes the required PPL-plus-serving package with BF16 KV;
+FP8-targeted BoolQ and FP8 KV remain outside the accepted result.

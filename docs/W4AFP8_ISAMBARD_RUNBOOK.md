@@ -69,6 +69,19 @@ requests with zero failures, all six quantized cases selected
 shutdown. The result SHA-256 is
 `df63917675621f891280cf2cf5960e1b394a815f14fd8096125085ea02edae6f`.
 
+The separately rooted FP8-targeted chain is also accepted. Revision `318bac2`
+freezes source gate `5881273`. PPL smoke `5884993` completed `0:0` in 7m00s,
+and formal `5884996` completed `0:0` in 5m18s through `afterok:5884993`.
+Formal PPL was 5.007820 BF16, 5.136105 unrotated, 5.248356 QuaRot-style, and
+5.219583 FP8-targeted SpinQuant over 331,614 targets; result SHA-256:
+`9f17bc86ee664960400dd26f2182ceef72d76dce0a1b75f055331074a7ff7e0a`.
+Service smoke `5884997` completed `0:0` in 8m31s, and benchmark `5884998`
+completed `0:0` in 18m47s through `afterok:5884997`. All 512/512 requests
+succeeded, every quantized server selected CUTLASS, all processes recovered to
+1--3 MiB, and the FP8-targeted endpoint reached 1.42x/1.385x BF16 request
+throughput with 50.7% lower ready GPU memory. Formal serving SHA-256:
+`a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
+
 The official LLM Compressor `W4AFP8` preset is group-128 symmetric INT4
 weights plus symmetric dynamic per-token FP8 activations. The pinned vLLM
 kernel requires Hopper SM90, FP8 E4M3 activations, no zero points, no runtime
@@ -100,8 +113,8 @@ Official references:
    marker, capability, export, inference, and checkpoint-provenance checks.
 3. The joint result and capability hashes are frozen in the four-model PPL
    config. Smoke `5874806` and dependent formal job `5874807` passed. The
-   serving config remains pending and must freeze the same joint gate before
-   its own smoke/formal chain is submitted.
+   corresponding serving smoke `5882787` and benchmark `5883004` also passed
+   from their frozen serving revision.
 
 The main PPL and serving jobs depend on accepted smoke results. They do not use
 smoke outcomes to change the formal protocol.
@@ -162,8 +175,8 @@ completed `0:0` through `afterok:5876321`. Formal accuracy was 80.5810% BF16,
 78.4098% unrotated W4AFP8, 78.5627% QuaRot-style W4AFP8, and 79.6024%
 SpinQuant-transfer W4AFP8. Result SHA-256:
 `b278567aae262fdd6f4379d4004817f17faba51fa304077f03dd1479b8bdb824`.
-This accepts the downstream diagnostic only; the serving-acceleration half is
-still outstanding.
+This accepts the downstream diagnostic only; serving acceleration is recorded
+separately by accepted benchmark `5883004`.
 
 ## Formal deployment evidence contract
 
@@ -256,6 +269,38 @@ The optional DeepGEMM import and post-exit NCCL cleanup warnings were non-fatal;
 CUTLASS was selected and the job reached its required pass marker. No separate
 smoke was required for this result-gated source gate.
 
+Downstream revision `318bac2` retains those hashes and separates quality from
+timing. Runnability-only PPL smoke/formal jobs `5884993`/`5884996` and service
+smoke/benchmark jobs `5884997`/`5884998` all completed `0:0`. Formal PPL for
+FP8-targeted SpinQuant is 5.219583, versus 5.136105 unrotated and 5.248356
+QuaRot-style. The benchmark completed 512/512 requests with no failures and
+measured 2.486/15.701 requests/s at concurrency 1/8, versus 1.752/11.338 for
+BF16, with ready memory 16,803 versus 34,099 MiB. This accepts core deployment
+quality and acceleration with BF16 KV. It does not establish FP8 KV or an
+FP8-targeted BoolQ result.
+
+The FP8-targeted BoolQ follow-up uses
+`configs/deployment/vllm_w4afp8_fp8_spinquant_llama2_13b_boolq_isambard.json`
+and the accepted source gate `5881273`. The batch wrapper accepts isolated
+config, SpinQuant-checkpoint, artifact-root, and result-directory overrides.
+This smoke is **result-gated**, because its 32-example directional accuracy,
+paired predictions, hashes, and logs must be reviewed before authorizing all
+3,270 validation examples. Submit only the smoke, with a one-hour override:
+
+```bash
+artifact_root="${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4afp8-fp8-targeted-5876984"
+results_dir="${PWD}/results/vllm-w4afp8-fp8-targeted-5876984-boolq"
+mkdir -p "${results_dir}"
+sbatch --time=01:00:00 \
+  --output="${results_dir}/%x-%j.out" \
+  --error="${results_dir}/%x-%j.err" \
+  --export="ALL,VLLM_W4AFP8_ARTIFACT_ROOT=${artifact_root},VLLM_W4AFP8_SPINQUANT_CHECKPOINT_DIR=${artifact_root}/spinquant-w4afp8-fp8-targeted-5876984,VLLM_W4AFP8_BOOLQ_CONFIG=${PWD}/configs/deployment/vllm_w4afp8_fp8_spinquant_llama2_13b_boolq_isambard.json,VLLM_W4AFP8_RESULTS_DIR=${results_dir}" \
+  scripts/run_isambard_vllm_w4afp8_llama2_13b_boolq.sbatch smoke
+```
+
+Do not queue formal until the smoke is accepted. The wrapper's default limit
+is six hours for a later formal run; smoke explicitly uses one hour.
+
 ## Result boundaries
 
 - The current INT8 W4A8 fake-quant result is not W4AFP8 quality evidence.
@@ -273,5 +318,6 @@ smoke was required for this result-gated source gate.
 - Acceleration requires the matched full-model service result plus the selected
   W4AFP8 kernel pattern in every quantized server log.
 - The initial SpinQuant checkpoint remains labelled `INT8-trained rotation
-  transfer to W4AFP8`. The separately named FP8-targeted rotation must pass
-  new export, PPL, BoolQ, and serving gates before replacing that label.
+  transfer to W4AFP8`. The separately named FP8-targeted rotation has passed
+  export, PPL, and serving gates. BoolQ remains required only before making a
+  downstream-task claim for that endpoint.

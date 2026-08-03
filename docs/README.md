@@ -38,23 +38,23 @@ result-gated smoke into an automatically queued formal job.
   deployed-checkpoint PPL, full-model serving result, and same-environment
   layer-0 diagnostic.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
-  for BF16, unrotated W4AFP8, QuaRot-style W4AFP8, and SpinQuant transfer, plus
-  the accepted min/max-versus-MSE observer diagnostic and BoolQ result.
+  and matched serving for the INT8-trained transfer and FP8-targeted SpinQuant
+  endpoints, plus the accepted min/max-versus-MSE and transfer-only BoolQ
+  diagnostics.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the
   corrected no-had W4A8 deployment boundary.
 - [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): independent SpinQuant fake-quant
   implementation status, clean-room boundary, W4A8 migration assessment, and
   staged reproduction plan.
-- [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): active joint
-  QuaRot/SpinQuant GH200 deployment plan; deployed-checkpoint quality is
-  accepted, the MSE observer diagnostic is complete, and
-  matched full-model acceleration remains.
+- [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): completed joint
+  QuaRot/SpinQuant GH200 deployment plan, including FP8-targeted PPL and matched
+  full-model serving acceptance.
 - [`W4AFP8_ISAMBARD_RUNBOOK.md`](W4AFP8_ISAMBARD_RUNBOOK.md): isolated local
-  preparation, accepted GH200 export/PPL evidence, and remaining serving
-  procedure.
+  preparation and accepted GH200 export, PPL, downstream-diagnostic, and
+  serving evidence.
 - [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md):
-  completed QuaRot routes plus the planned joint W4AFP8 extension.
+  completed QuaRot routes plus the completed joint W4AFP8 extension.
 - [`QUAROT_PROGRESS_REPORT_ZH.tex`](QUAROT_PROGRESS_REPORT_ZH.tex): concise
   Chinese progress report for XeLaTeX/Overleaf.
 
