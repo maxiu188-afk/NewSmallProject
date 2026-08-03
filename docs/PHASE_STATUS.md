@@ -132,9 +132,13 @@ deployment rather than rotation. The formal serving JSON SHA-256 is
 `a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
 The serving comparison retains BF16 KV cache; FP8 KV and FP8-targeted BoolQ
 remain outside this accepted result. Separately rooted BoolQ revision
-`183bd8f` passed source/data preflight, and result-gated 32-example smoke
-`5886682` was submitted with a one-hour limit. It had no dependency and was
-pending at submission; no formal BoolQ job is queued.
+`183bd8f` passed source/data preflight, but initial smoke `5886682` failed
+`1:0` in five seconds before model execution because the immutable dataset
+manifest recorded the original BoolQ config hash. Revision `3639cc4` fixes
+this fail-closed by explicitly freezing that original hash while retaining the
+same revision, fingerprint, examples SHA, and row-count checks. Corrected smoke
+`5886913` is queued with a one-hour limit; formal job `5886914` is queued with
+`afterok:5886913` and a six-hour limit.
 
 The previously missing serving experiment for the accepted INT8-trained
 rotation transfer is complete. Result-gated service smoke `5882787` completed

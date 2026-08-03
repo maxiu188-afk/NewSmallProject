@@ -301,10 +301,15 @@ sbatch --time=01:00:00 \
 Do not queue formal until the smoke is accepted. The wrapper's default limit
 is six hours for a later formal run; smoke explicitly uses one hour.
 
-Accepted preparation state: clean revision `183bd8f` passed the frozen source
-gate and BoolQ dataset-manifest checks. `sbatch --test-only` passed, then
-result-gated smoke `5886682` was submitted with a one-hour limit and no
-dependency. It was pending at submission. No formal job was submitted.
+Execution note: clean revision `183bd8f` passed source/data preflight, but
+initial smoke `5886682` failed `1:0` in five seconds before model execution.
+The materialized dataset manifest correctly retained the original BoolQ config
+SHA, while the new model-source config had a different SHA. Revision `3639cc4`
+adds an explicit `expected_manifest_config_sha256` equal to the recorded
+manifest value; it still verifies dataset revision, fingerprint, examples SHA,
+and row count and rejects any other manifest config hash. Corrected smoke
+`5886913` is queued with a one-hour limit. Formal `5886914` is queued with a
+six-hour limit and `afterok:5886913`.
 
 ## Result boundaries
 

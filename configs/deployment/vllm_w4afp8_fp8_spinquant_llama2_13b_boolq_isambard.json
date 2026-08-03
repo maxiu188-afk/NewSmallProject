@@ -41,6 +41,7 @@
     "expected_rows": 3270,
     "expected_fingerprint": "3465575e190d308f",
     "expected_examples_sha256": "475e56b71939a8e3db8be48bcc4d344569b36cc660f4086c9ae15858d46a297f",
+    "expected_manifest_config_sha256": "fa44d2c61317022bac346ff4a14824d8da90f192a00c1e6204493ed8d80f818f",
     "expected_label_counts": {
       "0": 1237,
       "1": 2033

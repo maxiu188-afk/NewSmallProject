@@ -86,7 +86,52 @@ class VllmW4AFP8BoolQTests(unittest.TestCase):
             "495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62",
         )
         self.assertEqual(config["dataset"]["expected_rows"], 3270)
+        self.assertEqual(
+            config["dataset"]["expected_manifest_config_sha256"],
+            "fa44d2c61317022bac346ff4a14824d8da90f192a00c1e6204493ed8d80f818f",
+        )
         self.assertIn("FP8-targeted SpinQuant", config["scope"])
+
+    def test_load_examples_accepts_explicit_materialized_config_hash(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            examples_path = root / "validation.jsonl"
+            examples_path.write_text(
+                '{"idx":0,"label":1,"passage":"p","question":"q"}\n',
+                encoding="utf-8",
+            )
+            examples_sha256 = BOOLQ._sha256(examples_path)
+            manifest_path = root / "manifest.json"
+            manifest = {
+                "status": "passed",
+                "config_sha256": "prepared-config-digest",
+                "dataset": {"revision": "revision", "fingerprint": "fingerprint"},
+                "examples": {
+                    "path": str(examples_path),
+                    "sha256": examples_sha256,
+                },
+            }
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            config = {
+                "_config_path": str(root / "new-config.json"),
+                "dataset": {
+                    "revision": "revision",
+                    "expected_fingerprint": "fingerprint",
+                    "expected_examples_sha256": examples_sha256,
+                    "expected_rows": 1,
+                    "expected_manifest_config_sha256": "prepared-config-digest",
+                },
+            }
+            examples, loaded_manifest = BOOLQ._load_examples(
+                config, manifest_path, max_examples=1
+            )
+            self.assertEqual(len(examples), 1)
+            self.assertEqual(loaded_manifest, manifest)
+
+            manifest["config_sha256"] = "wrong-digest"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "different config"):
+                BOOLQ._load_examples(config, manifest_path, max_examples=1)
 
     def test_choice_loglikelihood_scores_only_continuation(self):
         tokens = [10, 11, 12, 13]
