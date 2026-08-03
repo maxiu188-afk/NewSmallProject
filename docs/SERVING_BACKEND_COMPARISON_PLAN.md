@@ -39,6 +39,22 @@ was written; it does not accept SGLang W4AFP8 support.
   until job `5895081` completes and its JSON, logs, marker, revision, and hashes
   are reviewed.
 
+### First smoke review
+
+Job `5895081` completed `0:0` in 4 minutes 16 seconds and recorded result JSON
+SHA-256 `3f4f19b550f33194851be7ceccc7acb9a07efbdd842c5a49f325aae5052f0e6c`.
+Both vLLM tracks passed, generated the same eight tokens, selected the accepted
+CUTLASS W4AFP8 kernel for the quantized track, and returned GPU memory from
+34,099/16,803 MiB ready usage to the 3 MiB baseline.
+
+The two SGLang tracks are **invalid as compatibility evidence**. The runner
+resolved the virtual-environment Python symlink to the Cray base interpreter,
+which exited before model loading with `ModuleNotFoundError: No module named
+'sglang'`. This is a harness-path failure shared by BF16 and W4AFP8, not a
+backend or checkpoint failure. The path handling is corrected in the next
+revision and requires one replacement result-gated smoke. Job `5895081` must
+not be cited as evidence that SGLang rejects either checkpoint.
+
 ## Research questions
 
 1. On the same GH200, how do SGLang and vLLM compare for the same BF16

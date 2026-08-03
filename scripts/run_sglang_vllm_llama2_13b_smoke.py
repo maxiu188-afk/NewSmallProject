@@ -96,6 +96,11 @@ def _parse_models(values: list[str], expected: list[str]) -> dict[str, Path]:
     return models
 
 
+def _absolute_executable(path: Path) -> Path:
+    """Make a command path absolute without resolving a virtualenv symlink."""
+    return Path(os.path.abspath(path))
+
+
 def _server_command(
     *,
     backend: str,
@@ -431,8 +436,8 @@ def main() -> int:
         "sglang": _runtime_probe(args.sglang_python, ["sglang", "torch"]),
     }
     executables = {
-        "vllm": args.vllm_executable.resolve(),
-        "sglang": args.sglang_python.resolve(),
+        "vllm": _absolute_executable(args.vllm_executable),
+        "sglang": _absolute_executable(args.sglang_python),
     }
     cases: dict[str, dict[str, Any]] = {}
     for backend in config["backends"]:

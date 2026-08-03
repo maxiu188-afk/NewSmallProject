@@ -242,5 +242,9 @@ prepared, but no GH200 SGLang runtime or performance result is currently
 accepted. The source audit predicts that SGLang `0.5.16` cannot dispatch the
 unchanged dense compressed-tensors W4AFP8 checkpoint; the runtime smoke must
 record this boundary before any BF16-only formal comparison is considered.
-Result-gated smoke job `5895081` is queued from clean revision `3578427`; it has
-no formal-job dependency, and no result is claimed while it remains pending.
+Result-gated smoke job `5895081` was submitted from clean revision `3578427`
+without a formal-job dependency. It completed, but its SGLang cases used the
+Cray base interpreter after an erroneous virtual-environment symlink resolution
+and failed before model loading. The vLLM controls passed; the SGLang outcomes
+are invalid as compatibility evidence and require one corrected replacement
+smoke.

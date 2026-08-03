@@ -60,6 +60,22 @@ class SglangVllmLlamaSmokeTests(unittest.TestCase):
         self.assertEqual(command[command.index("--chunked-prefill-size") + 1], "-1")
         self.assertNotIn("--quantization", command)
 
+    def test_virtualenv_python_symlink_is_not_resolved(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_python = root / "base-python"
+            base_python.write_text("", encoding="utf-8")
+            environment_python = root / "environment" / "bin" / "python"
+            environment_python.parent.mkdir(parents=True)
+            environment_python.symlink_to(base_python)
+            self.assertEqual(
+                MODULE._absolute_executable(environment_python),
+                environment_python,
+            )
+            self.assertNotEqual(environment_python.resolve(), environment_python)
+
     def test_compatibility_status_distinguishes_bf16_only(self):
         cases = {
             "vllm:bf16": {"status": "passed"},
