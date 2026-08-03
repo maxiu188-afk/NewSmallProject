@@ -247,4 +247,5 @@ without a formal-job dependency. It completed, but its SGLang cases used the
 Cray base interpreter after an erroneous virtual-environment symlink resolution
 and failed before model loading. The vLLM controls passed; the SGLang outcomes
 are invalid as compatibility evidence and require one corrected replacement
-smoke.
+smoke. Corrected job `5895358` is submitted from clean revision `5355df8`
+without a formal-job dependency; its result remains pending review.

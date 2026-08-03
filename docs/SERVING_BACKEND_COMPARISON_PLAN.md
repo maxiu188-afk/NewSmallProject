@@ -55,6 +55,11 @@ backend or checkpoint failure. The path handling is corrected in the next
 revision and requires one replacement result-gated smoke. Job `5895081` must
 not be cited as evidence that SGLang rejects either checkpoint.
 
+The corrected replacement was submitted as job `5895358` from clean revision
+`5355df8cbd1ffab62829a7fab900c9c666e708c3` after `sbatch --test-only`
+accepted the script. It has no formal-job dependency. No compatibility claim
+is made until its retained artifacts are reviewed.
+
 ## Research questions
 
 1. On the same GH200, how do SGLang and vLLM compare for the same BF16
