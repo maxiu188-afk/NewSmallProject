@@ -27,8 +27,9 @@ result. The active order is now fixed:
    hashes;
 4. retain accepted PPL smoke `5874806` and dependent formal job `5874807` over
    all 331,614 scored targets;
-5. evaluate serving performance only after freezing the same joint source-gate
-   provenance in the serving config;
+5. retain serving revision `ad971f9`, which freezes joint source gate `5874345`;
+   review result-gated service smoke `5882787` before submitting its matched
+   benchmark formal;
 6. retain accepted BoolQ smoke `5876321` and formal `5876591`, where the
    INT8-trained SpinQuant transfer reached 79.6024% versus 78.4098% unrotated;
 7. retain accepted FP8-targeted training job `5876984`, then review its

@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; FP8-targeted SpinQuant formal training 5876984 accepted; its isolated export/load source gate 5881273 is pending; matched serving remains unsubmitted | Formal training produced a checksummed FP8-targeted rotation, but no new packed checkpoint, PPL, BoolQ, or W4AFP8 acceleration result exists yet |
+| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; old INT8-trained-transfer service smoke 5882787 and new FP8-targeted export/load source gate 5881273 are pending | No W4AFP8 acceleration result exists yet; the old-route benchmark formal is not submitted until its result-gated service smoke is reviewed |
 
 ## Current deployment decision
 
@@ -101,6 +101,12 @@ This does not establish W4AFP8 quality or acceleration. Isolated source gate
 `5881273` was submitted from revision `60aa629` to create and load the new
 packed checkpoint without replacing the accepted INT8-transfer artifacts; it
 was `PENDING` at the 2026-08-03 submission snapshot.
+
+The missing serving experiment for the accepted INT8-trained rotation transfer
+is being run independently. Service smoke `5882787` was submitted from frozen
+serving revision `ad971f9` and was `PENDING` at the 2026-08-03 snapshot. It is
+a result-gated smoke: no benchmark formal is prequeued, and it is not yet
+acceleration evidence.
 
 The latest accepted diagnostic is formal BoolQ job `5876591`, submitted after
 manual acceptance of smoke `5876321`. It scored all 3,270 validation examples:

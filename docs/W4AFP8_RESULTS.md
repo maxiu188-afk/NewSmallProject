@@ -123,6 +123,14 @@ not establish acceleration. Matched full-model serving smoke and formal
 throughput/latency/memory measurement remain required before any W4AFP8
 variant is labelled deployment-complete.
 
+For the accepted INT8-trained SpinQuant-transfer checkpoint set, serving
+revision `ad971f9` freezes source gate `5874345` and the existing checkpoint
+paths without modifying their producing inputs. Result-gated service smoke
+`5882787` was submitted with no dependent benchmark and was `PENDING` at the
+2026-08-03 snapshot. Its completion must be reviewed for endpoint success,
+request failures, memory recovery, hashes, and `CutlassW4A8LinearKernel`
+evidence before the matched benchmark formal is authorized.
+
 The SpinQuant checkpoint remains an INT8-trained rotation transfer to W4AFP8,
 not an FP8-targeted learned endpoint. Its slightly better PPL than QuaRot does
 not show that FP8-targeted SpinQuant training is complete.

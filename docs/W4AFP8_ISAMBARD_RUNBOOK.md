@@ -56,6 +56,13 @@ The prepared path covers all later evidence gates:
 | Downstream diagnostic | `scripts/run_isambard_vllm_w4afp8_llama2_13b_boolq.sbatch` | Zero-shot BoolQ validation accuracy for the same four checkpoints under the QuaRot-pinned LM Evaluation Harness task definition |
 | Service and acceleration | `scripts/run_isambard_vllm_w4afp8_llama2_13b_serving.sbatch` | Kernel log proof, endpoint smoke, concurrency-1/8 latency and throughput, memory and recovery |
 
+The accepted INT8-trained-transfer checkpoints use isolated serving revision
+`ad971f9`, which freezes joint source gate `5874345` without changing any
+gate-producing input. Result-gated service smoke `5882787` was submitted with
+no dependent benchmark and was `PENDING` at the 2026-08-03 snapshot. Do not
+submit benchmark mode until its JSON, request outcomes, kernel logs, memory
+recovery, hashes, and revision have been reviewed and accepted.
+
 The official LLM Compressor `W4AFP8` preset is group-128 symmetric INT4
 weights plus symmetric dynamic per-token FP8 activations. The pinned vLLM
 kernel requires Hopper SM90, FP8 E4M3 activations, no zero points, no runtime
