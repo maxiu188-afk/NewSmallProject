@@ -14,7 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; FP8-targeted SpinQuant smoke 5876912 accepted; read-only acceptance 5876983 and formal training 5876984 pending; matched serving remains unsubmitted | Formal BoolQ job 5876591 reached 79.6024% SpinQuant-transfer versus 78.4098% unrotated, 78.5627% QuaRot-style, and 80.5810% BF16. No new checkpoint or W4AFP8 acceleration claim exists yet |
+| vLLM W4AFP8 deployment | Deployed PPL and BoolQ accepted on GH200; FP8-targeted SpinQuant formal training 5876984 accepted; its isolated export/load source gate 5881273 is pending; matched serving remains unsubmitted | Formal training produced a checksummed FP8-targeted rotation, but no new packed checkpoint, PPL, BoolQ, or W4AFP8 acceleration result exists yet |
 
 ## Current deployment decision
 
@@ -90,6 +90,17 @@ kernel evidence. A method is not deployment-complete if either formal accuracy
 or formal serving evidence is missing.
 
 ## Latest accepted result
+
+FP8-targeted SpinQuant formal training job `5876984` completed `0:0` in
+2h10m04s and is accepted as rotation-training evidence. It recorded 100 finite
+losses and 100 non-zero gradient maxima over 800 x 2048 calibration tokens.
+Training R1/R2 orthogonality errors were `1.7285e-6` and `5.9605e-7`; the
+rotation SafeTensors SHA-256 is
+`383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
+This does not establish W4AFP8 quality or acceleration. Isolated source gate
+`5881273` was submitted from revision `60aa629` to create and load the new
+packed checkpoint without replacing the accepted INT8-transfer artifacts; it
+was `PENDING` at the 2026-08-03 submission snapshot.
 
 The latest accepted diagnostic is formal BoolQ job `5876591`, submitted after
 manual acceptance of smoke `5876321`. It scored all 3,270 validation examples:

@@ -220,9 +220,21 @@ Accepted FP8-targeted training smoke `5876912` completed `0:0` in 2m48s. Its
 result and rotation SHA-256 values are respectively
 `bf1c927f2a821c76aeb7b39d2ef1fbe291bbbf135c33e50af09322631e8a83f2` and
 `a88e745beaf9601d04af0bd07a2c92798bf86062332319782e553fbca9092194`.
-Read-only acceptance job `5876983` and dependent formal training job `5876984`
-were both `PENDING` at the 2026-08-02 snapshot. The acceptance job does not
-retrain rotations; formal still consumes and validates smoke `5876912`.
+Read-only acceptance job `5876983` completed `0:0` in one second. Dependent
+formal training job `5876984` completed `0:0` in 2h10m04s with 100 finite
+losses, 100 non-zero gradient maxima, and a passed rotation artifact. Its
+formal result SHA-256 is
+`f34f450e03dd59ec9b26942731b470b080908399f9d53089da2fd38bb903f1d1`,
+and its rotation SafeTensors SHA-256 is
+`383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
+
+Revision `60aa629` adds isolated config and path overrides for the new
+FP8-targeted export without changing the accepted transfer artifacts. Joint
+source gate `5881273` was submitted with no dependency and was `PENDING` at
+the 2026-08-03 snapshot. This gate is result-gated: inspect its export reports,
+packed coverage, runtime `g_idx`, fixed-token inference, selected CUTLASS
+kernel, hashes, and provenance before submitting any formal quality or serving
+task. No separate smoke is required for this gate.
 
 ## Result boundaries
 

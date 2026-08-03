@@ -189,7 +189,20 @@ accepted. Its result SHA-256 is
 `bf1c927f2a821c76aeb7b39d2ef1fbe291bbbf135c33e50af09322631e8a83f2`,
 and its rotation tensor SHA-256 is
 `a88e745beaf9601d04af0bd07a2c92798bf86062332319782e553fbca9092194`.
-Read-only acceptance job `5876983` and dependent 100-step formal training job
-`5876984` were `PENDING` at the 2026-08-02 snapshot. The quality and
-acceleration jobs remain blocked until the formal rotation is accepted and a
-new packed checkpoint exists.
+Read-only acceptance job `5876983` completed `0:0` in one second. Dependent
+100-step formal training job `5876984` then completed `0:0` in 2h10m04s. It
+recorded 100 finite losses, 100 non-zero gradient maxima, and training R1/R2
+orthogonality errors of `1.7285e-6` and `5.9605e-7` over 800 x 2048 tokens.
+The formal result SHA-256 is
+`f34f450e03dd59ec9b26942731b470b080908399f9d53089da2fd38bb903f1d1`;
+the rotation manifest and SafeTensors SHA-256 values are respectively
+`38b423e68f1f503c01a9250a7b850a721182d59ec6ebd4a26077cfdbaa4ba29e`
+and `383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
+
+Revision `60aa629` adds a separately configured export/load path for this
+rotation. Joint source gate `5881273` was submitted without a smoke or formal
+dependency and was `PENDING` at the 2026-08-03 snapshot. It writes to a new
+artifact root and does not overwrite the accepted INT8-transfer checkpoint.
+PPL, BoolQ, serving, and acceleration remain blocked until this result-gated
+source gate completes and its checkpoint, logs, hashes, and kernel evidence
+are reviewed.

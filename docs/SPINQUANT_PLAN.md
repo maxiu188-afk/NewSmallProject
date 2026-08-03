@@ -326,11 +326,17 @@ the rotation tensor SHA-256 is
 
 Slurm no longer accepted `afterok:5876912` after the completed job left the
 controller's dependency window. The accepted smoke was not rerun. Read-only
-acceptance job `5876983` rechecks its JSON and frozen source hashes, and formal
-100-step job `5876984` is queued through `afterok:5876983` while still naming
-`5876912` as the accepted smoke artifact. At the recorded snapshot both jobs
-were `PENDING`, with formal waiting on `Dependency`. No export, PPL, BoolQ, or
-serving task has been submitted for the new rotation.
+acceptance job `5876983` completed `0:0` in one second, and formal 100-step job
+`5876984` then completed `0:0` in 2h10m04s through `afterok:5876983` while
+still naming `5876912` as the accepted smoke artifact. All 100 loss and
+gradient records passed. The formal result SHA-256 is
+`f34f450e03dd59ec9b26942731b470b080908399f9d53089da2fd38bb903f1d1`;
+the accepted rotation SafeTensors SHA-256 is
+`383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
+
+The separate FP8-targeted W4AFP8 source gate is `5881273`, submitted from
+revision `60aa629` with no smoke or formal task prequeued. It must be reviewed
+after completion before any PPL, BoolQ, or serving formal task is authorized.
 
 The resulting rotation must not overwrite the accepted INT8-transfer artifact.
 After export with the frozen group-128/no-actorder/min-max W4AFP8 recipe, it
