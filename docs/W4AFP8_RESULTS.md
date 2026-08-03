@@ -317,4 +317,7 @@ The formal JSON SHA-256 is
 
 Together, formal PPL `5884996` and formal serving `5884998` complete the
 FP8-targeted endpoint's core deployment acceptance. BoolQ remains unmeasured
-for this endpoint, and FP8 KV was not used or claimed.
+for this endpoint, and FP8 KV was not used or claimed. Result-gated BoolQ smoke
+`5886682` was subsequently submitted from clean revision `183bd8f` after source
+gate and dataset-manifest preflight. Only its 32-example smoke is queued; formal
+must wait for smoke-result review.

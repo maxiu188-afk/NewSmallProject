@@ -301,6 +301,11 @@ sbatch --time=01:00:00 \
 Do not queue formal until the smoke is accepted. The wrapper's default limit
 is six hours for a later formal run; smoke explicitly uses one hour.
 
+Accepted preparation state: clean revision `183bd8f` passed the frozen source
+gate and BoolQ dataset-manifest checks. `sbatch --test-only` passed, then
+result-gated smoke `5886682` was submitted with a one-hour limit and no
+dependency. It was pending at submission. No formal job was submitted.
+
 ## Result boundaries
 
 - The current INT8 W4A8 fake-quant result is not W4AFP8 quality evidence.

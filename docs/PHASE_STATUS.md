@@ -131,7 +131,10 @@ W4AFP8 by only +0.52% and +0.07%, so acceleration is attributed to W4AFP8
 deployment rather than rotation. The formal serving JSON SHA-256 is
 `a10044d965d93ceca756e203a86ad5f72018a2b1028a65b552315a59ea1a80b7`.
 The serving comparison retains BF16 KV cache; FP8 KV and FP8-targeted BoolQ
-remain outside this accepted result.
+remain outside this accepted result. Separately rooted BoolQ revision
+`183bd8f` passed source/data preflight, and result-gated 32-example smoke
+`5886682` was submitted with a one-hour limit. It had no dependency and was
+pending at submission; no formal BoolQ job is queued.
 
 The previously missing serving experiment for the accepted INT8-trained
 rotation transfer is complete. Result-gated service smoke `5882787` completed
