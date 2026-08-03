@@ -217,6 +217,28 @@ class VllmW4AFP8Tests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "required kernel"):
                 SERVING._server_record(server, config, "unrotated_w4afp8")
 
+    def test_serving_config_freezes_accepted_joint_source_gate(self):
+        config = json.loads(SERVING_CONFIG.read_text(encoding="utf-8"))
+        source_gate = config["source_gate"]
+        self.assertEqual(
+            config["status"], "source_gate_accepted_ready_for_serving_smoke"
+        )
+        self.assertEqual(source_gate["status"], "accepted")
+        self.assertEqual(source_gate["job_id"], "5874345")
+        self.assertIn("joint-offline-inference-5874345.json", source_gate["result"])
+        self.assertIn(
+            "backend-capability-5874345.json",
+            source_gate["capability_result"],
+        )
+        self.assertEqual(len(source_gate["result_sha256"]), 64)
+        self.assertEqual(len(source_gate["capability_result_sha256"]), 64)
+
+        wrapper = (
+            PROJECT_ROOT
+            / "scripts/run_isambard_vllm_w4afp8_llama2_13b_serving.sbatch"
+        ).read_text(encoding="utf-8")
+        self.assertIn("service smoke is result-gated", wrapper)
+
     def test_ppl_parent_runs_four_fresh_workers_and_preserves_token_count(self):
         config = json.loads(PPL_CONFIG.read_text(encoding="utf-8"))
         runtime = {

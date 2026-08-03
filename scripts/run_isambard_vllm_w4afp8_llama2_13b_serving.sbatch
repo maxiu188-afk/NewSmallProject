@@ -1,5 +1,6 @@
 #!/bin/bash
-# Prepared only. Freeze the accepted source gate before submitting smoke/benchmark.
+# The service smoke is result-gated: submit smoke only, review its endpoint,
+# request, kernel-log, hash, and recovery evidence, then submit benchmark.
 #SBATCH --job-name=vllm-13b-w4afp8-serve
 #SBATCH --account=brics.u6rt
 #SBATCH --partition=workq
