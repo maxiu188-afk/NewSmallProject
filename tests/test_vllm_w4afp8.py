@@ -128,6 +128,7 @@ class VllmW4AFP8Tests(unittest.TestCase):
             PROJECT_ROOT
             / "scripts/run_isambard_vllm_w4afp8_llama2_13b_gate.sbatch"
         ).read_text(encoding="utf-8")
+        self.assertIn("#SBATCH --time=06:00:00", text)
         self.assertIn('variant_set="${1:-}"', text)
         self.assertIn("{quarot|spinquant|joint}", text)
         self.assertIn("--variant-set", text)

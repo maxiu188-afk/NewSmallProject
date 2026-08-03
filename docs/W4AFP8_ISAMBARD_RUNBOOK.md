@@ -58,10 +58,13 @@ The prepared path covers all later evidence gates:
 
 The accepted INT8-trained-transfer checkpoints use isolated serving revision
 `ad971f9`, which freezes joint source gate `5874345` without changing any
-gate-producing input. Result-gated service smoke `5882787` was submitted with
-no dependent benchmark and was `PENDING` at the 2026-08-03 snapshot. Do not
-submit benchmark mode until its JSON, request outcomes, kernel logs, memory
-recovery, hashes, and revision have been reviewed and accepted.
+gate-producing input. Result-gated service smoke `5882787` completed `0:0` in
+8m09s and passed review of its JSON, four endpoint checks, kernel logs, memory
+recovery, hashes, and revision. Its result SHA-256 is
+`d3acdc424cd6796700a9ad937ceb26efca735a9a07adfed1b645a1403d09af7c`.
+Benchmark formal `5883004` was consequently submitted from the same checkout
+and entered `RUNNING` at 2026-08-03 09:20:13. Do not treat the smoke itself as
+throughput or latency evidence.
 
 The official LLM Compressor `W4AFP8` preset is group-128 symmetric INT4
 weights plus symmetric dynamic per-token FP8 activations. The pinned vLLM
@@ -238,10 +241,12 @@ and its rotation SafeTensors SHA-256 is
 Revision `60aa629` adds isolated config and path overrides for the new
 FP8-targeted export without changing the accepted transfer artifacts. Joint
 source gate `5881273` was submitted with no dependency and was `PENDING` at
-the 2026-08-03 snapshot. This gate is result-gated: inspect its export reports,
-packed coverage, runtime `g_idx`, fixed-token inference, selected CUTLASS
-kernel, hashes, and provenance before submitting any formal quality or serving
-task. No separate smoke is required for this gate.
+the 2026-08-03 snapshot. Its time limit was reduced in place from 24 hours to
+6 hours, and the submission script now uses 6 hours by default. This gate is
+result-gated: inspect its export reports, packed coverage, runtime `g_idx`,
+fixed-token inference, selected CUTLASS kernel, hashes, and provenance before
+submitting any formal quality or serving task. No separate smoke is required
+for this gate.
 
 ## Result boundaries
 

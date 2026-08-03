@@ -126,10 +126,19 @@ variant is labelled deployment-complete.
 For the accepted INT8-trained SpinQuant-transfer checkpoint set, serving
 revision `ad971f9` freezes source gate `5874345` and the existing checkpoint
 paths without modifying their producing inputs. Result-gated service smoke
-`5882787` was submitted with no dependent benchmark and was `PENDING` at the
-2026-08-03 snapshot. Its completion must be reviewed for endpoint success,
-request failures, memory recovery, hashes, and `CutlassW4A8LinearKernel`
-evidence before the matched benchmark formal is authorized.
+`5882787` completed `0:0` in 8m09s. BF16 and all three W4AFP8 endpoints passed
+health, model-listing, and deterministic eight-token completion checks; all
+generated texts matched. Ready GPU memory was 34,099 MiB for BF16 and 16,901
+MiB for each W4AFP8 checkpoint, and every process recovered to 1--3 MiB after
+shutdown. All quantized logs selected `CutlassW4A8LinearKernel`. The smoke JSON
+SHA-256 is `d3acdc424cd6796700a9ad937ceb26efca735a9a07adfed1b645a1403d09af7c`.
+The optional DeepGEMM import warning was non-fatal and did not replace the
+selected CUTLASS path.
+
+Matched benchmark formal `5883004` was submitted only after this review. It
+entered `RUNNING` at 2026-08-03 09:20:13. The smoke is service correctness
+evidence, not acceleration; throughput, TTFT, TPOT, end-to-end latency,
+request counts, and peak memory remain pending formal results.
 
 The SpinQuant checkpoint remains an INT8-trained rotation transfer to W4AFP8,
 not an FP8-targeted learned endpoint. Its slightly better PPL than QuaRot does
@@ -209,8 +218,10 @@ and `383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
 
 Revision `60aa629` adds a separately configured export/load path for this
 rotation. Joint source gate `5881273` was submitted without a smoke or formal
-dependency and was `PENDING` at the 2026-08-03 snapshot. It writes to a new
-artifact root and does not overwrite the accepted INT8-transfer checkpoint.
+dependency and was `PENDING` at the 2026-08-03 snapshot. Its Slurm wall-time
+limit was reduced in place from 24 hours to 6 hours; the job was not cancelled
+or resubmitted. It writes to a new artifact root and does not overwrite the
+accepted INT8-transfer checkpoint.
 PPL, BoolQ, serving, and acceleration remain blocked until this result-gated
 source gate completes and its checkpoint, logs, hashes, and kernel evidence
 are reviewed.
