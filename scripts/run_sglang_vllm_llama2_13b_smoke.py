@@ -170,6 +170,9 @@ def _server_command(
         command.append("--disable-radix-cache")
     if server["disable_chunked_prefill"]:
         command.extend(["--chunked-prefill-size", "-1"])
+    attention_backend = config["sglang"].get("attention_backend")
+    if attention_backend is not None:
+        command.extend(["--attention-backend", str(attention_backend)])
     quantization = config["sglang"].get("offline_quantization_argument")
     if quantization is not None:
         command.extend(["--quantization", str(quantization)])
