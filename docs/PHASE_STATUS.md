@@ -262,3 +262,14 @@ but its default FA3 backend failed because the installed `sgl_kernel` lacks
 `flash_ops`; this is not BF16 incompatibility. One BF16-only corrected smoke is
 required before Track A can be considered, and no formal job is submitted. See
 [`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
+
+The next authorized step is Track C first: exact accepted QuaRot-style rotated
+W4A16 on the frozen zero-shot BoolQ protocol. Its immutable-input audit binds
+the checkpoint tree SHA-256
+`2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99`,
+280 packed decoder linears, group-128 static-actorder W4A16 metadata, and the
+accepted source result. Result-gated 32-example/64-request-per-backend smoke job
+`5905638` is submitted from clean revision `cf7b49a`; the initial state is
+`PENDING` with no estimated start time. It contains no BF16, unrotated W4A16,
+SpinQuant, re-export, formal job, or formal dependency and will not be
+continuously monitored.

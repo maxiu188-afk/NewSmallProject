@@ -180,12 +180,36 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: W4A16 extension | Exact accepted rotated W4A16 artifact | Optional, separately authorized after A/B | Additional precision-format comparison; not required for the first study |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Authorized; result-gated BoolQ smoke `5905638` submitted | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
 different experiment and must not be inserted into Track B or compared as if
 the checkpoint were identical.
+
+### Authorized QuaRot W4A16 BoolQ smoke (2026-08-04)
+
+Track C is now restricted to the already accepted QuaRot-style rotated W4A16
+checkpoint and the frozen zero-shot BoolQ validation protocol. It does not
+include BF16, unrotated W4A16, SpinQuant, re-quantization, or re-export. The
+32-example smoke scores both `no` and `yes` continuations through vLLM and
+SGLang, for 64 requests per backend, and records prediction disagreements and
+choice-loglikelihood differences without inventing a pass threshold.
+
+The exact checkpoint tree SHA-256 is
+`2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99`.
+The immutable-input gate also confirmed 280 packed decoder linears,
+compressed-tensors `pack-quantized` W4A16, group size 128, static act-order,
+and `lm_head` exclusion. SGLang `0.5.16` source dispatches this weight-only
+scheme to `CompressedTensorsWNA16`. The server explicitly selects the installed
+FlashInfer attention backend instead of retrying the unavailable default FA3
+path.
+
+After remote unit tests, the immutable-input gate, and `sbatch --test-only`
+passed, result-gated smoke job `5905638` was submitted from clean revision
+`cf7b49a26a4110dbd6c9c6dec3a6a7dbaaf34950`. Its initial scheduler snapshot
+was `PENDING` with no estimated start time. No formal job or dependency is
+submitted, and the job will not be continuously monitored.
 
 ## Gate 0: read-only compatibility audit
 

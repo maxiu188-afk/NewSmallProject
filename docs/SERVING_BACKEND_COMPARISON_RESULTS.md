@@ -59,9 +59,12 @@ server smoke can establish a working alternative attention backend.
 
 ## Bounded next decision
 
-Only Track A remains eligible to continue. Its next result-gated action is one
-BF16-only SGLang smoke with an explicitly selected installed attention backend,
-while retaining the same model, dtype, KV dtype, context length, request, seed,
-and resource envelope. The exact W4AFP8 case must not be rerun, and the BF16
-formal comparison remains blocked until that corrected smoke is reviewed and
-accepted.
+Track A remains eligible for a BF16-only correction, but the user has selected
+Track C first. Result-gated job `5905638` evaluates only the exact accepted
+QuaRot-style rotated W4A16 checkpoint on 32 frozen BoolQ validation examples,
+using matched `no`/`yes` continuation scoring through vLLM and SGLang. It is
+submitted from clean revision `cf7b49a`; no formal job is submitted and no
+result is claimed before artifact review.
+
+Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
+SpinQuant, checkpoint conversion, or a new quantization run.
