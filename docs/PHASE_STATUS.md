@@ -237,11 +237,10 @@ serving-system research. A future study may compare SGLang and vLLM under the
 same GH200, checkpoint, request stream, quality gate, and observed resource
 budget. It is defined separately in
 [`SERVING_BACKEND_COMPARISON_PLAN.md`](SERVING_BACKEND_COMPARISON_PLAN.md).
-Its read-only compatibility audit and result-gated smoke implementation are
-prepared, but no GH200 SGLang runtime or performance result is currently
-accepted. The source audit predicts that SGLang `0.5.16` cannot dispatch the
-unchanged dense compressed-tensors W4AFP8 checkpoint; the runtime smoke must
-record this boundary before any BF16-only formal comparison is considered.
+Its read-only compatibility audit and result-gated smoke are complete, but no
+SGLang performance result is currently accepted. The source audit predicted
+that SGLang `0.5.16` could not dispatch the unchanged dense compressed-tensors
+W4AFP8 checkpoint; job `5896201` now confirms that negative runtime boundary.
 Result-gated smoke job `5895081` was submitted from clean revision `3578427`
 without a formal-job dependency. It completed, but its SGLang cases used the
 Cray base interpreter after an erroneous virtual-environment symlink resolution
@@ -253,6 +252,13 @@ before model loading because optional `sgl-deep-gemm` asserted that `CUDA_HOME`
 was unset. This second environment failure is also invalid as model
 compatibility evidence. A login-node import check passed after binding the
 environment toolkit and disabling unused JIT DeepGEMM; one final corrected
-compatibility smoke is required before any formal comparison decision.
-That final corrected smoke is submitted as job `5896201` from clean revision
-`f33d002`, without a formal-job dependency; its result remains pending review.
+compatibility smoke was therefore required before any formal comparison
+decision. Final corrected job `5896201`, submitted from clean revision
+`f33d002` without a formal-job dependency, completed `0:0`. Both vLLM controls
+passed, including CUTLASS W4AFP8 selection. SGLang reached the exact W4AFP8
+loader and raised `No compressed-tensors compatible scheme was found`, so the
+unchanged-checkpoint W4AFP8 comparison stops. The SGLang BF16 weights loaded,
+but its default FA3 backend failed because the installed `sgl_kernel` lacks
+`flash_ops`; this is not BF16 incompatibility. One BF16-only corrected smoke is
+required before Track A can be considered, and no formal job is submitted. See
+[`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).

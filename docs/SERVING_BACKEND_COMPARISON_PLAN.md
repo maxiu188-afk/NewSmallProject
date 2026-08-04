@@ -3,9 +3,10 @@
 ## Status and authorization boundary
 
 This is a separately scoped study. It does not reopen or modify the accepted
-vLLM W4A16/W4AFP8 results. The read-only audit and result-gated smoke
-implementation are now complete locally; no SGLang GPU smoke, quality run, or
-serving benchmark has yet been accepted.
+vLLM W4A16/W4AFP8 results. The read-only audit and four-case result-gated smoke
+are complete. The smoke now provides reviewed negative compatibility evidence
+for the exact W4AFP8 checkpoint, but no SGLang performance result has been
+accepted.
 
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
@@ -77,7 +78,41 @@ config, recorded in result provenance, and validated before the four cases run.
 The final corrected replacement was accepted by `sbatch --test-only` and
 submitted as job `5896201` from clean revision
 `f33d0029cf6f164aa85ccf715a7b9eb1d752af80`. It has no formal-job dependency;
-no compatibility claim is made before artifact review.
+artifact review is recorded below.
+
+### Final smoke review
+
+Job `5896201` completed `0:0` in 5 minutes 53 seconds. The retained result JSON
+SHA-256 is `47b141a93f2c9a47109e189972531fb3fa6f8a25412efb3f120d0e0d174ed720`;
+the source-manifest SHA-256 is
+`456239cead1abe8664f78a64f0f273d87eba04679d8eff84ee418e5df99202b6`.
+The result records vLLM `0.25.1+cu129` and SGLang `0.5.16`, both with PyTorch
+`2.11.0+cu129`, plus the frozen SGLang environment values.
+
+Both vLLM controls passed. BF16 reached the OpenAI-compatible endpoint and
+returned eight tokens; the exact FP8-targeted W4AFP8 checkpoint also reached
+the endpoint and selected `CutlassW4A8LinearKernel for
+CompressedTensorsW4A8Fp8`. Ready GPU-memory observations were 34,323 MiB for
+BF16 and 16,934 MiB for W4AFP8. These are smoke observations only, not formal
+performance measurements.
+
+SGLang reached the exact W4AFP8 model loader and failed with
+`NotImplementedError: No compressed-tensors compatible scheme was found.` This
+confirms the source-audit boundary for SGLang `0.5.16`: Track B cannot compare
+the unchanged checkpoint across backends and stops without conversion or
+re-export.
+
+The SGLang BF16 case loaded all weights, then failed because the default FA3
+attention backend attempted to import `flash_ops` from the installed
+`sgl_kernel`, where that symbol is absent. This is an environment/launch
+selection failure, not BF16 model incompatibility. A read-only import check
+finds FlashInfer installed, but this is not GPU runnability evidence. Therefore
+Track A still requires one BF16-only replacement smoke with an explicitly
+available attention backend before any formal comparison decision. Track B
+must not be rerun as part of that correction, and no formal job is submitted.
+
+The reviewed compatibility record and claim boundaries are summarized in
+[`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
 
 ## Research questions
 
@@ -126,10 +161,9 @@ SGLang `0.5.16` source recognizes that metadata shape in
 `_is_wint4afp8`, but the dense compressed-tensors scheme selector does not
 dispatch to it and ends with `No compressed-tensors compatible scheme was
 found`. Its separate `w4afp8` implementation applies INT4+FP8 to fused MoE
-experts while ordinary dense linears use the FP8 path. Therefore source audit
-predicts that the unchanged dense Llama W4AFP8 artifact will not load; this is
-still marked **unverified at runtime** until the prepared smoke records the
-actual GH200 behavior. No conversion or SGLang-native re-export is authorized.
+experts while ordinary dense linears use the FP8 path. Job `5896201` confirmed
+this boundary on GH200 for the unchanged dense Llama W4AFP8 artifact. No
+conversion or SGLang-native re-export is authorized.
 
 Primary source bindings:
 
@@ -144,8 +178,8 @@ Primary source bindings:
 
 | Track | Checkpoint | Status | Claim allowed after acceptance |
 |---|---|---|---|
-| A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | Required | Cross-backend serving comparison for the frozen workload |
-| B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Conditional on unchanged load in both backends | Cross-backend serving comparison for one identical packed checkpoint |
+| A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
+| B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
 | C: W4A16 extension | Exact accepted rotated W4A16 artifact | Optional, separately authorized after A/B | Additional precision-format comparison; not required for the first study |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired

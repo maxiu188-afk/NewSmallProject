@@ -69,12 +69,15 @@ result-gated smoke into an automatically queued formal job.
 - [`PACKED_W4_FORMAT.md`](PACKED_W4_FORMAT.md): owned checkpoint format and
   numerical contract.
 
-## Future separately scoped study
+## Separately scoped serving-backend study
 
 - [`SERVING_BACKEND_COMPARISON_PLAN.md`](SERVING_BACKEND_COMPARISON_PLAN.md):
   bounded SGLang-versus-vLLM comparison plan with exact-checkpoint,
-  quality-parity, matched-resource, and result-gated acceptance rules. It is a
-  plan only and contains no accepted SGLang result.
+  quality-parity, matched-resource, and result-gated acceptance rules.
+- [`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md):
+  reviewed GH200 compatibility-smoke record. It confirms that SGLang `0.5.16`
+  cannot load the exact unchanged dense W4AFP8 checkpoint and keeps BF16
+  performance unverified pending one corrected BF16-only smoke.
 
 ## Method, policy, and reusable reference
 
