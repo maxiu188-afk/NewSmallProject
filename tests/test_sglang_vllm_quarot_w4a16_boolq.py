@@ -15,6 +15,14 @@ assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+VALIDATOR_SPEC = importlib.util.spec_from_file_location(
+    "validate_sglang_vllm_quarot_w4a16_inputs_test",
+    PROJECT_ROOT / "scripts/validate_sglang_vllm_quarot_w4a16_inputs.py",
+)
+assert VALIDATOR_SPEC is not None and VALIDATOR_SPEC.loader is not None
+VALIDATOR = importlib.util.module_from_spec(VALIDATOR_SPEC)
+sys.modules[VALIDATOR_SPEC.name] = VALIDATOR
+VALIDATOR_SPEC.loader.exec_module(VALIDATOR)
 
 
 class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
@@ -25,6 +33,10 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         MODULE._validate_config(self.config)
         self.assertEqual(self.config["model"], "quarot_w4a16")
         self.assertEqual(self.config["source_gate"]["job_id"], "5769503")
+        self.assertEqual(
+            self.config["source_gate"]["checkpoint_tree_sha256"],
+            "2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99",
+        )
         self.assertEqual(self.config["protocol"]["choices"], ["no", "yes"])
         self.assertEqual(self.config["smoke"]["examples"], 32)
         self.assertEqual(self.config["sglang"]["attention_backend"], "flashinfer")
@@ -56,6 +68,32 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
             command[command.index("--attention-backend") + 1], "flashinfer"
         )
         self.assertNotIn("--quantization", command)
+
+    def test_validator_accepts_only_exact_w4a16_metadata(self):
+        quantization = {
+            "quant_method": "compressed-tensors",
+            "format": "pack-quantized",
+            "ignore": ["lm_head"],
+            "config_groups": {
+                "group_0": {
+                    "targets": ["Linear"],
+                    "input_activations": None,
+                    "weights": {
+                        "num_bits": 4,
+                        "type": "int",
+                        "symmetric": True,
+                        "strategy": "group",
+                        "group_size": 128,
+                        "dynamic": False,
+                        "actorder": "static",
+                    },
+                }
+            },
+        }
+        VALIDATOR._validate_quantization_config(quantization)
+        quantization["config_groups"]["group_0"]["weights"]["group_size"] = 64
+        with self.assertRaisesRegex(RuntimeError, "group_size"):
+            VALIDATOR._validate_quantization_config(quantization)
 
     def test_comparison_records_prediction_and_score_differences(self):
         cases = {

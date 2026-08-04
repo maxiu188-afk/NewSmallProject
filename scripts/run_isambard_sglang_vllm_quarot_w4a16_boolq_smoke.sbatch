@@ -22,7 +22,6 @@ vllm_env="${HOME}/.venvs/newsmallproject-vllm-0.25.1"
 sglang_env="${SGLANG_ENV_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-sglang/sglang-0.5.16-cu129}"
 artifact_root="${VLLM_W4A16_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4a16}"
 model_snapshot="${HOME}/.cache/huggingface/models--meta-llama--Llama-2-13b-hf/snapshots/5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1"
-unrotated_dir="${artifact_root}/unrotated-w4a16"
 rotated_dir="${artifact_root}/rotated-w4a16"
 source_result="${W4A16_SOURCE_RESULT:-${HOME}/NewSmallProject-vllm-ready/results/vllm-w4a16-llama2-13b/offline-inference-retry.json}"
 dataset_root="${BOOLQ_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-vllm/boolq-lm-eval-v1-3de24cf}"
@@ -37,7 +36,6 @@ for required in \
     "${sglang_env}/bin/python" \
     "${config}" \
     "${model_snapshot}/tokenizer.json" \
-    "${unrotated_dir}/config.json" \
     "${rotated_dir}/config.json" \
     "${source_result}" \
     "${dataset_manifest}"; do
@@ -71,13 +69,11 @@ export SGLANG_ENABLE_JIT_DEEPGEMM=0
 
 echo "SGLANG_VLLM_W4A16_BOOLQ_STAGE=source_gate"
 "${vllm_env}/bin/python" \
-    "${project_root}/scripts/validate_vllm_w4a16_llama2_13b_serving_inputs.py" \
+    "${project_root}/scripts/validate_sglang_vllm_quarot_w4a16_inputs.py" \
     --project-root "${project_root}" \
     --config "${config}" \
     --source-result "${source_result}" \
-    --model "bf16=${model_snapshot}" \
-    --model "unrotated_w4a16=${unrotated_dir}" \
-    --model "rotated_w4a16=${rotated_dir}"
+    --model "${rotated_dir}"
 
 {
     printf 'git_revision=%s\n' "${git_revision}"
@@ -89,6 +85,7 @@ echo "SGLANG_VLLM_W4A16_BOOLQ_STAGE=source_gate"
     sha256sum \
         "${config}" \
         "${project_root}/scripts/run_sglang_vllm_quarot_w4a16_boolq.py" \
+        "${project_root}/scripts/validate_sglang_vllm_quarot_w4a16_inputs.py" \
         "${project_root}/scripts/run_sglang_vllm_llama2_13b_smoke.py" \
         "${project_root}/scripts/run_isambard_sglang_vllm_quarot_w4a16_boolq_smoke.sbatch" \
         "${source_result}" \

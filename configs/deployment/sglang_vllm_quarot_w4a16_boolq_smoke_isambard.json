@@ -4,10 +4,12 @@
   "source_gate": {
     "status": "accepted",
     "job_id": "5769503",
+    "source_revision": "18d448554ec096842d87e84828d24eee43949c06",
     "required_marker": "ISAMBARD_VLLM_W4A16_LLAMA2_13B_GATE_PASSED",
     "result": "results/vllm-w4a16-llama2-13b/offline-inference-retry.json",
     "result_sha256": "3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10",
-    "expected_model": "rotated_w4a16"
+    "expected_model": "rotated_w4a16",
+    "checkpoint_tree_sha256": "2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99"
   },
   "model": "quarot_w4a16",
   "backends": [
