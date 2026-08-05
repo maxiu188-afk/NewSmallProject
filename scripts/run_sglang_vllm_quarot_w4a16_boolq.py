@@ -328,6 +328,7 @@ def main() -> int:
 
     if args.sglang_python is None or args.log_dir is None:
         parser.error("parent mode requires --sglang-python and --log-dir")
+    sglang_python = _absolute_executable(args.sglang_python)
     log_dir = args.log_dir.resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
     cases: dict[str, dict[str, Any]] = {}
@@ -354,7 +355,7 @@ def main() -> int:
             tokenizer_path=tokenizer_path,
             examples=examples,
             config=config,
-            sglang_python=args.sglang_python.resolve(),
+            sglang_python=sglang_python,
             log_path=log_dir / "sglang.log",
         )
     except Exception as error:
@@ -395,7 +396,7 @@ def main() -> int:
         "expected_requests_per_backend": len(examples) * 2,
         "protocol": config["protocol"],
         "runtimes": {
-            "sglang": _runtime_probe(args.sglang_python.resolve(), ["sglang", "torch"]),
+            "sglang": _runtime_probe(sglang_python, ["sglang", "torch"]),
             "environment": {
                 "CUDA_HOME": os.environ.get("CUDA_HOME"),
                 "SGLANG_ENABLE_JIT_DEEPGEMM": os.environ.get(

@@ -1,4 +1,5 @@
 import importlib.util
+import inspect
 import json
 import sys
 import unittest
@@ -68,6 +69,13 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
             command[command.index("--attention-backend") + 1], "flashinfer"
         )
         self.assertNotIn("--quantization", command)
+
+    def test_parent_preserves_sglang_virtualenv_executable(self):
+        source = inspect.getsource(MODULE.main)
+        self.assertIn(
+            "sglang_python = _absolute_executable(args.sglang_python)", source
+        )
+        self.assertNotIn("args.sglang_python.resolve()", source)
 
     def test_validator_accepts_only_exact_w4a16_metadata(self):
         quantization = {
