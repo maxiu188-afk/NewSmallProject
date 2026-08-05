@@ -20,6 +20,7 @@ cd "${project_root}"
 config="${project_root}/configs/deployment/sglang_vllm_quarot_w4a16_boolq_smoke_isambard.json"
 vllm_env="${HOME}/.venvs/newsmallproject-vllm-0.25.1"
 sglang_env="${SGLANG_ENV_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-sglang/sglang-0.5.16-cu129}"
+export PATH="${sglang_env}/bin:${PATH}"
 artifact_root="${VLLM_W4A16_ARTIFACT_ROOT:-${PROJECTDIR}/${USER}/newsmallproject-vllm/llama2-13b-w4a16}"
 model_snapshot="${HOME}/.cache/huggingface/models--meta-llama--Llama-2-13b-hf/snapshots/5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1"
 rotated_dir="${artifact_root}/rotated-w4a16"
@@ -34,6 +35,7 @@ source_manifest="${results_dir}/boolq-compatibility-smoke-${SLURM_JOB_ID}-source
 for required in \
     "${vllm_env}/bin/python" \
     "${sglang_env}/bin/python" \
+    "${sglang_env}/bin/ninja" \
     "${config}" \
     "${model_snapshot}/tokenizer.json" \
     "${rotated_dir}/config.json" \
@@ -67,6 +69,7 @@ export TOKENIZERS_PARALLELISM=false
 export CUDA_HOME="${sglang_env}/lib/python3.11/site-packages/nvidia/cu13"
 export SGLANG_ENABLE_JIT_DEEPGEMM=0
 
+echo "SGLANG_VLLM_W4A16_BOOLQ_NINJA=$(ninja --version)"
 echo "SGLANG_VLLM_W4A16_BOOLQ_STAGE=source_gate"
 "${vllm_env}/bin/python" \
     "${project_root}/scripts/validate_sglang_vllm_quarot_w4a16_inputs.py" \
@@ -116,5 +119,7 @@ assert result["model"] == "quarot_w4a16", result
 assert result["evaluated_examples"] == 32, result
 assert result["expected_requests_per_backend"] == 64, result
 assert set(result["cases"]) == {"vllm", "sglang"}, result
+assert result["comparison_status"] == "both_backends_scored", result
+assert all(case["status"] == "passed" for case in result["cases"].values()), result
 print("ISAMBARD_SGLANG_VLLM_QUAROT_W4A16_BOOLQ_SMOKE_RECORDED")
 PY

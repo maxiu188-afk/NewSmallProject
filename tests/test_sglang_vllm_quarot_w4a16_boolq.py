@@ -131,6 +131,11 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
             PROJECT_ROOT
             / "scripts/run_isambard_sglang_vllm_quarot_w4a16_boolq_smoke.sbatch"
         ).read_text(encoding="utf-8")
+        self.assertIn('export PATH="${sglang_env}/bin:${PATH}"', text)
+        self.assertIn('"${sglang_env}/bin/ninja"', text)
+        self.assertIn(
+            'assert result["comparison_status"] == "both_backends_scored"', text
+        )
         self.assertIn("formal_job=not_submitted", text)
         self.assertNotIn("--dependency=afterok", text)
 
