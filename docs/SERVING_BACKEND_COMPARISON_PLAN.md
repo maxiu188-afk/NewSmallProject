@@ -180,7 +180,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Authorized; result-gated BoolQ smoke `5905638` submitted | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Result-gated replacement BoolQ smoke `5913876` pending after harness-only failure `5905638` | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -205,11 +205,21 @@ scheme to `CompressedTensorsWNA16`. The server explicitly selects the installed
 FlashInfer attention backend instead of retrying the unavailable default FA3
 path.
 
-After remote unit tests, the immutable-input gate, and `sbatch --test-only`
-passed, result-gated smoke job `5905638` was submitted from clean revision
-`cf7b49a26a4110dbd6c9c6dec3a6a7dbaaf34950`. Its initial scheduler snapshot
-was `PENDING` with no estimated start time. No formal job or dependency is
-submitted, and the job will not be continuously monitored.
+Job `5905638`, submitted from clean revision
+`cf7b49a26a4110dbd6c9c6dec3a6a7dbaaf34950`, failed before SGLang model
+loading because the parent runner resolved the SGLang virtual-environment
+Python symlink to the Cray base interpreter. The vLLM control completed all 32
+examples and 64 requests with 28 correct, but this is smoke-only evidence and
+does not provide the missing cross-backend comparison. The failure is invalid
+as SGLang W4A16 compatibility evidence.
+
+Revision `a3a23a7552b55662c2aa0ce19d22660f8ac82441` preserves the virtual-
+environment executable for both server launch and runtime provenance, with a
+regression test for this invariant. Remote tests, an import probe through the
+actual SGLang `0.5.16` environment, the immutable-input gate, and
+`sbatch --test-only` passed. The single replacement smoke `5913876` is pending;
+no formal job or dependency is submitted, and the job will not be continuously
+monitored.
 
 ## Gate 0: read-only compatibility audit
 

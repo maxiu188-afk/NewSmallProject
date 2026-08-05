@@ -268,8 +268,15 @@ W4A16 on the frozen zero-shot BoolQ protocol. Its immutable-input audit binds
 the checkpoint tree SHA-256
 `2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99`,
 280 packed decoder linears, group-128 static-actorder W4A16 metadata, and the
-accepted source result. Result-gated 32-example/64-request-per-backend smoke job
-`5905638` is submitted from clean revision `cf7b49a`; the initial state is
-`PENDING` with no estimated start time. It contains no BF16, unrotated W4A16,
-SpinQuant, re-export, formal job, or formal dependency and will not be
+accepted source result. Job `5905638` is not accepted: vLLM completed 32
+examples/64 requests with 28 correct, while SGLang never reached model loading
+because the runner resolved its virtual-environment Python symlink to the Cray
+base interpreter. This is a harness failure, not SGLang W4A16 incompatibility;
+the vLLM result remains smoke-only.
+
+The executable-path regression was fixed and tested in revision `a3a23a7`.
+After the remote SGLang `0.5.16` import probe and immutable-input gate passed,
+the otherwise unchanged result-gated replacement smoke `5913876` was
+submitted. Its initial state is `PENDING`; it contains no BF16, unrotated
+W4A16, SpinQuant, re-export, formal job, or formal dependency and will not be
 continuously monitored.

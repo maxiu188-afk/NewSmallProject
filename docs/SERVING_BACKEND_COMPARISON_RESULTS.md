@@ -60,11 +60,20 @@ server smoke can establish a working alternative attention backend.
 ## Bounded next decision
 
 Track A remains eligible for a BF16-only correction, but the user has selected
-Track C first. Result-gated job `5905638` evaluates only the exact accepted
-QuaRot-style rotated W4A16 checkpoint on 32 frozen BoolQ validation examples,
-using matched `no`/`yes` continuation scoring through vLLM and SGLang. It is
-submitted from clean revision `cf7b49a`; no formal job is submitted and no
-result is claimed before artifact review.
+Track C first. Track C job `5905638` is not accepted: its source gate passed and
+the vLLM control completed 32 frozen BoolQ examples and 64 requests with 28
+correct (87.5%), but the runner resolved the SGLang virtual-environment Python
+symlink to the Cray base interpreter. SGLang therefore failed at module import
+before server or model loading. This is a harness failure, not W4A16
+compatibility evidence, and the vLLM number is smoke-only rather than a formal
+accuracy result.
+
+The path handling was corrected in revision `a3a23a7`, with the exact model,
+dataset, protocol, and resource request unchanged. Remote tests, the real
+SGLang `0.5.16` environment import probe, the immutable-input gate, and
+`sbatch --test-only` passed. Result-gated replacement job `5913876` is pending.
+No formal job is submitted and no cross-backend result is claimed before its
+artifacts are reviewed.
 
 Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
 SpinQuant, checkpoint conversion, or a new quantization run.
