@@ -275,8 +275,15 @@ base interpreter. This is a harness failure, not SGLang W4A16 incompatibility;
 the vLLM result remains smoke-only.
 
 The executable-path regression was fixed and tested in revision `a3a23a7`.
-After the remote SGLang `0.5.16` import probe and immutable-input gate passed,
-the otherwise unchanged result-gated replacement smoke `5913876` was
-submitted. Its initial state is `PENDING`; it contains no BF16, unrotated
-W4A16, SpinQuant, re-export, formal job, or formal dependency and will not be
-continuously monitored.
+Replacement `5913876` then reached SGLang's `CompressedTensorsWNA16` path but
+recorded an incomplete comparison because the GPTQ-to-Marlin repack JIT could
+not find the already installed Ninja `1.13.0` executable. vLLM again completed
+32 examples/64 requests with 28 correct. The failure is environment evidence,
+not end-to-end SGLang compatibility or incompatibility evidence.
+
+Revision `5445e73` adds the SGLang environment `bin` directory to `PATH`,
+preflights Ninja, and requires both backend cases to pass before the batch job
+can return success. Remote tests and the immutable-input gate passed, and the
+otherwise unchanged result-gated replacement smoke `5917675` was submitted.
+It contains no BF16, unrotated W4A16, SpinQuant, re-export, formal job, or formal
+dependency and will not be continuously monitored.

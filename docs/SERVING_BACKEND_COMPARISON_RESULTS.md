@@ -69,11 +69,19 @@ compatibility evidence, and the vLLM number is smoke-only rather than a formal
 accuracy result.
 
 The path handling was corrected in revision `a3a23a7`, with the exact model,
-dataset, protocol, and resource request unchanged. Remote tests, the real
-SGLang `0.5.16` environment import probe, the immutable-input gate, and
-`sbatch --test-only` passed. Result-gated replacement job `5913876` is pending.
-No formal job is submitted and no cross-backend result is claimed before its
-artifacts are reviewed.
+dataset, protocol, and resource request unchanged. Replacement `5913876`
+completed at the Slurm level but recorded `comparison_status=incomplete`.
+SGLang reached `CompressedTensorsWNA16` and failed during GPTQ-to-Marlin repack
+because its installed Ninja `1.13.0` executable was not on `PATH`. This proves
+the expected weight-only scheme is selected, but it is still an environment
+failure rather than end-to-end compatibility evidence. vLLM again scored
+28/32; that remains smoke-only.
+
+Revision `5445e73` exposes the existing Ninja executable and strengthens the
+batch acceptance gate so an incomplete comparison returns failure. Remote
+tests, the immutable-input gate, and `sbatch --test-only` passed. The otherwise
+unchanged result-gated replacement job `5917675` is submitted. No formal job is
+submitted and no cross-backend result is claimed before artifact review.
 
 Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
 SpinQuant, checkpoint conversion, or a new quantization run.

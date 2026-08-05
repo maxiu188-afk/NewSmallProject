@@ -180,7 +180,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Result-gated replacement BoolQ smoke `5913876` pending after harness-only failure `5905638` | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Result-gated replacement BoolQ smoke `5917675` submitted after environment-only failures `5905638` and `5913876` | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -217,9 +217,20 @@ Revision `a3a23a7552b55662c2aa0ce19d22660f8ac82441` preserves the virtual-
 environment executable for both server launch and runtime provenance, with a
 regression test for this invariant. Remote tests, an import probe through the
 actual SGLang `0.5.16` environment, the immutable-input gate, and
-`sbatch --test-only` passed. The single replacement smoke `5913876` is pending;
-no formal job or dependency is submitted, and the job will not be continuously
-monitored.
+`sbatch --test-only` passed. Replacement `5913876` completed at the Slurm level,
+but its recorded comparison was incomplete. SGLang reached the
+`CompressedTensorsWNA16` weight post-processing path, then the GPTQ-to-Marlin
+repack JIT could not find the existing virtual-environment `ninja` executable
+because that environment's `bin` directory was absent from `PATH`. This is
+environment-harness evidence, not a checkpoint incompatibility result; vLLM
+again completed 32 examples and 64 requests with 28 correct.
+
+Revision `5445e73bf9bdcc220b71ecc7f6c6ced49782b712` prepends the SGLang
+environment `bin` directory, requires and records Ninja `1.13.0`, and makes the
+batch job fail unless both backend cases pass and the comparison is complete.
+Remote tests, the immutable-input gate, and `sbatch --test-only` passed. The
+otherwise unchanged replacement smoke `5917675` is submitted. No formal job or
+dependency is submitted, and the job will not be continuously monitored.
 
 ## Gate 0: read-only compatibility audit
 
