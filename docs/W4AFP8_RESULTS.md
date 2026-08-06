@@ -199,7 +199,7 @@ This is deliberately labelled a W4AFP8 downstream diagnostic. SpinQuant Table
 SpinQuant without online Hadamard transforms; those values are motivation, not
 acceptance targets for the current FP8-activation checkpoints.
 
-## FP8-targeted SpinQuant follow-up
+## Completed FP8-targeted SpinQuant follow-up
 
 The positive BoolQ transfer result motivates a separately named FP8-targeted
 rotation-learning run. Its training objective reproduces vLLM's dynamic
@@ -252,8 +252,8 @@ the capability and source-manifest SHA-256 values are
 `495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62`
 and `df05eae813350c33608acbda2e5c054661cd99d7cfc321d92ee22101b5b96f84`.
 This source gate is export/load correctness only. The separately executed PPL
-and serving results below complete the core deployment evidence package; they
-do not add an FP8-targeted BoolQ result.
+and serving results below complete the core deployment evidence package, and
+the final subsection records the separately accepted FP8-targeted BoolQ result.
 
 ### Accepted FP8-targeted deployed PPL
 

@@ -1,4 +1,10 @@
-# SpinQuant independent reproduction plan
+# SpinQuant independent reproduction and execution record
+
+> Status: the experimental stages described here are complete or deliberately
+> closed. This file is retained for implementation and decision provenance;
+> [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md),
+> [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md), and
+> [`EVIDENCE_LEDGER.md`](EVIDENCE_LEDGER.md) are the current result entry points.
 
 ## Scope and implementation policy
 
@@ -194,22 +200,28 @@ coverage and GPTQ protocol must be described separately:
 - learn R1/R2 with W16 weights and dynamic per-token asymmetric A8 QDQ;
 - fuse R1/R2 into ordinary Llama weights offline;
 - the accepted diagnostic applied strong group-128/activation-order GPTQ W4;
-- a separately labelled paper-GPTQ endpoint will use `group_size=-1`, no
-  activation ordering, and weight clipping after rotation learning;
+- a separately labelled paper-GPTQ endpoint would require `group_size=-1`, no
+  activation ordering, and weight clipping after rotation learning; it was not
+  run and is outside the closed phase;
 - retain A8 execution at inference, with KV left at 16 bits initially;
 - do not add online Hadamard R3/R4 to this no-had deployment path.
 
-After this fake-quant gate is accepted, the GH200 real-deployment target is
-W4AFP8 rather than INT8 W4A8. That deployment is a hardware-aligned extension,
-must be evaluated independently, and includes both QuaRot and SpinQuant. See
-[`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md).
+After this fake-quant gate was accepted, the GH200 real-deployment target moved
+to W4AFP8 rather than INT8 W4A8. That hardware-aligned extension was evaluated
+independently for both QuaRot and SpinQuant and is now complete. See
+[`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md) and
+[`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md).
 
 The completed W4A16 SpinQuant experiment is retained as a matched weight-only
 ablation. The completed QuaRot-style W4A16 vLLM deployment remains valid for
 its own workstream; neither result is relabelled as paper-faithful SpinQuant
 deployment.
 
-### Migration difficulty assessment
+### Pre-execution migration assessment
+
+The table below is retained as the assessment that selected the W4AFP8 route.
+Its future-tense statements are historical planning assumptions; the accepted
+outcomes are recorded in `W4AFP8_RESULTS.md`.
 
 | Area | Difficulty | Assessment |
 |---|---|---|
@@ -222,9 +234,10 @@ deployment.
 | Official alternative backend | Medium, but different scope | The official [ExecuTorch Llama example](https://github.com/pytorch/executorch/blob/main/examples/models/llama/README.md) provides a reusable SpinQuant-style W4A8 route for supported Arm/mobile Llama models. It can be evaluated separately, but it does not validate Llama-2-13B serving on GH200. |
 
 Therefore the fake-quant route remains a contained paper-oriented study, while
-production-speed INT8 W4A8 on GH200 is not the selected follow-up. W4AFP8 is
-the planned hardware-aligned route, but its quality and speed remain unproven
-until the deployed-checkpoint gates pass.
+production-speed INT8 W4A8 on GH200 was not selected. W4AFP8 became the
+hardware-aligned route and subsequently passed packed-checkpoint quality,
+matched serving, and BoolQ gates. The original assessment is not current result
+evidence.
 
 Assessment sources: the locally supplied `Spin.pdf` paper (deployment
 discussion and Table 1), the stable vLLM
@@ -234,19 +247,17 @@ and the stable vLLM
 The recipe demonstrates export and load; the hardware table is the controlling
 claim boundary for NVIDIA INT4 x INT8 acceleration.
 
-## Next stages
+## Closed execution stages
 
-1. Retain the accepted corrected-A8 strong-GPTQ result (`5854890`/`5854891`)
+1. The corrected-A8 strong-GPTQ result (`5854890`/`5854891`) is retained
    without rewriting or relabelling its numerical values.
-2. Run one separately configured paper-GPTQ endpoint with `group_size=-1`, no
-   activation ordering, and weight clipping. Compare only within a clearly
-   declared common protocol.
-3. Resubmit the joint QuaRot and SpinQuant W4AFP8 deployment plan in
-   [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md). Both methods must
-   use the same backend-constrained group-128/no-actorder GPTQ and pass
-   deployed-checkpoint PPL plus matched full-model serving benchmarks.
-4. Keep `SpinQuant_had` with online R3/R4 as a separate paper extension. It is
-   not a prerequisite for the offline-only W4AFP8 deployment route.
+2. The separately configured paper-GPTQ endpoint was not run. It remains an
+   explicit protocol boundary, not a pending task.
+3. The joint QuaRot and SpinQuant W4AFP8 plan completed under the shared
+   backend-constrained group-128/no-actorder protocol, including
+   deployed-checkpoint PPL, matched serving, and BoolQ.
+4. `SpinQuant_had` with online R3/R4, FP8 KV, and new backends remain outside
+   this offline-only closed phase.
 
 The rotation-learning part of stage 1 has passed both full-model gates. The
 W16A8 smoke/formal configs make the rotation objective explicit as
@@ -272,9 +283,9 @@ accepted as a matched diagnostic, not as paper-GPTQ evidence. Checkpoint export
 and backend validation remain separate gates.
 
 The SpinQuant fake-quant stages remain independent of the completed QuaRot
-deployment checkout and artifacts. The later joint W4AFP8 deployment work can
-reuse the accepted vLLM process and provenance gates without modifying the
-completed QuaRot evidence, but it cannot reuse W4A16 or INT8 W4A8 fake-quant
+deployment checkout and artifacts. The completed joint W4AFP8 deployment work
+reused the accepted vLLM process and provenance gates without modifying the
+completed QuaRot evidence; it did not reuse W4A16 or INT8 W4A8 fake-quant
 results as W4AFP8 accuracy evidence.
 
 ## FP8-targeted rotation training
@@ -296,19 +307,19 @@ vLLM `0.25.1+cu129` CUTLASS input contract: dynamic symmetric per-token
 `1 / (448 * 512)`. The adapter applies it to every decoder Linear input and
 keeps `lm_head` unquantized.
 
-The isolated entry point is
-`scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch`. Submit smoke first:
+The isolated entry point was
+`scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch`. The recorded
+result-gated sequence submitted smoke first:
 
 ```bash
 sbatch --test-only scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
 sbatch scripts/run_isambard_spinquant_llama2_13b_fp8.sbatch smoke
 ```
 
-Do not submit formal training until the one-step artifact, gradients,
-orthogonality, provenance, and runtime-form metadata are accepted. This is a
-**result-gated smoke** under the repository Slurm rule: submit smoke only, do
-not prequeue formal with `afterok`, and wait for the user to report completion
-before reviewing it. Afterwards:
+At execution time, formal training was not submitted until the one-step
+artifact, gradients, orthogonality, provenance, and runtime-form metadata were
+accepted. This was a **result-gated smoke** under the repository Slurm rule:
+smoke only, no prequeued formal job. The recorded formal command form was:
 
 ```bash
 sbatch --dependency=afterok:<SMOKE_JOB_ID> \
@@ -334,12 +345,10 @@ gradient records passed. The formal result SHA-256 is
 the accepted rotation SafeTensors SHA-256 is
 `383004941a14e40f256abd4a615246a9adbfe1308ecd08896f167f5b6c2566ec`.
 
-The separate FP8-targeted W4AFP8 source gate is `5881273`, submitted from
-revision `60aa629` with no smoke or formal task prequeued. It must be reviewed
-after completion before any PPL, BoolQ, or serving formal task is authorized.
-
-The resulting rotation must not overwrite the accepted INT8-transfer artifact.
-After export with the frozen group-128/no-actorder/min-max W4AFP8 recipe, it
-must pass both quality (PPL and BoolQ) and matched full-model serving
-acceleration. Training loss or fake-quant output alone is not deployment
-evidence.
+The separate FP8-targeted W4AFP8 source gate `5881273` completed `0:0` from
+revision `60aa629` and passed review without overwriting the accepted
+INT8-transfer artifact. Downstream formal PPL `5884996`, matched serving
+`5884998`, and BoolQ `5886914` also completed and were accepted. Their metrics,
+runtime evidence, revisions, and hashes are recorded in
+[`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md). Training loss or fake-quant output
+alone remains insufficient deployment evidence.

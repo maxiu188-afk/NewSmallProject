@@ -9,7 +9,7 @@ through 2026-07-22 is preserved in
 | Workstream | Current status | Evidence boundary |
 |---|---|---|
 | Algorithmic fake quant | Complete for the formal Llama-2-13B study | QuaRot + GPTQ W4A4 reached PPL 5.8376 versus BF16 5.0087; all low-bit rows are floating QDQ and keep K/V at 16 bits |
-| SpinQuant fake quant | Corrected-A8 strong-GPTQ diagnostic complete: jobs 5854890/5854891 passed; PPL was 5.0087 BF16, 5.1480 unrotated W4A8, and 5.1627 SpinQuant W4A8 | Group-128 plus activation-order GPTQ is not the paper GPTQ protocol; retain the result, but label it separately and do not compare it directly with the planned group-size -1/no-actorder/clipped run |
+| SpinQuant fake quant | Corrected-A8 strong-GPTQ diagnostic complete: jobs 5854890/5854891 passed; PPL was 5.0087 BF16, 5.1480 unrotated W4A8, and 5.1627 SpinQuant W4A8 | Group-128 plus activation-order GPTQ is not the paper GPTQ protocol; retain the result under its own label. A group-size -1/no-actorder/clipped paper-GPTQ endpoint is not measured and is outside the closed phase |
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
@@ -33,19 +33,18 @@ reported as **QuaRot-style W4A16**, not original QuaRot W4A4KV4, because it
 omits online MLP/QK transforms and the custom KV4 cache.
 
 This W4A16 decision applies to the completed QuaRot workstream only. The
-SpinQuant paper's real-deployment `no_had` route remains W4A8, with
-offline-fused R1/R2 and activation quantization retained at inference. Its
-current INT8 W4A8 fake-quant chain completed with paper-aligned A8 coverage but
-a stronger group-128/activation-order GPTQ protocol. It is retained as a
-separately labelled diagnostic; a paper-GPTQ endpoint remains to be run.
+SpinQuant paper's real-deployment `no_had` route is W4A8, with offline-fused
+R1/R2 and activation quantization retained at inference. The completed INT8
+W4A8 fake-quant chain uses paper-aligned A8 coverage but a stronger
+group-128/activation-order GPTQ protocol, so it is retained as a separately
+labelled diagnostic. The paper-GPTQ endpoint is unmeasured and is not a pending
+task in this closed phase.
 
-After that chain is accepted, the next real-deployment study changes to a
-joint, hardware-aligned W4AFP8 route for both QuaRot and SpinQuant on GH200.
-It requires deployed-checkpoint PPL plus matched full-model serving performance;
-the existing fake-quant evaluator cannot establish W4AFP8 accuracy. Its local
-export, backend-audit, deployed-PPL, and serving paths are prepared and tested
-statically. Corrected rotation provenance is frozen. The first W4AFP8 gates
-were cancelled before allocation when the GPTQ protocol changed. Jobs
+The subsequent joint, hardware-aligned W4AFP8 route for QuaRot and SpinQuant on
+GH200 is now complete. Its acceptance pairs deployed-checkpoint PPL with
+matched full-model serving performance; fake-quant output is not reused as
+W4AFP8 accuracy. Corrected rotation provenance is frozen. The first W4AFP8
+gates were cancelled before allocation when the GPTQ protocol changed. Jobs
 `5859043`/`5859044` later failed stale-calibration validation, and
 `5873446`/`5873447` passed calibration and backend audit before an over-strict
 observer-name check rejected LLM Compressor's canonical `memoryless_minmax`
@@ -201,9 +200,9 @@ formal job `5839419` completed with exit code `0:0`; the formal run scored
 331,614 WikiText-2 targets through the real vLLM checkpoints. PPL was 5.007820
 for BF16, 5.289677 for unrotated W4A16, and 5.132755 for rotated W4A16. Rotation
 reduced PPL by 2.97% relative to unrotated W4A16 and recovered 55.67% of its PPL
-gap to BF16 while leaving serving performance materially unchanged. The
-remaining quality boundary is downstream-task or broader generation evaluation,
-not deployed-checkpoint perplexity.
+gap to BF16 while leaving serving performance materially unchanged.
+Downstream-task or broader generation evaluation is not covered and is not
+planned for this closed phase; deployed-checkpoint perplexity is complete.
 
 The SpinQuant work is isolated under its own implementation, configuration,
 script, and test directories. It does not modify the completed QuaRot pipeline
@@ -222,10 +221,77 @@ held-out tokens. SpinQuant no-had reached PPL `5.1627`, slightly worse than the
 matched unrotated W4A8 control at `5.1480`; this completes the reproduction
 chain but does not establish a learned-rotation benefit. See
 [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md) for protocol and claim boundaries
-and [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md) for the next stages.
+and [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md) for the retained execution record.
 
 See [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md) for the accepted metrics,
 [`VLLM_W4A16_ISAMBARD_RUNBOOK.md`](VLLM_W4A16_ISAMBARD_RUNBOOK.md) for the
 procedure, and
 [`QUAROT_REAL_DEPLOYMENT_ROADMAP.md`](QUAROT_REAL_DEPLOYMENT_ROADMAP.md) for
-the full decision record.
+the full decision record, and [`EVIDENCE_LEDGER.md`](EVIDENCE_LEDGER.md) for the
+claim-to-artifact closeout index.
+
+## Future separately scoped comparison
+
+The current QuaRot/SpinQuant evidence phase is closed, but this does not close
+serving-system research. A future study may compare SGLang and vLLM under the
+same GH200, checkpoint, request stream, quality gate, and observed resource
+budget. It is defined separately in
+[`SERVING_BACKEND_COMPARISON_PLAN.md`](SERVING_BACKEND_COMPARISON_PLAN.md).
+Its read-only compatibility audit and result-gated smoke are complete, but no
+SGLang performance result is currently accepted. The source audit predicted
+that SGLang `0.5.16` could not dispatch the unchanged dense compressed-tensors
+W4AFP8 checkpoint; job `5896201` now confirms that negative runtime boundary.
+Result-gated smoke job `5895081` was submitted from clean revision `3578427`
+without a formal-job dependency. It completed, but its SGLang cases used the
+Cray base interpreter after an erroneous virtual-environment symlink resolution
+and failed before model loading. The vLLM controls passed; the SGLang outcomes
+are invalid as compatibility evidence and require one corrected replacement
+smoke. Corrected job `5895358` is submitted from clean revision `5355df8`
+without a formal-job dependency. It completed, but both SGLang cases stopped
+before model loading because optional `sgl-deep-gemm` asserted that `CUDA_HOME`
+was unset. This second environment failure is also invalid as model
+compatibility evidence. A login-node import check passed after binding the
+environment toolkit and disabling unused JIT DeepGEMM; one final corrected
+compatibility smoke was therefore required before any formal comparison
+decision. Final corrected job `5896201`, submitted from clean revision
+`f33d002` without a formal-job dependency, completed `0:0`. Both vLLM controls
+passed, including CUTLASS W4AFP8 selection. SGLang reached the exact W4AFP8
+loader and raised `No compressed-tensors compatible scheme was found`, so the
+unchanged-checkpoint W4AFP8 comparison stops. The SGLang BF16 weights loaded,
+but its default FA3 backend failed because the installed `sgl_kernel` lacks
+`flash_ops`; this is not BF16 incompatibility. One BF16-only corrected smoke is
+required before Track A can be considered, and no formal job is submitted. See
+[`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
+
+The next authorized step is Track C first: exact accepted QuaRot-style rotated
+W4A16 on the frozen zero-shot BoolQ protocol. Its immutable-input audit binds
+the checkpoint tree SHA-256
+`2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99`,
+280 packed decoder linears, group-128 static-actorder W4A16 metadata, and the
+accepted source result. Job `5905638` is not accepted: vLLM completed 32
+examples/64 requests with 28 correct, while SGLang never reached model loading
+because the runner resolved its virtual-environment Python symlink to the Cray
+base interpreter. This is a harness failure, not SGLang W4A16 incompatibility;
+the vLLM result remains smoke-only.
+
+The executable-path regression was fixed and tested in revision `a3a23a7`.
+Replacement `5913876` then reached SGLang's `CompressedTensorsWNA16` path but
+recorded an incomplete comparison because the GPTQ-to-Marlin repack JIT could
+not find the already installed Ninja `1.13.0` executable. vLLM again completed
+32 examples/64 requests with 28 correct. The failure is environment evidence,
+not end-to-end SGLang compatibility or incompatibility evidence.
+
+Revision `5445e73` adds the SGLang environment `bin` directory to `PATH`,
+preflights Ninja, and requires both backend cases to pass before the batch job
+can return success. Replacement `5917675` correctly failed closed (`1:0`) with
+an incomplete comparison. vLLM again scored 28/32. SGLang reached
+`CompressedTensorsWNA16` GPTQ-to-Marlin JIT compilation, where NVCC used the
+default GCC `7.5.0` host toolchain and failed because the C++20 `<version>`
+header was unavailable. GCC 14 is installed and passes the corresponding
+read-only header check, so this remains an environment binding failure rather
+than W4A16 compatibility or incompatibility evidence.
+
+No replacement or formal job is currently submitted. The bounded next fix is
+to load `gcc-native/14.2`, explicitly bind `CC`, `CXX`, and `NVCC_CCBIN`, and
+preflight the C++20 header without changing the model, BoolQ data, quantization,
+or resource request.

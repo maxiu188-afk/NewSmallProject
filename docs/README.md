@@ -30,6 +30,9 @@ result-gated smoke into an automatically queued formal job.
 
 - [`PHASE_STATUS.md`](PHASE_STATUS.md): concise current state, latest accepted
   result, and remaining evidence boundary.
+- [`EVIDENCE_LEDGER.md`](EVIDENCE_LEDGER.md): claim-to-job-to-artifact index,
+  recorded hashes, scope boundaries, and the pending read-only durability
+  audit.
 - [`FAKE_QUANT_RESULTS.md`](FAKE_QUANT_RESULTS.md): consolidated algorithmic
   fake-quant results from local smokes through the formal Llama-2-13B study.
 - [`OFFICIAL_QUAROT_RESULTS.md`](OFFICIAL_QUAROT_RESULTS.md): consolidated
@@ -44,9 +47,8 @@ result-gated smoke into an automatically queued formal job.
 - [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md): accepted Llama-2-13B
   rotation-training and matched held-out fake-quant PPL evidence, including the
   corrected no-had W4A8 deployment boundary.
-- [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): independent SpinQuant fake-quant
-  implementation status, clean-room boundary, W4A8 migration assessment, and
-  staged reproduction plan.
+- [`SPINQUANT_PLAN.md`](SPINQUANT_PLAN.md): retained SpinQuant implementation
+  and execution decision record; its experimental stages are closed.
 - [`W4AFP8_DEPLOYMENT_PLAN.md`](W4AFP8_DEPLOYMENT_PLAN.md): completed joint
   QuaRot/SpinQuant GH200 deployment plan, including FP8-targeted PPL and matched
   full-model serving acceptance.
@@ -66,6 +68,16 @@ result-gated smoke into an automatically queued formal job.
   and W4A8 correctness record, including the 280-linear decoder gate.
 - [`PACKED_W4_FORMAT.md`](PACKED_W4_FORMAT.md): owned checkpoint format and
   numerical contract.
+
+## Separately scoped serving-backend study
+
+- [`SERVING_BACKEND_COMPARISON_PLAN.md`](SERVING_BACKEND_COMPARISON_PLAN.md):
+  bounded SGLang-versus-vLLM comparison plan with exact-checkpoint,
+  quality-parity, matched-resource, and result-gated acceptance rules.
+- [`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md):
+  reviewed GH200 compatibility-smoke record. It confirms that SGLang `0.5.16`
+  cannot load the exact unchanged dense W4AFP8 checkpoint and keeps BF16
+  performance unverified pending one corrected BF16-only smoke.
 
 ## Method, policy, and reusable reference
 

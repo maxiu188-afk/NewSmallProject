@@ -1,0 +1,105 @@
+{
+  "config_version": 1,
+  "status": "prepared_awaiting_result_gated_smoke",
+  "source_gate": {
+    "status": "accepted",
+    "job_id": "5769503",
+    "source_revision": "18d448554ec096842d87e84828d24eee43949c06",
+    "required_marker": "ISAMBARD_VLLM_W4A16_LLAMA2_13B_GATE_PASSED",
+    "result": "results/vllm-w4a16-llama2-13b/offline-inference-retry.json",
+    "result_sha256": "3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10",
+    "expected_model": "rotated_w4a16",
+    "checkpoint_tree_sha256": "2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99"
+  },
+  "model": "quarot_w4a16",
+  "backends": [
+    "vllm",
+    "sglang"
+  ],
+  "protocol": {
+    "task": "boolq",
+    "num_fewshot": 0,
+    "output_type": "multiple_choice",
+    "validation_split": "validation",
+    "prompt_template": "{passage}\nQuestion: {question}?\nAnswer:",
+    "target_delimiter": " ",
+    "choices": [
+      "no",
+      "yes"
+    ],
+    "metric": "accuracy",
+    "lm_eval_commit": "9b0b15b1ccace3534ffbd13298c569869ce8eaf3",
+    "lm_eval_task_path": "lm_eval/tasks/super_glue/boolq/default.yaml",
+    "lm_eval_task_sha256": "6bfa4bd7637b7fc6863d08ceb79735adf41e77feabf6d9327339df8fe0af78cd"
+  },
+  "dataset": {
+    "repository": "aps/super_glue",
+    "revision": "3de24cf8022e94f4ee4b9d55a6f539891524d646",
+    "subset": "boolq",
+    "split": "validation",
+    "expected_rows": 3270,
+    "expected_fingerprint": "3465575e190d308f",
+    "expected_examples_sha256": "475e56b71939a8e3db8be48bcc4d344569b36cc660f4086c9ae15858d46a297f",
+    "expected_manifest_config_sha256": "fa44d2c61317022bac346ff4a14824d8da90f192a00c1e6204493ed8d80f818f"
+  },
+  "engine": {
+    "dtype": "bfloat16",
+    "max_model_len": 2049,
+    "max_num_seqs": 8,
+    "gpu_memory_utilization": 0.75,
+    "enforce_eager": false,
+    "enable_prefix_caching": false,
+    "disable_log_stats": true,
+    "prompt_logprobs": 1,
+    "max_tokens": 1,
+    "temperature": 0.0,
+    "seed": 0
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18000,
+    "dtype": "bfloat16",
+    "max_model_len": 2049,
+    "max_running_requests": 8,
+    "seed": 0,
+    "ready_timeout_seconds": 900,
+    "stop_timeout_seconds": 90,
+    "kv_cache_dtype": "bfloat16",
+    "kv_cache_memory_bytes": 8589934592,
+    "kv_bytes_per_token": 819200,
+    "max_total_tokens": 10485,
+    "disable_prefix_cache": true,
+    "disable_chunked_prefill": true
+  },
+  "smoke": {
+    "examples": 32,
+    "expected_requests_per_backend": 64,
+    "batch_size": 8
+  },
+  "vllm": {
+    "expected_version": "0.25.1+cu129",
+    "expected_torch_version": "2.11.0+cu129"
+  },
+  "sglang": {
+    "module": "sglang.launch_server",
+    "expected_version": "0.5.16",
+    "expected_torch_version": "2.11.0+cu129",
+    "attention_backend": "flashinfer",
+    "offline_quantization_argument": null,
+    "sampling_defaults": "openai",
+    "enable_jit_deep_gemm": false
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "sglang_version": "0.5.16",
+    "torch_version": "2.11.0+cu129",
+    "transformers_version": "5.14.1",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [
+      9,
+      0
+    ]
+  },
+  "scope": "Result-gated zero-shot BoolQ compatibility and score-parity smoke for the exact accepted QuaRot-style rotated GPTQ W4A16 checkpoint through vLLM and SGLang on one GH200; not formal accuracy or serving-performance evidence"
+}

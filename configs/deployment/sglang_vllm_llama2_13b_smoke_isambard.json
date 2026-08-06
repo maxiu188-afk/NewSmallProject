@@ -1,0 +1,71 @@
+{
+  "config_version": 1,
+  "status": "prepared_awaiting_result_gated_smoke",
+  "source_gate": {
+    "status": "accepted",
+    "job_id": "5881273",
+    "source_revision": "60aa6295909f60997836b9c52dce7e5d4b2b1cc1",
+    "required_marker": "ISAMBARD_VLLM_W4AFP8_LLAMA2_13B_GATE_PASSED",
+    "result": "results/vllm-w4afp8-fp8-targeted-5876984/joint-offline-inference-5881273.json",
+    "result_sha256": "c292e5ec7abfcfff762e5b1f59139fe0cb423b64cf24ba370969adf222e96a55",
+    "capability_result": "results/vllm-w4afp8-fp8-targeted-5876984/backend-capability-5881273.json",
+    "capability_result_sha256": "495bcc458681f5473e4b1ad50db96b249c82c1ef88cd0f7085e505e5dbdc8d62"
+  },
+  "models": [
+    "bf16",
+    "fp8_targeted_w4afp8"
+  ],
+  "backends": [
+    "vllm",
+    "sglang"
+  ],
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18000,
+    "dtype": "bfloat16",
+    "max_model_len": 512,
+    "max_running_requests": 8,
+    "seed": 0,
+    "ready_timeout_seconds": 900,
+    "stop_timeout_seconds": 90,
+    "kv_cache_dtype": "bfloat16",
+    "kv_cache_memory_bytes": 8589934592,
+    "kv_bytes_per_token": 819200,
+    "max_total_tokens": 10485,
+    "disable_prefix_cache": true,
+    "disable_chunked_prefill": true
+  },
+  "smoke": {
+    "prompt": "The capital of France is",
+    "temperature": 0.0,
+    "max_tokens": 8,
+    "ignore_eos": true,
+    "require_equal_text_per_checkpoint": true
+  },
+  "vllm": {
+    "generation_config": "vllm",
+    "disable_log_stats": true,
+    "expected_version": "0.25.1+cu129",
+    "expected_torch_version": "2.11.0+cu129",
+    "quantized_log_patterns": [
+      "Using CutlassW4A8LinearKernel for CompressedTensorsW4A8Fp8"
+    ]
+  },
+  "sglang": {
+    "entrypoint": "module",
+    "module": "sglang.launch_server",
+    "expected_version": "0.5.16",
+    "expected_torch_version": "2.11.0+cu129",
+    "expected_kernel_version": "0.4.5+cu129",
+    "expected_deep_gemm_version": "0.1.4.post1+cu129",
+    "cuda_home_source": "sglang_environment_nvidia_cu13",
+    "enable_jit_deep_gemm": false,
+    "offline_quantization_argument": null,
+    "sampling_defaults": "openai",
+    "quantized_log_patterns": [
+      "w4afp8",
+      "compressed"
+    ]
+  },
+  "scope": "Result-gated exact-checkpoint OpenAI-compatible service compatibility smoke for vLLM and SGLang on one GH200; records BF16 and FP8-targeted W4AFP8 load, generation, memory, recovery, logs, and runtime identity; not performance evidence"
+}
