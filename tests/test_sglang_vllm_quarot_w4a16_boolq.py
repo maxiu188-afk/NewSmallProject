@@ -3,6 +3,7 @@ import inspect
 import json
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -42,6 +43,19 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         self.assertEqual(self.config["smoke"]["examples"], 32)
         self.assertEqual(self.config["sglang"]["attention_backend"], "flashinfer")
         self.assertIsNone(self.config["sglang"]["offline_quantization_argument"])
+        self.assertEqual(
+            self.config["sglang"]["toolchain"],
+            {
+                "compiler_module": "gcc-native/14.2",
+                "expected_compiler_major": 14,
+                "expected_flashinfer_version": "0.6.14",
+                "expected_ninja_version": "1.13.0",
+                "expected_nvcc_release": "13.3",
+                "expected_sglang_kernel_version": "0.4.5+cu129",
+                "expected_transformers_version": "5.12.1",
+                "expected_tvm_ffi_version": "0.1.11",
+            },
+        )
 
     def test_sglang_loglikelihood_requires_exact_continuation_ids(self):
         meta = {"input_token_logprobs": [[-0.25, 12], [-0.75, 13]]}
@@ -54,6 +68,21 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
                 [10, 11, 12, 13],
                 2,
             )
+
+    def test_sglang_logprob_start_len_scores_first_continuation_token(self):
+        self.assertEqual(MODULE._sglang_logprob_start_len(11), 10)
+        with self.assertRaisesRegex(ValueError, "second token"):
+            MODULE._sglang_logprob_start_len(0)
+
+    def test_requests_apply_sglang_logprob_offset(self):
+        examples = [{"idx": 0, "label": 1}]
+        with mock.patch.object(MODULE, "_context", return_value="prompt"), mock.patch.object(
+            MODULE, "_encode_pair", return_value=([1, 2, 3], 2)
+        ):
+            requests = MODULE._requests(object(), examples, self.config)
+        self.assertEqual(len(requests), 2)
+        self.assertEqual([item["continuation_start"] for item in requests], [2, 2])
+        self.assertEqual([item["logprob_start_len"] for item in requests], [1, 1])
 
     def test_shared_server_command_selects_flashinfer_without_requantizing(self):
         from scripts.run_sglang_vllm_llama2_13b_smoke import _server_command
@@ -132,12 +161,37 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
             / "scripts/run_isambard_sglang_vllm_quarot_w4a16_boolq_smoke.sbatch"
         ).read_text(encoding="utf-8")
         self.assertIn('export PATH="${sglang_env}/bin:${PATH}"', text)
+        self.assertIn("module load gcc-native/14.2", text)
+        self.assertIn('export CXX="$(command -v g++)"', text)
+        self.assertIn('export NVCC_CCBIN="${CXX}"', text)
         self.assertIn('"${sglang_env}/bin/ninja"', text)
+        self.assertIn("preflight_sglang_wna16_runtime.py", text)
+        self.assertLess(
+            text.index("SGLANG_VLLM_W4A16_BOOLQ_STAGE=runtime_preflight"),
+            text.index("SGLANG_VLLM_W4A16_BOOLQ_STAGE=source_gate"),
+        )
         self.assertIn(
             'assert result["comparison_status"] == "both_backends_scored"', text
         )
         self.assertIn("formal_job=not_submitted", text)
         self.assertNotIn("--dependency=afterok", text)
+
+    def test_runtime_preflight_compiles_and_executes_exact_jit(self):
+        text = (
+            PROJECT_ROOT / "scripts/preflight_sglang_wna16_runtime.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("_jit_gptq_marlin_repack_module()", text)
+        self.assertIn("repacked = gptq_marlin_repack(", text)
+        self.assertIn("GenerateReqInput(", text)
+        self.assertIn("request.normalize_batch_and_arguments()", text)
+
+    def test_environment_setup_pins_build_toolchain(self):
+        text = (
+            PROJECT_ROOT / "scripts/setup_isambard_sglang_env.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("module load gcc-native/14.2", text)
+        self.assertIn('"ninja==1.13.0"', text)
+        self.assertIn('export NVCC_CCBIN="${CXX}"', text)
 
 
 if __name__ == "__main__":

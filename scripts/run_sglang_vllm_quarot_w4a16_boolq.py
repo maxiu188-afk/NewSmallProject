@@ -56,6 +56,17 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("SGLang must not retry the unavailable default FA3 backend")
     if config["sglang"].get("offline_quantization_argument") is not None:
         raise ValueError("the accepted checkpoint must load without requantization")
+    if config["sglang"].get("toolchain") != {
+        "compiler_module": "gcc-native/14.2",
+        "expected_compiler_major": 14,
+        "expected_flashinfer_version": "0.6.14",
+        "expected_ninja_version": "1.13.0",
+        "expected_nvcc_release": "13.3",
+        "expected_sglang_kernel_version": "0.4.5+cu129",
+        "expected_transformers_version": "5.12.1",
+        "expected_tvm_ffi_version": "0.1.11",
+    }:
+        raise ValueError("SGLang WNA16 toolchain contract drifted")
 
 
 def _requests(tokenizer: Any, examples: list[dict[str, Any]], config: dict[str, Any]):
@@ -76,6 +87,9 @@ def _requests(tokenizer: Any, examples: list[dict[str, Any]], config: dict[str, 
                     "choice_position": choice_position,
                     "tokens": tokens,
                     "continuation_start": continuation_start,
+                    "logprob_start_len": _sglang_logprob_start_len(
+                        continuation_start
+                    ),
                 }
             )
     return requests
@@ -105,6 +119,13 @@ def _sglang_loglikelihood(
     if observed_ids != expected_continuation:
         raise RuntimeError("SGLang returned continuation token IDs in a different order")
     return total
+
+
+def _sglang_logprob_start_len(continuation_start: int) -> int:
+    """SGLang scores the token after logprob_start_len in the prompt."""
+    if continuation_start < 1:
+        raise ValueError("a continuation cannot start before the second token")
+    return continuation_start - 1
 
 
 def _metrics(
@@ -193,7 +214,7 @@ def _run_sglang(
                     },
                     "return_logprob": True,
                     "logprob_start_len": [
-                        item["continuation_start"] for item in batch
+                        item["logprob_start_len"] for item in batch
                     ],
                     "top_logprobs_num": 0,
                     "return_text_in_logprobs": False,
@@ -305,6 +326,7 @@ def main() -> int:
     parser.add_argument("--tokenizer-model", type=Path, required=True)
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--sglang-python", type=Path)
+    parser.add_argument("--sglang-preflight", type=Path)
     parser.add_argument("--max-examples", type=int, required=True)
     parser.add_argument("--worker-vllm", action="store_true")
     parser.add_argument("--log-dir", type=Path)
@@ -326,9 +348,21 @@ def main() -> int:
         _write_json(args.output.resolve(), result)
         return 0
 
-    if args.sglang_python is None or args.log_dir is None:
-        parser.error("parent mode requires --sglang-python and --log-dir")
+    if (
+        args.sglang_python is None
+        or args.sglang_preflight is None
+        or args.log_dir is None
+    ):
+        parser.error(
+            "parent mode requires --sglang-python, --sglang-preflight, and --log-dir"
+        )
     sglang_python = _absolute_executable(args.sglang_python)
+    sglang_preflight_path = args.sglang_preflight.resolve()
+    sglang_preflight = json.loads(sglang_preflight_path.read_text(encoding="utf-8"))
+    if sglang_preflight.get("status") != "passed":
+        raise RuntimeError("SGLang runtime preflight did not pass")
+    if sglang_preflight.get("config_sha256") != _sha256(config_path):
+        raise RuntimeError("SGLang runtime preflight used a different config")
     log_dir = args.log_dir.resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
     cases: dict[str, dict[str, Any]] = {}
@@ -397,6 +431,11 @@ def main() -> int:
         "protocol": config["protocol"],
         "runtimes": {
             "sglang": _runtime_probe(sglang_python, ["sglang", "torch"]),
+            "sglang_preflight": {
+                "path": str(sglang_preflight_path),
+                "sha256": _sha256(sglang_preflight_path),
+                "record": sglang_preflight,
+            },
             "environment": {
                 "CUDA_HOME": os.environ.get("CUDA_HOME"),
                 "SGLANG_ENABLE_JIT_DEEPGEMM": os.environ.get(
