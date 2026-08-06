@@ -180,7 +180,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Result-gated replacement BoolQ smoke `5917675` submitted after environment-only failures `5905638` and `5913876` | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Incomplete: `5917675` reached WNA16 Marlin JIT but exposed a GCC 7/C++20 host-compiler failure | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -228,9 +228,18 @@ again completed 32 examples and 64 requests with 28 correct.
 Revision `5445e73bf9bdcc220b71ecc7f6c6ced49782b712` prepends the SGLang
 environment `bin` directory, requires and records Ninja `1.13.0`, and makes the
 batch job fail unless both backend cases pass and the comparison is complete.
-Remote tests, the immutable-input gate, and `sbatch --test-only` passed. The
-otherwise unchanged replacement smoke `5917675` is submitted. No formal job or
-dependency is submitted, and the job will not be continuously monitored.
+Remote tests, the immutable-input gate, and `sbatch --test-only` passed.
+Replacement `5917675` then failed closed as intended. SGLang found Ninja and
+entered the `CompressedTensorsWNA16` GPTQ-to-Marlin JIT, but NVCC used the
+default GCC `7.5.0` host toolchain and could not find the C++20 `<version>`
+header. GCC 14 is available on the node and passes a read-only header check;
+however, `module load gcc-native/14.2` does not update the `c++` command used by
+the JIT. A bounded correction must therefore explicitly bind `CC`, `CXX`, and
+`NVCC_CCBIN` and preflight the C++20 header before another result-gated smoke.
+
+No such replacement is currently submitted. No formal job or dependency is
+submitted, and Track C still excludes BF16, unrotated W4A16, SpinQuant,
+re-quantization, and re-export.
 
 ## Gate 0: read-only compatibility audit
 

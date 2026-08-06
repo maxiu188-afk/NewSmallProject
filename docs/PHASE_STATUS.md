@@ -283,7 +283,15 @@ not end-to-end SGLang compatibility or incompatibility evidence.
 
 Revision `5445e73` adds the SGLang environment `bin` directory to `PATH`,
 preflights Ninja, and requires both backend cases to pass before the batch job
-can return success. Remote tests and the immutable-input gate passed, and the
-otherwise unchanged result-gated replacement smoke `5917675` was submitted.
-It contains no BF16, unrotated W4A16, SpinQuant, re-export, formal job, or formal
-dependency and will not be continuously monitored.
+can return success. Replacement `5917675` correctly failed closed (`1:0`) with
+an incomplete comparison. vLLM again scored 28/32. SGLang reached
+`CompressedTensorsWNA16` GPTQ-to-Marlin JIT compilation, where NVCC used the
+default GCC `7.5.0` host toolchain and failed because the C++20 `<version>`
+header was unavailable. GCC 14 is installed and passes the corresponding
+read-only header check, so this remains an environment binding failure rather
+than W4A16 compatibility or incompatibility evidence.
+
+No replacement or formal job is currently submitted. The bounded next fix is
+to load `gcc-native/14.2`, explicitly bind `CC`, `CXX`, and `NVCC_CCBIN`, and
+preflight the C++20 header without changing the model, BoolQ data, quantization,
+or resource request.

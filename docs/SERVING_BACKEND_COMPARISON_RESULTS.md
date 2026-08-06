@@ -78,10 +78,31 @@ failure rather than end-to-end compatibility evidence. vLLM again scored
 28/32; that remains smoke-only.
 
 Revision `5445e73` exposes the existing Ninja executable and strengthens the
-batch acceptance gate so an incomplete comparison returns failure. Remote
-tests, the immutable-input gate, and `sbatch --test-only` passed. The otherwise
-unchanged result-gated replacement job `5917675` is submitted. No formal job is
-submitted and no cross-backend result is claimed before artifact review.
+batch acceptance gate so an incomplete comparison returns failure. Replacement
+`5917675` correctly failed closed (`FAILED`, exit `1:0`, elapsed `00:02:54`)
+with `comparison_status=incomplete`. Its reviewed provenance is:
+
+| Item | Reviewed value |
+|---|---|
+| Project revision | `5445e73bf9bdcc220b71ecc7f6c6ced49782b712` |
+| Result JSON | `results/sglang-vllm-quarot-w4a16-boolq/boolq-compatibility-smoke-5917675.json` |
+| Result SHA-256 | `f1937e4d58355a855a1a995ffb8ae72de93ed519b66186cce28eb8a2a94dd7cd` |
+| Source manifest SHA-256 | `e34e93fd8a239ac2b4851d1715fc1332b859297e630b29fad73af0b84c4519aa` |
+| vLLM log SHA-256 | `f8ce4b577dfb434aa5cc0c8361641b68a75972430f6331937b930e7f166004de` |
+| SGLang log SHA-256 | `941bc69ddeb437065fc40843e18bf3a161d111e039fd4a45f0785c229222335d` |
+
+vLLM again completed 32 examples and 64 requests with 28 correct. SGLang
+selected `CompressedTensorsWNA16`, found Ninja, and entered GPTQ-to-Marlin JIT
+compilation. NVCC then failed while compiling `source_location.h` because the
+default host C++ compiler was GCC `7.5.0` and could not provide the C++20
+`<version>` header. A read-only check confirmed that GCC 14 is installed and
+can preprocess that header. This is a host-compiler binding failure, not
+end-to-end W4A16 compatibility or incompatibility evidence.
+
+The bounded corrective option is to load `gcc-native/14.2` and explicitly bind
+`CC`, `CXX`, and `NVCC_CCBIN`; the module alone is insufficient because `c++`
+still resolves to GCC 7. No corrected job or formal job has been submitted, and
+no cross-backend result is claimed.
 
 Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
 SpinQuant, checkpoint conversion, or a new quantization run.
