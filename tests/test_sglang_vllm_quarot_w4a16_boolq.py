@@ -58,6 +58,10 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
                 "expected_tvm_ffi_version": "0.1.11",
             },
         )
+        self.assertEqual(
+            self.config["sglang"]["expected_source_sha256"],
+            MODULE.SGLANG_EXPECTED_SOURCE_SHA256,
+        )
 
     def test_sglang_loglikelihood_requires_exact_continuation_ids(self):
         meta = {"input_token_logprobs": [[-0.25, 12], [-0.75, 13]]}
@@ -184,6 +188,8 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("_jit_gptq_marlin_repack_module()", text)
         self.assertIn("repacked = gptq_marlin_repack(", text)
+        self.assertIn("gptq_marlin_repack.cuh", text)
+        self.assertIn("SGLang source hashes drifted", text)
         self.assertIn("GenerateReqInput(", text)
         self.assertIn("request.normalize_batch_and_arguments()", text)
 

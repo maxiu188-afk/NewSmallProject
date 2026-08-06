@@ -35,6 +35,27 @@ from scripts.run_vllm_w4afp8_llama2_13b_boolq import (  # noqa: E402
 
 
 MODEL_NAME = "quarot_w4a16"
+SGLANG_EXPECTED_SOURCE_SHA256 = {
+    "sglang.jit_kernel.gptq_marlin_repack": (
+        "c8ec88a9882b0c5befaf7204c5e4c1b328fa33e4f5923696dee7ffa9a1be7e8f"
+    ),
+    "sglang.jit_kernel.gptq_marlin_repack.cuh": (
+        "a1fd81cbce9dacc6bb9d54129a2d266ed594a243d4fdd8fad7d1eb93cf02ad0b"
+    ),
+    "sglang.srt.layers.quantization.compressed_tensors.schemes."
+    "compressed_tensors_wNa16": (
+        "b2ffbd41a6c46ecbe4efbbbfb94be9531dc7ffd01d8432870022a21766d3249b"
+    ),
+    "sglang.srt.managers.io_struct": (
+        "627b4d3a2881b8eee2bebacef2270c092e9ef488d3c47e8d18fbaef943acda53"
+    ),
+    "sglang.srt.managers.schedule_batch": (
+        "27e20908294c9d76d0a8ae1199ecac4379232532878013404a8b4fb08842ac43"
+    ),
+    "sglang.srt.managers.tokenizer_manager": (
+        "4646904f0da00d4810db3e08b90d0dee41d8ecf317c68e99ad8ca727fa96deb8"
+    ),
+}
 
 
 def _validate_config(config: dict[str, Any]) -> None:
@@ -69,6 +90,10 @@ def _validate_config(config: dict[str, Any]) -> None:
         "expected_tvm_ffi_version": "0.1.11",
     }:
         raise ValueError("SGLang WNA16 toolchain contract drifted")
+    if config["sglang"].get("expected_source_sha256") != (
+        SGLANG_EXPECTED_SOURCE_SHA256
+    ):
+        raise ValueError("SGLang WNA16 source hash contract drifted")
 
 
 def _requests(tokenizer: Any, examples: list[dict[str, Any]], config: dict[str, Any]):

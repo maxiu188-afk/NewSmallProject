@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
-import importlib
 import importlib.metadata as metadata
 import json
 import os
@@ -17,6 +16,22 @@ import subprocess
 import sys
 import time
 from typing import Any
+
+
+SGLANG_SOURCE_RELATIVE_PATHS = {
+    "sglang.jit_kernel.gptq_marlin_repack": "jit_kernel/gptq_marlin_repack.py",
+    "sglang.jit_kernel.gptq_marlin_repack.cuh": (
+        "jit_kernel/csrc/gemm/marlin/gptq_marlin_repack.cuh"
+    ),
+    "sglang.srt.layers.quantization.compressed_tensors.schemes."
+    "compressed_tensors_wNa16": (
+        "srt/layers/quantization/compressed_tensors/schemes/"
+        "compressed_tensors_wNa16.py"
+    ),
+    "sglang.srt.managers.io_struct": "srt/managers/io_struct.py",
+    "sglang.srt.managers.schedule_batch": "srt/managers/schedule_batch.py",
+    "sglang.srt.managers.tokenizer_manager": "srt/managers/tokenizer_manager.py",
+}
 
 
 def _sha256(path: Path) -> str:
@@ -52,12 +67,6 @@ def _major(version: str) -> int:
     if match is None:
         raise RuntimeError(f"cannot parse version major: {version!r}")
     return int(match.group(1))
-
-
-def _source_record(module_name: str) -> dict[str, str]:
-    module = importlib.import_module(module_name)
-    source = Path(module.__file__).resolve()
-    return {"path": str(source), "sha256": _sha256(source)}
 
 
 def _require_env_executable(name: str) -> Path:
@@ -147,11 +156,6 @@ def main() -> int:
         raise RuntimeError(f"NVCC release drifted: {nvcc_release}")
 
     import torch
-    from sglang.jit_kernel.gptq_marlin_repack import (
-        _jit_gptq_marlin_repack_module,
-        gptq_marlin_repack,
-    )
-    from sglang.srt.managers.io_struct import GenerateReqInput
 
     if metadata.version("sglang") != str(sglang_config["expected_version"]):
         raise RuntimeError("SGLang version drifted")
@@ -162,6 +166,31 @@ def main() -> int:
     capability = list(torch.cuda.get_device_capability())
     if capability != list(config["runtime"]["compute_capability"]):
         raise RuntimeError(f"compute capability drifted: {capability}")
+
+    sglang_root = Path(
+        metadata.distribution("sglang").locate_file("sglang")
+    ).resolve()
+    source_records = {}
+    for name, relative_path in SGLANG_SOURCE_RELATIVE_PATHS.items():
+        source = sglang_root / relative_path
+        if not source.is_file():
+            raise RuntimeError(f"SGLang source is missing: {source}")
+        source_records[name] = {"path": str(source), "sha256": _sha256(source)}
+    expected_source_sha256 = sglang_config["expected_source_sha256"]
+    observed_source_sha256 = {
+        name: record["sha256"] for name, record in source_records.items()
+    }
+    if observed_source_sha256 != expected_source_sha256:
+        raise RuntimeError(
+            "SGLang source hashes drifted: "
+            f"expected={expected_source_sha256} observed={observed_source_sha256}"
+        )
+
+    from sglang.jit_kernel.gptq_marlin_repack import (
+        _jit_gptq_marlin_repack_module,
+        gptq_marlin_repack,
+    )
+    from sglang.srt.managers.io_struct import GenerateReqInput
 
     request = GenerateReqInput(
         input_ids=[[1, 2, 3], [1, 2, 3, 4]],
@@ -210,13 +239,6 @@ def main() -> int:
     if torch.count_nonzero(repacked).item() != 0:
         raise RuntimeError("zero GPTQ-Marlin preflight input produced nonzero output")
 
-    source_modules = [
-        "sglang.jit_kernel.gptq_marlin_repack",
-        "sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_wNa16",
-        "sglang.srt.managers.io_struct",
-        "sglang.srt.managers.schedule_batch",
-        "sglang.srt.managers.tokenizer_manager",
-    ]
     result = {
         "status": "passed",
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -262,7 +284,7 @@ def main() -> int:
             "input_shape": list(packed.shape),
             "output_shape": list(repacked.shape),
         },
-        "sources": {name: _source_record(name) for name in source_modules},
+        "sources": source_records,
     }
     _write_json(args.output.resolve(), result)
     print(json.dumps(result, indent=2, sort_keys=True))
