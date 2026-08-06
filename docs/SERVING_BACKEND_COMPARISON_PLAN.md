@@ -13,9 +13,10 @@ smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
 acceptance before a formal comparison is submitted.
 
 The frozen smoke runtimes are vLLM `0.25.1+cu129` and SGLang `0.5.16`, each in
-an isolated environment with PyTorch `2.11.0+cu129`. SGLang follows its official
-CUDA 12 installation route, including the cu129 SGLang kernel and DeepGEMM
-wheels. The prepared files are:
+an isolated environment with PyTorch `2.11.0+cu129`. The SGLang execution
+stack uses the cu129 PyTorch and SGLang-kernel wheels; its installed
+`nvidia-cuda-nvcc` build dependency provides NVCC `13.3.73` for the
+GPTQ-to-Marlin JIT. The prepared files are:
 
 - `configs/deployment/sglang_vllm_llama2_13b_smoke_isambard.json`;
 - `scripts/setup_isambard_sglang_env.sh`;
@@ -180,7 +181,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Incomplete: `5917675` reached WNA16 Marlin JIT but exposed a GCC 7/C++20 host-compiler failure | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Replacement `5927118` submitted from `f083519`; compatibility remains unverified pending artifact review | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -234,12 +235,34 @@ entered the `CompressedTensorsWNA16` GPTQ-to-Marlin JIT, but NVCC used the
 default GCC `7.5.0` host toolchain and could not find the C++20 `<version>`
 header. GCC 14 is available on the node and passes a read-only header check;
 however, `module load gcc-native/14.2` does not update the `c++` command used by
-the JIT. A bounded correction must therefore explicitly bind `CC`, `CXX`, and
-`NVCC_CCBIN` and preflight the C++20 header before another result-gated smoke.
+the JIT. This remains an environment binding failure rather than checkpoint
+compatibility or incompatibility evidence.
 
-No such replacement is currently submitted. No formal job or dependency is
-submitted, and Track C still excludes BF16, unrotated W4A16, SpinQuant,
-re-quantization, and re-export.
+Revision `f083519c6338593bf9691509ee425bd385405cef` now loads
+`gcc-native/14.2`, binds `CC`, `CXX`, and `NVCC_CCBIN` to GCC/G++ `14.3.0`,
+and fails closed on the C++20 `<version>` header, Ninja `1.13.0`, NVCC
+`13.3.73`, SGLang `0.5.16`, PyTorch `2.11.0+cu129`, and the audited WNA16
+dependency versions. It also binds SHA-256 values for the WNA16 dispatch,
+batched log-probability route, GPTQ-to-Marlin Python wrapper, and exact Marlin
+`.cuh` source. The scoring request uses SGLang's `start_len + 1` input-logprob
+semantics so the first BoolQ continuation token is included.
+
+Before evaluation, the batch job must compile the exact
+`gptq_marlin_repack` JIT and execute a valid synthetic SM90 CUDA call. This GPU
+gate cannot be substituted by a login-node or CPU check. The login-node checks
+did confirm the complete pinned version set, all bound source hashes, 18
+focused tests, the 280 packed-linears contract, checkpoint tree SHA-256
+`2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99`,
+and accepted-source-result SHA-256
+`3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10`.
+
+`sbatch --test-only` accepted the unchanged one-GH200, two-hour resource
+request. Replacement smoke `5927118` was submitted alone from clean revision
+`f083519` with no formal dependency. Its state is intentionally not polled;
+compatibility remains unverified until the preflight JSON, backend logs,
+comparison JSON, source manifest, exit status, and hashes are reviewed. No
+formal job is submitted, and Track C still excludes BF16, unrotated W4A16,
+SpinQuant, re-quantization, and re-export.
 
 ## Gate 0: read-only compatibility audit
 

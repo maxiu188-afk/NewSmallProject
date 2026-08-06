@@ -291,7 +291,20 @@ header was unavailable. GCC 14 is installed and passes the corresponding
 read-only header check, so this remains an environment binding failure rather
 than W4A16 compatibility or incompatibility evidence.
 
-No replacement or formal job is currently submitted. The bounded next fix is
-to load `gcc-native/14.2`, explicitly bind `CC`, `CXX`, and `NVCC_CCBIN`, and
-preflight the C++20 header without changing the model, BoolQ data, quantization,
-or resource request.
+Revision `f083519` implements the bounded correction without changing the
+model, 32-example BoolQ subset, quantization, or one-GH200/two-hour resource
+request. It binds GCC/G++ `14.3.0`, Ninja `1.13.0`, NVCC `13.3.73`, SGLang
+`0.5.16`, PyTorch `2.11.0+cu129`, the remaining WNA16 dependency versions,
+and SHA-256 values for the loaded WNA16/log-probability/JIT sources including
+the exact Marlin `.cuh`. It also corrects SGLang's `logprob_start_len` offset
+so the first BoolQ continuation token is scored. The result-gated batch now
+compiles and executes the exact GPTQ-to-Marlin JIT before either backend is
+evaluated.
+
+Login-node acceptance passed 18 focused tests, the complete version and source
+hash gates, and the immutable checkpoint/source-result validation. Replacement
+smoke `5927118` was submitted alone from clean revision `f083519` after
+`sbatch --test-only` accepted the request. It has no formal dependency and is
+intentionally not monitored. SGLang W4A16 compatibility remains unverified
+until its retained preflight, logs, result JSON, source manifest, exit status,
+and hashes are reviewed; no formal job is submitted.
