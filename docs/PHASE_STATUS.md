@@ -303,8 +303,20 @@ evaluated.
 
 Login-node acceptance passed 18 focused tests, the complete version and source
 hash gates, and the immutable checkpoint/source-result validation. Replacement
-smoke `5927118` was submitted alone from clean revision `f083519` after
-`sbatch --test-only` accepted the request. It has no formal dependency and is
-intentionally not monitored. SGLang W4A16 compatibility remains unverified
-until its retained preflight, logs, result JSON, source manifest, exit status,
-and hashes are reviewed; no formal job is submitted.
+smoke `5927118` was submitted alone from clean revision `f083519`, then failed
+closed after 51 seconds during runtime preflight. NVCC compiled the exact
+Marlin CUDA source with GCC `14.3.0`, but TVM-FFI expected
+`${CUDA_HOME}/lib64/libcudart.so` while the pip CUDA `13.3` layout provided only
+`${CUDA_HOME}/lib/libcudart.so.13`; linking failed before model loading. This is
+environment-layout evidence, not SGLang W4A16 compatibility evidence.
+
+Revision `75a805f` adds and validates the exact `libcudart.so.13` compatibility
+link, exports its runtime directory through `LD_LIBRARY_PATH`, and performs a
+real CUDART link and dynamic-load probe before the exact Marlin JIT. The helper
+passed twice on the existing environment, the probe returned runtime version
+`13000`, 19 focused tests passed on Isambard, and the immutable-input gate
+passed again. Replacement smoke `5932590` was submitted alone from clean
+revision `75a805f` after `sbatch --test-only` accepted the unchanged request.
+It has no formal dependency and is intentionally not monitored. Compatibility
+remains unverified until its retained artifacts are reviewed; no formal job is
+submitted.

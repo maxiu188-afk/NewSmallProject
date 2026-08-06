@@ -181,7 +181,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Replacement `5927118` submitted from `f083519`; compatibility remains unverified pending artifact review | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Replacement `5932590` submitted from `75a805f`; compatibility remains unverified pending artifact review | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -257,12 +257,29 @@ and accepted-source-result SHA-256
 `3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10`.
 
 `sbatch --test-only` accepted the unchanged one-GH200, two-hour resource
-request. Replacement smoke `5927118` was submitted alone from clean revision
-`f083519` with no formal dependency. Its state is intentionally not polled;
-compatibility remains unverified until the preflight JSON, backend logs,
-comparison JSON, source manifest, exit status, and hashes are reviewed. No
-formal job is submitted, and Track C still excludes BF16, unrotated W4A16,
-SpinQuant, re-quantization, and re-export.
+request. Replacement smoke `5927118`, submitted alone from clean revision
+`f083519`, failed closed after 51 seconds during runtime preflight. NVCC
+successfully compiled the exact Marlin CUDA source with GCC `14.3.0`, but
+TVM-FFI linked with `-L${CUDA_HOME}/lib64 -lcudart` while the pip CUDA `13.3`
+layout provided only `${CUDA_HOME}/lib/libcudart.so.13`. The link therefore
+failed with `cannot find -lcudart` before model loading. This is another
+environment-layout failure and contains no SGLang W4A16 compatibility result.
+
+Revision `75a805f01b672a8527b316f74cafef64b111b636` adds an idempotent,
+fail-closed compatibility link from `lib64/libcudart.so` to the exact
+`lib/libcudart.so.13`, exports the runtime `lib` directory through
+`LD_LIBRARY_PATH`, and performs a real CUDART host-link and dynamic-load probe
+before the Marlin JIT. The Isambard login-node probe resolved runtime version
+`13000`; the helper passed twice, 19 focused tests passed, and the immutable
+checkpoint/source-result gate passed again.
+
+`sbatch --test-only` accepted the unchanged request, and replacement smoke
+`5932590` was submitted alone from clean revision `75a805f` with no formal
+dependency. Its state is intentionally not polled; compatibility remains
+unverified until the preflight JSON, backend logs, comparison JSON, source
+manifest, exit status, and hashes are reviewed. No formal job is submitted,
+and Track C still excludes BF16, unrotated W4A16, SpinQuant, re-quantization,
+and re-export.
 
 ## Gate 0: read-only compatibility audit
 
