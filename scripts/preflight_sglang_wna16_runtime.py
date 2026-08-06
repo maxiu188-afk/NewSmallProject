@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import datetime as dt
 import hashlib
 import importlib.metadata as metadata
@@ -14,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Any
 
@@ -155,6 +157,70 @@ def main() -> int:
     if nvcc_release != str(toolchain["expected_nvcc_release"]):
         raise RuntimeError(f"NVCC release drifted: {nvcc_release}")
 
+    cudart_soname = str(toolchain["expected_cudart_soname"])
+    cudart_runtime_dir = (cuda_home / "lib").resolve()
+    cudart_runtime = cudart_runtime_dir / cudart_soname
+    cudart_link = cuda_home / "lib64/libcudart.so"
+    if not cudart_runtime.is_file():
+        raise RuntimeError(f"CUDART runtime is missing: {cudart_runtime}")
+    if not cudart_link.is_symlink() or not os.path.samefile(
+        cudart_link, cudart_runtime
+    ):
+        raise RuntimeError(
+            f"TVM-FFI CUDART link is missing or drifted: {cudart_link}"
+        )
+    ld_library_paths = [
+        Path(value).resolve()
+        for value in os.environ.get("LD_LIBRARY_PATH", "").split(":")
+        if value
+    ]
+    if cudart_runtime_dir not in ld_library_paths:
+        raise RuntimeError(
+            f"LD_LIBRARY_PATH does not contain CUDART runtime: {cudart_runtime_dir}"
+        )
+
+    with tempfile.TemporaryDirectory(prefix="sglang-cudart-link-") as temporary:
+        probe_dir = Path(temporary)
+        probe_source = probe_dir / "probe.cpp"
+        probe_library = probe_dir / "cudart-link-probe.so"
+        probe_source.write_text(
+            'extern "C" int cudaRuntimeGetVersion(int*);\n'
+            'extern "C" int probe(int* version) { '
+            "return cudaRuntimeGetVersion(version); }\n",
+            encoding="utf-8",
+        )
+        try:
+            _run(
+                [
+                    str(cxx),
+                    "-std=c++20",
+                    "-fPIC",
+                    "-shared",
+                    "-Wl,--no-undefined",
+                    str(probe_source),
+                    f"-L{cuda_home / 'lib64'}",
+                    "-lcudart",
+                    "-o",
+                    str(probe_library),
+                ]
+            )
+        except subprocess.CalledProcessError as error:
+            raise RuntimeError(
+                "CUDART host-link probe failed: "
+                f"stdout={error.stdout!r} stderr={error.stderr!r}"
+            ) from error
+        probe_module = ctypes.CDLL(str(probe_library), mode=ctypes.RTLD_LOCAL)
+        probe_function = probe_module.probe
+        probe_function.argtypes = [ctypes.POINTER(ctypes.c_int)]
+        probe_function.restype = ctypes.c_int
+        cudart_runtime_version = ctypes.c_int()
+        cudart_status = probe_function(ctypes.byref(cudart_runtime_version))
+        if cudart_status != 0 or cudart_runtime_version.value <= 0:
+            raise RuntimeError(
+                "CUDART dynamic-load probe failed: "
+                f"status={cudart_status} version={cudart_runtime_version.value}"
+            )
+
     import torch
 
     if metadata.version("sglang") != str(sglang_config["expected_version"]):
@@ -259,6 +325,11 @@ def main() -> int:
             "CXX_version": cxx_version,
             "NVCC_CCBIN": str(nvcc_ccbin),
             "CUDA_HOME": str(cuda_home),
+            "cudart_link": str(cudart_link),
+            "cudart_runtime": str(cudart_runtime),
+            "cudart_runtime_version": cudart_runtime_version.value,
+            "cudart_host_link_and_load": "passed",
+            "LD_LIBRARY_PATH": os.environ["LD_LIBRARY_PATH"],
             "nvcc": str(nvcc),
             "nvcc_release": nvcc_release,
             "nvcc_version_output": nvcc_version.splitlines(),

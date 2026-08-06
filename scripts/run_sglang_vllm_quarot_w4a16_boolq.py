@@ -81,6 +81,7 @@ def _validate_config(config: dict[str, Any]) -> None:
         "compiler_module": "gcc-native/14.2",
         "expected_compiler_major": 14,
         "expected_compressed_tensors_version": "0.17.2a20260731",
+        "expected_cudart_soname": "libcudart.so.13",
         "expected_flashinfer_version": "0.6.14",
         "expected_ninja_version": "1.13.0",
         "expected_nvidia_cuda_nvcc_version": "13.3.73",

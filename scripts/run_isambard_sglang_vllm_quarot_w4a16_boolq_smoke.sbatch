@@ -41,7 +41,10 @@ for required in \
     "${vllm_env}/bin/python" \
     "${sglang_env}/bin/python" \
     "${sglang_env}/bin/ninja" \
+    "${sglang_env}/lib/python3.11/site-packages/nvidia/cu13/lib64/libcudart.so" \
+    "${project_root}/scripts/prepare_sglang_cuda_jit_layout.sh" \
     "${project_root}/scripts/preflight_sglang_wna16_runtime.py" \
+    "${project_root}/scripts/setup_isambard_sglang_env.sh" \
     "${config}" \
     "${model_snapshot}/tokenizer.json" \
     "${rotated_dir}/config.json" \
@@ -73,6 +76,7 @@ export VLLM_ENABLE_V1_MULTIPROCESSING=0
 export VLLM_USE_FLASHINFER_SAMPLER=0
 export TOKENIZERS_PARALLELISM=false
 export CUDA_HOME="${sglang_env}/lib/python3.11/site-packages/nvidia/cu13"
+export LD_LIBRARY_PATH="${CUDA_HOME}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 export SGLANG_ENABLE_JIT_DEEPGEMM=0
 
 echo "SGLANG_VLLM_W4A16_BOOLQ_NINJA=$(ninja --version)"
@@ -101,6 +105,8 @@ echo "SGLANG_VLLM_W4A16_BOOLQ_STAGE=source_gate"
         "${config}" \
         "${project_root}/scripts/run_sglang_vllm_quarot_w4a16_boolq.py" \
         "${project_root}/scripts/preflight_sglang_wna16_runtime.py" \
+        "${project_root}/scripts/prepare_sglang_cuda_jit_layout.sh" \
+        "${project_root}/scripts/setup_isambard_sglang_env.sh" \
         "${project_root}/scripts/validate_sglang_vllm_quarot_w4a16_inputs.py" \
         "${project_root}/scripts/run_sglang_vllm_llama2_13b_smoke.py" \
         "${project_root}/scripts/run_isambard_sglang_vllm_quarot_w4a16_boolq_smoke.sbatch" \

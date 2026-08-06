@@ -1,7 +1,9 @@
 import importlib.util
 import inspect
 import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -49,6 +51,7 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
                 "compiler_module": "gcc-native/14.2",
                 "expected_compiler_major": 14,
                 "expected_compressed_tensors_version": "0.17.2a20260731",
+                "expected_cudart_soname": "libcudart.so.13",
                 "expected_flashinfer_version": "0.6.14",
                 "expected_ninja_version": "1.13.0",
                 "expected_nvidia_cuda_nvcc_version": "13.3.73",
@@ -170,6 +173,8 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         self.assertIn("module load gcc-native/14.2", text)
         self.assertIn('export CXX="$(command -v g++)"', text)
         self.assertIn('export NVCC_CCBIN="${CXX}"', text)
+        self.assertIn('export LD_LIBRARY_PATH="${CUDA_HOME}/lib', text)
+        self.assertIn("lib64/libcudart.so", text)
         self.assertIn('"${sglang_env}/bin/ninja"', text)
         self.assertIn("preflight_sglang_wna16_runtime.py", text)
         self.assertLess(
@@ -190,8 +195,30 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         self.assertIn("repacked = gptq_marlin_repack(", text)
         self.assertIn("gptq_marlin_repack.cuh", text)
         self.assertIn("SGLang source hashes drifted", text)
+        self.assertIn("CUDART host-link probe failed", text)
+        self.assertIn("ctypes.CDLL", text)
         self.assertIn("GenerateReqInput(", text)
         self.assertIn("request.normalize_batch_and_arguments()", text)
+
+    def test_cuda_jit_layout_helper_is_idempotent(self):
+        helper = PROJECT_ROOT / "scripts/prepare_sglang_cuda_jit_layout.sh"
+        with tempfile.TemporaryDirectory() as temporary:
+            cuda_home = Path(temporary) / "cuda"
+            runtime_dir = cuda_home / "lib"
+            runtime_dir.mkdir(parents=True)
+            runtime = runtime_dir / "libcudart.so.13"
+            runtime.write_bytes(b"test-runtime")
+            for _ in range(2):
+                completed = subprocess.run(
+                    ["bash", str(helper), str(cuda_home)],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertIn("SGLANG_CUDA_JIT_LAYOUT_READY", completed.stdout)
+            link = cuda_home / "lib64/libcudart.so"
+            self.assertTrue(link.is_symlink())
+            self.assertTrue(link.samefile(runtime))
 
     def test_environment_setup_pins_build_toolchain(self):
         text = (
@@ -202,6 +229,8 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         self.assertIn('"ninja==1.13.0"', text)
         self.assertIn('"nvidia-cuda-nvcc==13.3.73"', text)
         self.assertIn('export NVCC_CCBIN="${CXX}"', text)
+        self.assertIn("prepare_sglang_cuda_jit_layout.sh", text)
+        self.assertIn("cudart-link-probe.so", text)
 
 
 if __name__ == "__main__":

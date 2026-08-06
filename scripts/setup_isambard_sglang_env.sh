@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 if [[ -n "${SLURM_JOB_ID:-}" ]]; then
     echo "SGLANG_ENV_ERROR=run this setup on a login node, not in Slurm" >&2
     exit 2
@@ -107,7 +109,19 @@ uv_command=("${sglang_env}/bin/uv" pip install --python "${sglang_env}/bin/pytho
 
 pip_check_with_sbsa_guard "${sglang_env}/bin/python"
 export CUDA_HOME="${sglang_env}/lib/python3.11/site-packages/nvidia/cu13"
+"${script_dir}/prepare_sglang_cuda_jit_layout.sh" "${CUDA_HOME}"
+export LD_LIBRARY_PATH="${CUDA_HOME}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 printf '#include <version>\n' | "${CXX}" -std=c++20 -x c++ -E - >/dev/null
+link_probe_dir="$(mktemp -d)"
+trap 'rm -rf "${link_probe_dir}"' EXIT
+printf '%s\n' \
+    'extern "C" int cudaRuntimeGetVersion(int*);' \
+    'extern "C" int probe() { int version = 0; return cudaRuntimeGetVersion(&version); }' \
+    | "${CXX}" -x c++ -fPIC -shared -Wl,--no-undefined - \
+        -L"${CUDA_HOME}/lib64" -lcudart \
+        -o "${link_probe_dir}/cudart-link-probe.so"
+ldd "${link_probe_dir}/cudart-link-probe.so" \
+    | grep -F "${CUDA_HOME}/lib/libcudart.so.13" >/dev/null
 "${sglang_env}/bin/python" -m pip freeze \
     > "${manifest_dir}/sglang-0.5.16-cu129-aarch64.txt"
 {
@@ -120,6 +134,9 @@ printf '#include <version>\n' | "${CXX}" -std=c++20 -x c++ -E - >/dev/null
     printf 'ninja=%s\n' "$(command -v ninja)"
     printf 'ninja_version=%s\n' "$(ninja --version)"
     printf 'CUDA_HOME=%s\n' "${CUDA_HOME}"
+    printf 'LD_LIBRARY_PATH=%s\n' "${LD_LIBRARY_PATH}"
+    printf 'cudart_link=%s\n' "$(readlink "${CUDA_HOME}/lib64/libcudart.so")"
+    printf 'cudart_link_test=passed\n'
     "${CUDA_HOME}/bin/nvcc" --version
 } > "${manifest_dir}/sglang-0.5.16-cu129-toolchain.txt"
 sha256sum \
