@@ -19,11 +19,16 @@ if ! type module >/dev/null 2>&1; then
     source /etc/profile
 fi
 module load cray-python/3.11.7
+module load gcc-native/14.2
 
 environment_root="${PROJECTDIR}/${USER}/newsmallproject-sglang"
 sglang_env="${environment_root}/sglang-0.5.16-cu129"
 manifest_dir="${environment_root}/manifests"
 mkdir -p "${environment_root}" "${manifest_dir}"
+export PATH="${sglang_env}/bin:${PATH}"
+export CC="$(command -v gcc)"
+export CXX="$(command -v g++)"
+export NVCC_CCBIN="${CXX}"
 
 pip_check_with_sbsa_guard() {
     local python_path="$1"
@@ -74,7 +79,7 @@ fi
     "pip==26.1.2" "uv==0.12.1"
 
 uv_command=("${sglang_env}/bin/uv" pip install --python "${sglang_env}/bin/python")
-"${uv_command[@]}" --prerelease=allow "sglang==0.5.16"
+"${uv_command[@]}" --prerelease=allow "sglang==0.5.16" "ninja==1.13.0"
 "${sglang_env}/bin/python" -m pip uninstall --yes \
     cuda-core nvidia-cusparselt-cu13
 "${uv_command[@]}" --force-reinstall \
@@ -97,9 +102,25 @@ uv_command=("${sglang_env}/bin/uv" pip install --python "${sglang_env}/bin/pytho
     "sgl-deep-gemm==0.1.4.post1"
 
 pip_check_with_sbsa_guard "${sglang_env}/bin/python"
+export CUDA_HOME="${sglang_env}/lib/python3.11/site-packages/nvidia/cu13"
+printf '#include <version>\n' | "${CXX}" -std=c++20 -x c++ -E - >/dev/null
 "${sglang_env}/bin/python" -m pip freeze \
     > "${manifest_dir}/sglang-0.5.16-cu129-aarch64.txt"
-sha256sum "${manifest_dir}/sglang-0.5.16-cu129-aarch64.txt" \
+{
+    printf 'compiler_module=gcc-native/14.2\n'
+    printf 'CC=%s\n' "${CC}"
+    printf 'CC_version=%s\n' "$("${CC}" -dumpfullversion -dumpversion | head -1)"
+    printf 'CXX=%s\n' "${CXX}"
+    printf 'CXX_version=%s\n' "$("${CXX}" -dumpfullversion -dumpversion | head -1)"
+    printf 'NVCC_CCBIN=%s\n' "${NVCC_CCBIN}"
+    printf 'ninja=%s\n' "$(command -v ninja)"
+    printf 'ninja_version=%s\n' "$(ninja --version)"
+    printf 'CUDA_HOME=%s\n' "${CUDA_HOME}"
+    "${CUDA_HOME}/bin/nvcc" --version
+} > "${manifest_dir}/sglang-0.5.16-cu129-toolchain.txt"
+sha256sum \
+    "${manifest_dir}/sglang-0.5.16-cu129-aarch64.txt" \
+    "${manifest_dir}/sglang-0.5.16-cu129-toolchain.txt" \
     > "${manifest_dir}/SHA256SUMS"
 
 "${sglang_env}/bin/python" - <<'PY'
@@ -111,8 +132,12 @@ assert platform.machine() == "aarch64", platform.machine()
 assert metadata.version("sglang") == "0.5.16"
 assert metadata.version("sglang-kernel") == "0.4.5+cu129"
 assert metadata.version("sgl-deep-gemm") == "0.1.4.post1+cu129"
+assert metadata.version("apache-tvm-ffi") == "0.1.11"
+assert metadata.version("flashinfer-python") == "0.6.14"
 assert metadata.version("cuda-python") == "12.9.4"
 assert metadata.version("cuda-bindings") == "12.9.7"
+assert metadata.version("ninja") == "1.13.0"
+assert metadata.version("transformers") == "5.12.1"
 assert torch.__version__ == "2.11.0+cu129", torch.__version__
 assert torch.version.cuda == "12.9", torch.version.cuda
 assert not torch.cuda.is_available(), "login-node setup unexpectedly owns a GPU"

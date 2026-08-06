@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""Fail fast on the exact SGLang WNA16 toolchain and API contract."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import importlib
+import importlib.metadata as metadata
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import time
+from typing import Any
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_json(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    temporary.replace(path)
+
+
+def _run(command: list[str], *, input_text: str | None = None) -> str:
+    completed = subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+        input=input_text,
+    )
+    return completed.stdout.strip()
+
+
+def _major(version: str) -> int:
+    match = re.match(r"^(\d+)", version)
+    if match is None:
+        raise RuntimeError(f"cannot parse version major: {version!r}")
+    return int(match.group(1))
+
+
+def _source_record(module_name: str) -> dict[str, str]:
+    module = importlib.import_module(module_name)
+    source = Path(module.__file__).resolve()
+    return {"path": str(source), "sha256": _sha256(source)}
+
+
+def _require_env_executable(name: str) -> Path:
+    raw_value = os.environ.get(name)
+    if not raw_value:
+        raise RuntimeError(f"{name} is not set")
+    path = Path(raw_value)
+    if not path.is_absolute() or not os.access(path, os.X_OK):
+        raise RuntimeError(f"{name} is not an absolute executable: {path}")
+    return path
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+
+    config_path = args.config.resolve()
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    sglang_config = config["sglang"]
+    toolchain = sglang_config["toolchain"]
+
+    cc = _require_env_executable("CC")
+    cxx = _require_env_executable("CXX")
+    nvcc_ccbin = _require_env_executable("NVCC_CCBIN")
+    if not os.path.samefile(cxx, nvcc_ccbin):
+        raise RuntimeError("CXX and NVCC_CCBIN select different host compilers")
+
+    cc_version = _run([str(cc), "-dumpfullversion", "-dumpversion"]).splitlines()[0]
+    cxx_version = _run([str(cxx), "-dumpfullversion", "-dumpversion"]).splitlines()[0]
+    expected_compiler_major = int(toolchain["expected_compiler_major"])
+    if _major(cc_version) != expected_compiler_major:
+        raise RuntimeError(f"CC version drifted: {cc_version}")
+    if _major(cxx_version) != expected_compiler_major:
+        raise RuntimeError(f"CXX version drifted: {cxx_version}")
+    _run(
+        [str(cxx), "-std=c++20", "-x", "c++", "-E", "-"],
+        input_text="#include <version>\n",
+    )
+
+    ninja = shutil.which("ninja")
+    if ninja is None:
+        raise RuntimeError("ninja is not on PATH")
+    ninja_cli_version = _run([ninja, "--version"])
+    ninja_package_version = metadata.version("ninja")
+    expected_ninja = str(toolchain["expected_ninja_version"])
+    if ninja_package_version != expected_ninja or not ninja_cli_version.startswith(
+        expected_ninja
+    ):
+        raise RuntimeError(
+            f"Ninja version drifted: package={ninja_package_version} "
+            f"cli={ninja_cli_version}"
+        )
+
+    pinned_packages = {
+        "apache-tvm-ffi": str(toolchain["expected_tvm_ffi_version"]),
+        "flashinfer-python": str(toolchain["expected_flashinfer_version"]),
+        "sglang-kernel": str(toolchain["expected_sglang_kernel_version"]),
+        "transformers": str(toolchain["expected_transformers_version"]),
+    }
+    package_versions = {
+        package: metadata.version(package) for package in pinned_packages
+    }
+    drifted_packages = {
+        package: {"expected": expected, "observed": package_versions[package]}
+        for package, expected in pinned_packages.items()
+        if package_versions[package] != expected
+    }
+    if drifted_packages:
+        raise RuntimeError(f"SGLang dependency versions drifted: {drifted_packages}")
+
+    cuda_home = Path(os.environ.get("CUDA_HOME", ""))
+    nvcc = cuda_home / "bin/nvcc"
+    if not os.access(nvcc, os.X_OK):
+        raise RuntimeError(f"CUDA_HOME does not provide nvcc: {nvcc}")
+    nvcc_version = _run([str(nvcc), "--version"])
+    release_match = re.search(r"release\s+(\d+\.\d+)", nvcc_version)
+    nvcc_release = release_match.group(1) if release_match else None
+    if nvcc_release != str(toolchain["expected_nvcc_release"]):
+        raise RuntimeError(f"NVCC release drifted: {nvcc_release}")
+
+    import torch
+    from sglang.jit_kernel.gptq_marlin_repack import (
+        _jit_gptq_marlin_repack_module,
+        gptq_marlin_repack,
+    )
+    from sglang.srt.managers.io_struct import GenerateReqInput
+
+    if metadata.version("sglang") != str(sglang_config["expected_version"]):
+        raise RuntimeError("SGLang version drifted")
+    if torch.__version__ != str(sglang_config["expected_torch_version"]):
+        raise RuntimeError(f"PyTorch version drifted: {torch.__version__}")
+    if not torch.cuda.is_available():
+        raise RuntimeError("SGLang WNA16 preflight requires the allocated CUDA GPU")
+    capability = list(torch.cuda.get_device_capability())
+    if capability != list(config["runtime"]["compute_capability"]):
+        raise RuntimeError(f"compute capability drifted: {capability}")
+
+    request = GenerateReqInput(
+        input_ids=[[1, 2, 3], [1, 2, 3, 4]],
+        sampling_params={"temperature": 0.0, "max_new_tokens": 1},
+        return_logprob=True,
+        logprob_start_len=[1, 2],
+        top_logprobs_num=0,
+        return_text_in_logprobs=False,
+    )
+    request.normalize_batch_and_arguments()
+    if request.return_logprob != [True, True]:
+        raise RuntimeError("SGLang batch return_logprob normalization drifted")
+    if request.logprob_start_len != [1, 2]:
+        raise RuntimeError("SGLang batch logprob_start_len normalization drifted")
+    if request.top_logprobs_num != [0, 0]:
+        raise RuntimeError("SGLang batch top_logprobs_num normalization drifted")
+
+    started = time.monotonic()
+    jit_module = _jit_gptq_marlin_repack_module()
+    jit_compile_seconds = time.monotonic() - started
+    if not callable(getattr(jit_module, "gptq_marlin_repack", None)):
+        raise RuntimeError("compiled GPTQ-Marlin module is missing its entrypoint")
+
+    size_k = 128
+    size_n = 128
+    num_bits = 4
+    packed = torch.zeros(
+        (size_k // (32 // num_bits), size_n),
+        dtype=torch.int32,
+        device="cuda",
+    )
+    permutation = torch.empty(0, dtype=torch.int32, device="cuda")
+    repacked = gptq_marlin_repack(
+        packed,
+        permutation,
+        size_k=size_k,
+        size_n=size_n,
+        num_bits=num_bits,
+    )
+    torch.cuda.synchronize()
+    expected_shape = (size_k // 16, size_n * 16 // (32 // num_bits))
+    if tuple(repacked.shape) != expected_shape or repacked.dtype != torch.int32:
+        raise RuntimeError(
+            f"GPTQ-Marlin repack output drifted: {repacked.shape} {repacked.dtype}"
+        )
+    if torch.count_nonzero(repacked).item() != 0:
+        raise RuntimeError("zero GPTQ-Marlin preflight input produced nonzero output")
+
+    source_modules = [
+        "sglang.jit_kernel.gptq_marlin_repack",
+        "sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_wNa16",
+        "sglang.srt.managers.io_struct",
+        "sglang.srt.managers.schedule_batch",
+        "sglang.srt.managers.tokenizer_manager",
+    ]
+    result = {
+        "status": "passed",
+        "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "config": str(config_path),
+        "config_sha256": _sha256(config_path),
+        "python": sys.version.split()[0],
+        "packages": {
+            "sglang": metadata.version("sglang"),
+            "torch": torch.__version__,
+            "ninja": ninja_package_version,
+            **package_versions,
+        },
+        "toolchain": {
+            "compiler_module": toolchain["compiler_module"],
+            "CC": str(cc),
+            "CC_version": cc_version,
+            "CXX": str(cxx),
+            "CXX_version": cxx_version,
+            "NVCC_CCBIN": str(nvcc_ccbin),
+            "CUDA_HOME": str(cuda_home),
+            "nvcc": str(nvcc),
+            "nvcc_release": nvcc_release,
+            "nvcc_version_output": nvcc_version.splitlines(),
+            "ninja": ninja,
+            "ninja_cli_version": ninja_cli_version,
+            "cxx20_version_header": "passed",
+        },
+        "cuda": {
+            "available": True,
+            "device": torch.cuda.get_device_name(),
+            "compute_capability": capability,
+            "torch_runtime": torch.version.cuda,
+        },
+        "sglang_api": {
+            "batch_generate_logprob_normalization": "passed",
+            "logprob_start_len_semantics": "score token at start_len + 1",
+        },
+        "jit": {
+            "module": "sglang.jit_kernel.gptq_marlin_repack",
+            "compile_seconds": jit_compile_seconds,
+            "entrypoint": "gptq_marlin_repack",
+            "synthetic_execution": "passed",
+            "input_shape": list(packed.shape),
+            "output_shape": list(repacked.shape),
+        },
+        "sources": {name: _source_record(name) for name in source_modules},
+    }
+    _write_json(args.output.resolve(), result)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    print("SGLANG_WNA16_RUNTIME_PREFLIGHT_PASSED")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
