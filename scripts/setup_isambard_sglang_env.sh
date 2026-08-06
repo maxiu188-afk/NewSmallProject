@@ -79,7 +79,11 @@ fi
     "pip==26.1.2" "uv==0.12.1"
 
 uv_command=("${sglang_env}/bin/uv" pip install --python "${sglang_env}/bin/python")
-"${uv_command[@]}" --prerelease=allow "sglang==0.5.16" "ninja==1.13.0"
+"${uv_command[@]}" --prerelease=allow \
+    "sglang==0.5.16" \
+    "compressed-tensors==0.17.2a20260731" \
+    "ninja==1.13.0" \
+    "nvidia-cuda-nvcc==13.3.73"
 "${sglang_env}/bin/python" -m pip uninstall --yes \
     cuda-core nvidia-cusparselt-cu13
 "${uv_command[@]}" --force-reinstall \
@@ -133,10 +137,12 @@ assert metadata.version("sglang") == "0.5.16"
 assert metadata.version("sglang-kernel") == "0.4.5+cu129"
 assert metadata.version("sgl-deep-gemm") == "0.1.4.post1+cu129"
 assert metadata.version("apache-tvm-ffi") == "0.1.11"
+assert metadata.version("compressed-tensors") == "0.17.2a20260731"
 assert metadata.version("flashinfer-python") == "0.6.14"
 assert metadata.version("cuda-python") == "12.9.4"
 assert metadata.version("cuda-bindings") == "12.9.7"
 assert metadata.version("ninja") == "1.13.0"
+assert metadata.version("nvidia-cuda-nvcc") == "13.3.73"
 assert metadata.version("transformers") == "5.12.1"
 assert torch.__version__ == "2.11.0+cu129", torch.__version__
 assert torch.version.cuda == "12.9", torch.version.cuda

@@ -115,7 +115,13 @@ def main() -> int:
 
     pinned_packages = {
         "apache-tvm-ffi": str(toolchain["expected_tvm_ffi_version"]),
+        "compressed-tensors": str(
+            toolchain["expected_compressed_tensors_version"]
+        ),
         "flashinfer-python": str(toolchain["expected_flashinfer_version"]),
+        "nvidia-cuda-nvcc": str(
+            toolchain["expected_nvidia_cuda_nvcc_version"]
+        ),
         "sglang-kernel": str(toolchain["expected_sglang_kernel_version"]),
         "transformers": str(toolchain["expected_transformers_version"]),
     }

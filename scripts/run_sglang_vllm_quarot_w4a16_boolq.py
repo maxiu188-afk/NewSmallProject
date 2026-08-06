@@ -59,8 +59,10 @@ def _validate_config(config: dict[str, Any]) -> None:
     if config["sglang"].get("toolchain") != {
         "compiler_module": "gcc-native/14.2",
         "expected_compiler_major": 14,
+        "expected_compressed_tensors_version": "0.17.2a20260731",
         "expected_flashinfer_version": "0.6.14",
         "expected_ninja_version": "1.13.0",
+        "expected_nvidia_cuda_nvcc_version": "13.3.73",
         "expected_nvcc_release": "13.3",
         "expected_sglang_kernel_version": "0.4.5+cu129",
         "expected_transformers_version": "5.12.1",

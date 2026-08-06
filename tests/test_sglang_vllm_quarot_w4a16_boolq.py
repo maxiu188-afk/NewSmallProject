@@ -48,8 +48,10 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
             {
                 "compiler_module": "gcc-native/14.2",
                 "expected_compiler_major": 14,
+                "expected_compressed_tensors_version": "0.17.2a20260731",
                 "expected_flashinfer_version": "0.6.14",
                 "expected_ninja_version": "1.13.0",
+                "expected_nvidia_cuda_nvcc_version": "13.3.73",
                 "expected_nvcc_release": "13.3",
                 "expected_sglang_kernel_version": "0.4.5+cu129",
                 "expected_transformers_version": "5.12.1",
@@ -190,7 +192,9 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
             PROJECT_ROOT / "scripts/setup_isambard_sglang_env.sh"
         ).read_text(encoding="utf-8")
         self.assertIn("module load gcc-native/14.2", text)
+        self.assertIn('"compressed-tensors==0.17.2a20260731"', text)
         self.assertIn('"ninja==1.13.0"', text)
+        self.assertIn('"nvidia-cuda-nvcc==13.3.73"', text)
         self.assertIn('export NVCC_CCBIN="${CXX}"', text)
 
 
