@@ -317,6 +317,22 @@ passed twice on the existing environment, the probe returned runtime version
 `13000`, 19 focused tests passed on Isambard, and the immutable-input gate
 passed again. Replacement smoke `5932590` was submitted alone from clean
 revision `75a805f` after `sbatch --test-only` accepted the unchanged request.
-It has no formal dependency and is intentionally not monitored. Compatibility
-remains unverified until its retained artifacts are reviewed; no formal job is
-submitted.
+It failed closed (`1:0`) after 27 seconds before model loading. CUDART linking,
+dynamic loading, and the exact Marlin JIT build all passed, but its first
+synthetic CUDA call failed with `CUDA driver version is insufficient for CUDA
+runtime version`. The JIT was compiled and linked against pip CUDA 13.3, so
+this verifies the prior layout fix while exposing a separate CUDA 13/driver
+boundary; it is not checkpoint compatibility evidence.
+
+Revision `bfe2e3a` moves the SGLang source JIT to the complete system
+`cuda/12.6` toolkit (`nvcc 12.6.77`, `libcudart.so.12`) and
+`gcc-native/13.2`, while retaining the pinned PyTorch cu129 environment. It
+removes the artificial pip-CUDA-13 link and uses the isolated TVM-FFI cache
+namespace `cuda-12.6-gcc-13.2-tvmffi-0.1.11` so the CUDA 13 shared object
+cannot be reused. Eighteen focused tests, the immutable-input gate, and
+`sbatch --test-only` passed on Isambard. The exact generated Marlin source also
+compiled for `sm_90a`, linked to system `libcudart.so.12`, and dynamically
+loaded on the login node; GPU execution remains deliberately unclaimed.
+Replacement smoke `5940088` was submitted alone from clean revision `bfe2e3a`
+with no formal dependency and is intentionally not monitored. Compatibility
+remains unverified pending artifact review; no formal job is submitted.

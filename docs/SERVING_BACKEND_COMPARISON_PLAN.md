@@ -181,7 +181,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Replacement `5932590` submitted from `75a805f`; compatibility remains unverified pending artifact review | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Replacement `5940088` submitted from `bfe2e3a`; compatibility remains unverified pending artifact review | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -275,11 +275,34 @@ checkpoint/source-result gate passed again.
 
 `sbatch --test-only` accepted the unchanged request, and replacement smoke
 `5932590` was submitted alone from clean revision `75a805f` with no formal
-dependency. Its state is intentionally not polled; compatibility remains
-unverified until the preflight JSON, backend logs, comparison JSON, source
-manifest, exit status, and hashes are reviewed. No formal job is submitted,
-and Track C still excludes BF16, unrotated W4A16, SpinQuant, re-quantization,
-and re-export.
+dependency. It failed closed (`1:0`) after 27 seconds, still before model
+loading. The new CUDART host-link probe, exact Marlin compile/link, and module
+load all passed, so the `lib64` layout correction is verified. The first
+synthetic `gptq_marlin_repack` CUDA execution then raised `CUDA driver version
+is insufficient for CUDA runtime version`: the JIT had used the pip CUDA 13.3
+compiler and `libcudart.so.13`, which the allocated node's driver could not
+execute. This is a CUDA toolchain/driver boundary, not SGLang W4A16 checkpoint
+compatibility or incompatibility evidence.
+
+Revision `bfe2e3a344ce2cb96701a6aaa9f82ef4e027c8b0` keeps PyTorch
+`2.11.0+cu129` but moves only SGLang's source JIT to the complete Isambard
+`cuda/12.6` toolkit (`nvcc 12.6.77`, `libcudart.so.12`) with
+`gcc-native/13.2`. It removes the pip-CUDA-13 compatibility link and isolates
+TVM-FFI under cache namespace `cuda-12.6-gcc-13.2-tvmffi-0.1.11`, preventing
+reuse of the CUDA 13 shared object because the upstream cache key does not
+include the compiler/toolkit version. On the login node, 18 focused tests and
+the immutable-input gate passed; the exact SGLang-generated Marlin `cuda.cu`
+also compiled for `sm_90a`, linked to system `libcudart.so.12`, and dynamically
+loaded with this toolchain. This login-node proof cannot substitute for GPU
+execution, which remains the smoke's first runtime gate.
+
+`sbatch --test-only` accepted the unchanged one-GH200, two-hour request.
+Replacement smoke `5940088` was submitted alone from clean revision `bfe2e3a`
+with no formal dependency. Its state is intentionally not polled;
+compatibility remains unverified until the preflight JSON, backend logs,
+comparison JSON, source manifest, exit status, and hashes are reviewed. No
+formal job is submitted, and Track C still excludes BF16, unrotated W4A16,
+SpinQuant, re-quantization, and re-export.
 
 ## Gate 0: read-only compatibility audit
 
