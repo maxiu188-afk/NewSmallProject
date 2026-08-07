@@ -3,16 +3,17 @@
 ## Status and claim boundary
 
 This record closes the four-case compatibility smoke for job `5896201` and
-tracks the bounded QuaRot W4A16 BoolQ compatibility sequence through job
-`5940088`. It is not a serving-performance result: no throughput, latency,
+tracks the bounded QuaRot W4A16 BoolQ compatibility sequence through accepted
+job `5941763`. It is not a serving-performance result: no throughput, latency,
 concurrency, formal quality, or reliability comparison is accepted here, and
 no formal benchmark has been submitted.
 
 The reviewed SGLang evidence establishes one negative boundary for the exact
 W4AFP8 checkpoint, identifies one correctable BF16 launch-environment failure,
-and now confirms that SGLang `0.5.16` can load and serve the exact accepted
-QuaRot-style W4A16 checkpoint. Cross-backend W4A16 score parity remains
-unverified because job `5940088` stopped at a harness response-parser boundary.
+and confirms that SGLang `0.5.16` can load, serve, and score the exact accepted
+QuaRot-style W4A16 checkpoint. The bounded 32-example result records one
+prediction disagreement; it has no equivalence threshold and is not a formal
+quality claim.
 
 ## Provenance
 
@@ -40,12 +41,13 @@ committed to this repository.
 | SGLang | BF16 Llama-2-13B | Weights loaded; default FA3 backend then failed because installed `sgl_kernel` has no `flash_ops` | Inconclusive for model compatibility; launch environment must be corrected |
 | SGLang | Exact FP8-targeted W4AFP8 | Loader raised `No compressed-tensors compatible scheme was found` | Unsupported unchanged in SGLang `0.5.16`; paired Track B stops |
 | vLLM | Exact QuaRot-style W4A16 | Frozen 32-example BoolQ smoke completed 64 choice requests with 28/32 correct | Passed repeated smoke control only; not formal accuracy |
-| SGLang | Exact QuaRot-style W4A16 | CUDA 12.6 Marlin preflight passed; unchanged checkpoint loaded; server became healthy; first eight-request BoolQ batch returned HTTP 200 | Load/serve compatibility confirmed; score comparison incomplete in harness parser |
+| SGLang | Exact QuaRot-style W4A16 | CUDA 12.6 Marlin preflight passed; unchanged checkpoint loaded; all 64 choice requests scored; 27/32 correct | Compatibility and bounded smoke score accepted; not formal accuracy or performance |
 
 The two ready-memory values and server-start times are single smoke
 observations. They must not be reported as comparative performance numbers.
-Text equality is also not evaluated across backends because neither SGLang case
-reached generation.
+The Track A/B text-generation equality remains unavailable because neither
+SGLang case in the four-case smoke reached generation. Track C uses frozen
+choice log-likelihood scoring rather than generated-text equality.
 
 ## Evidence interpretation
 
@@ -140,8 +142,31 @@ request offset `continuation_start - 1` must remain so a single-token BoolQ
 choice is scored; revision `b348fc3` corrects only the parser to validate and
 remove that sentinel. It also binds the responsible SGLang source hash.
 Replacement smoke `5941763` was submitted alone from that clean revision and
-is intentionally not monitored. Until its artifacts are reviewed, no
-cross-backend score-parity result is accepted.
+completed successfully. Its reviewed result is:
+
+| Item | Reviewed value |
+|---|---|
+| Slurm outcome | `COMPLETED`, exit `0:0`, elapsed `00:03:33`; stderr empty |
+| Project revision | `b348fc32313ef9456ea755558163d2942fe0b5a1`, clean checkout |
+| Result path | `results/sglang-vllm-quarot-w4a16-boolq/boolq-compatibility-smoke-5941763.json` |
+| Result SHA-256 | `62346ab360a025efc2636a9ab7a0d493ea7b2ae711c979b6c84139721d7aa5b0` |
+| SGLang preflight SHA-256 | `ed9c5ee7ff1b9b4f8c7578fd407b704b62720f617099247ffd33a6eb59302f1a` |
+| Source manifest SHA-256 | `cf2a51f3af1a98a86b38927d10edbb0e62ff3ec01e129ec59f50be8c4f59db6b` |
+| SGLang log SHA-256 | `f937b0cad1dccc64f99fa62f4fae4de0936c9c09edece13c62d4053d96f2a916` |
+| vLLM log SHA-256 | `9f9b9bc155b55a474483b3d72572f72c5ec2cf958439554f1bcc4f025e7331b9` |
+| vLLM smoke score | 28/32, 87.5%, 64/64 finite choice scores |
+| SGLang smoke score | 27/32, 84.375%, 64/64 finite choice scores |
+| Cross-backend difference | One prediction disagreement at example 6; accuracy delta SGLang-minus-vLLM `-0.03125` |
+| Choice-loglikelihood difference | Mean absolute `0.0351942591`; maximum absolute `0.0953803062` |
+| SGLang memory observation | Baseline 4 MiB; ready 16,735 MiB; released 4 MiB; single smoke only |
+
+All ten SHA-256 entries in the source manifest were recomputed successfully,
+including the configuration, runners, immutable source result, dataset
+manifest, and preflight. SGLang's log records eight scoring batches returning
+HTTP 200, with no backend exception; vLLM's log also contains no error. This
+accepts unchanged-checkpoint compatibility and the recorded bounded score
+differences. It does not establish formal BoolQ accuracy, statistical
+equivalence, throughput, latency, concurrency, or reliability.
 
 Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
 SpinQuant, checkpoint conversion, or a new quantization run.

@@ -14,6 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
+| SGLang-vLLM W4A16 compatibility | Exact-checkpoint 32-example BoolQ smoke complete on GH200; job `5941763` passed | Both backends scored 64 requests: vLLM 28/32, SGLang 27/32, one prediction disagreement; smoke-only compatibility/score-difference evidence, not formal quality or performance |
 | vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
@@ -352,6 +353,12 @@ sentinel before checking token order and summing finite continuation scores.
 It also binds the exact `logprob_result_processor.py` source hash. Twenty
 focused tests, all seven source hashes, the immutable-input gate, and
 `sbatch --test-only` passed on Isambard. Replacement smoke `5941763` was
-submitted alone from clean revision `b348fc3` with no formal dependency and is
-intentionally not monitored. Cross-backend score parity remains unverified
-pending artifact review; no formal job is submitted.
+submitted alone from clean revision `b348fc3` with no formal dependency. It
+completed `0:0` in 3 minutes 33 seconds with empty stderr. The exact Marlin GPU
+preflight and all seven source-hash gates passed; both backends scored all 64
+choice requests. vLLM reached 28/32 (87.5%) and SGLang 27/32 (84.375%). They
+disagreed only on example 6; the mean absolute choice-loglikelihood difference
+was 0.0351943 and the maximum was 0.0953803. All manifest entries and retained
+artifact/log hashes were recomputed successfully. This accepts the bounded
+exact-checkpoint compatibility and smoke score-difference result, not formal
+BoolQ quality or serving performance. No formal job is submitted.

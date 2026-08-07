@@ -3,10 +3,11 @@
 ## Status and authorization boundary
 
 This is a separately scoped study. It does not reopen or modify the accepted
-vLLM W4A16/W4AFP8 results. The read-only audit and four-case result-gated smoke
-are complete. The smoke now provides reviewed negative compatibility evidence
-for the exact W4AFP8 checkpoint, but no SGLang performance result has been
-accepted.
+vLLM W4A16/W4AFP8 results. The read-only audit, four-case compatibility smoke,
+and bounded QuaRot W4A16 BoolQ compatibility smoke are complete. The evidence
+includes the negative unchanged-checkpoint W4AFP8 boundary and an accepted
+exact-checkpoint W4A16 compatibility/score-difference smoke. No SGLang
+performance result has been accepted.
 
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
@@ -14,9 +15,9 @@ acceptance before a formal comparison is submitted.
 
 The frozen smoke runtimes are vLLM `0.25.1+cu129` and SGLang `0.5.16`, each in
 an isolated environment with PyTorch `2.11.0+cu129`. The SGLang execution
-stack uses the cu129 PyTorch and SGLang-kernel wheels; its installed
-`nvidia-cuda-nvcc` build dependency provides NVCC `13.3.73` for the
-GPTQ-to-Marlin JIT. The prepared files are:
+stack uses the cu129 PyTorch and SGLang-kernel wheels, while its source JIT is
+bound to the system CUDA `12.6` toolkit (`nvcc 12.6.77`,
+`libcudart.so.12`) and GCC/G++ `13.3.1`. The prepared files are:
 
 - `configs/deployment/sglang_vllm_llama2_13b_smoke_isambard.json`;
 - `scripts/setup_isambard_sglang_env.sh`;
@@ -181,7 +182,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | SGLang load/serve compatibility observed in `5940088`; score comparison replacement `5941763` submitted from `b348fc3` | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Accepted smoke `5941763`: both backends scored 64 requests; vLLM 28/32, SGLang 27/32, one disagreement | Same-checkpoint compatibility and bounded score-difference observation; not formal quality or performance |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -327,8 +328,16 @@ SGLang source hashes and the immutable-input gate passed remotely.
 
 `sbatch --test-only` accepted the unchanged one-GH200, two-hour request.
 Replacement smoke `5941763` was submitted alone from clean revision `b348fc3`
-with no formal dependency. Its state is intentionally not polled;
-cross-backend score parity remains unverified pending artifact review. No
+with no formal dependency. It completed `0:0` in 3 minutes 33 seconds and
+recorded `both_backends_scored`. vLLM scored 28/32 (87.5%); SGLang scored
+27/32 (84.375%). Their predictions differed only at example 6. Across the 64
+choice scores, the mean absolute log-likelihood difference was 0.0351943 and
+the maximum was 0.0953803. The result, preflight, manifest, and both logs were
+reviewed; all manifest hashes were recomputed successfully.
+
+Track C therefore closes at compatibility and bounded smoke score-difference
+evidence. The 32-example subset has no predeclared equivalence threshold and
+must not be presented as formal BoolQ accuracy or statistical equivalence. No
 formal job is submitted, and Track C still excludes BF16, unrotated W4A16,
 SpinQuant, re-quantization, and re-export.
 
