@@ -32,6 +32,9 @@ SGLANG_SOURCE_RELATIVE_PATHS = {
     ),
     "sglang.srt.managers.io_struct": "srt/managers/io_struct.py",
     "sglang.srt.managers.schedule_batch": "srt/managers/schedule_batch.py",
+    "sglang.srt.managers.scheduler_components.logprob_result_processor": (
+        "srt/managers/scheduler_components/logprob_result_processor.py"
+    ),
     "sglang.srt.managers.tokenizer_manager": "srt/managers/tokenizer_manager.py",
 }
 
@@ -368,7 +371,9 @@ def main() -> int:
         },
         "sglang_api": {
             "batch_generate_logprob_normalization": "passed",
-            "logprob_start_len_semantics": "score token at start_len + 1",
+            "logprob_start_len_semantics": (
+                "return an unscored sentinel at start_len and score tokens after it"
+            ),
         },
         "jit": {
             "module": "sglang.jit_kernel.gptq_marlin_repack",

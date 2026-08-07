@@ -52,6 +52,9 @@ SGLANG_EXPECTED_SOURCE_SHA256 = {
     "sglang.srt.managers.schedule_batch": (
         "27e20908294c9d76d0a8ae1199ecac4379232532878013404a8b4fb08842ac43"
     ),
+    "sglang.srt.managers.scheduler_components.logprob_result_processor": (
+        "06fafabefa93327b831c663a3d8e47a3e3450ea719ff5451c8392da4704f9311"
+    ),
     "sglang.srt.managers.tokenizer_manager": (
         "4646904f0da00d4810db3e08b90d0dee41d8ecf317c68e99ad8ca727fa96deb8"
     ),
@@ -129,24 +132,52 @@ def _requests(tokenizer: Any, examples: list[dict[str, Any]], config: dict[str, 
 def _sglang_loglikelihood(
     meta_info: dict[str, Any], expected_tokens: list[int], continuation_start: int
 ) -> float:
+    if continuation_start < 1 or continuation_start >= len(expected_tokens):
+        raise ValueError(
+            "continuation must be a non-empty suffix after the first token"
+        )
     values = meta_info.get("input_token_logprobs")
     if not isinstance(values, list):
         raise RuntimeError("SGLang did not return input_token_logprobs")
+    logprob_start_len = _sglang_logprob_start_len(continuation_start)
+    expected_window = expected_tokens[logprob_start_len:]
     expected_continuation = expected_tokens[continuation_start:]
-    if len(values) != len(expected_continuation):
+    if len(values) != len(expected_window):
         raise RuntimeError(
-            "SGLang continuation logprob length differs from the tokenized request"
+            "SGLang input-token logprob length differs from the requested window: "
+            f"observed={len(values)} expected={len(expected_window)}"
         )
+
+    sentinel = values[0]
+    if not isinstance(sentinel, (list, tuple)) or len(sentinel) < 2:
+        raise RuntimeError("SGLang returned a malformed leading logprob sentinel")
+    sentinel_logprob, sentinel_token_id = sentinel[0], sentinel[1]
+    if sentinel_logprob is not None:
+        raise RuntimeError("SGLang leading logprob sentinel is unexpectedly scored")
+    try:
+        observed_sentinel_id = int(sentinel_token_id)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("SGLang leading logprob sentinel has no token ID") from error
+    if observed_sentinel_id != expected_window[0]:
+        raise RuntimeError("SGLang leading logprob sentinel token ID differs")
+
     total = 0.0
     observed_ids = []
-    for item in values:
+    for item in values[1:]:
         if not isinstance(item, (list, tuple)) or len(item) < 2:
             raise RuntimeError("SGLang returned a malformed input-token logprob")
         logprob, token_id = item[0], item[1]
-        if logprob is None or not math.isfinite(float(logprob)):
+        try:
+            numeric_logprob = float(logprob)
+            observed_token_id = int(token_id)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError(
+                "SGLang returned a non-numeric continuation logprob or token ID"
+            ) from error
+        if not math.isfinite(numeric_logprob):
             raise RuntimeError("SGLang returned a non-finite continuation logprob")
-        observed_ids.append(int(token_id))
-        total += float(logprob)
+        observed_ids.append(observed_token_id)
+        total += numeric_logprob
     if observed_ids != expected_continuation:
         raise RuntimeError("SGLang returned continuation token IDs in a different order")
     return total

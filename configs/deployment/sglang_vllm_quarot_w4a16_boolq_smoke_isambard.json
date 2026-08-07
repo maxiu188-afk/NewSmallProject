@@ -110,6 +110,7 @@
       "sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_wNa16": "b2ffbd41a6c46ecbe4efbbbfb94be9531dc7ffd01d8432870022a21766d3249b",
       "sglang.srt.managers.io_struct": "627b4d3a2881b8eee2bebacef2270c092e9ef488d3c47e8d18fbaef943acda53",
       "sglang.srt.managers.schedule_batch": "27e20908294c9d76d0a8ae1199ecac4379232532878013404a8b4fb08842ac43",
+      "sglang.srt.managers.scheduler_components.logprob_result_processor": "06fafabefa93327b831c663a3d8e47a3e3450ea719ff5451c8392da4704f9311",
       "sglang.srt.managers.tokenizer_manager": "4646904f0da00d4810db3e08b90d0dee41d8ecf317c68e99ad8ca727fa96deb8"
     }
   },

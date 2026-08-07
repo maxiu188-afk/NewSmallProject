@@ -68,15 +68,55 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         )
 
     def test_sglang_loglikelihood_requires_exact_continuation_ids(self):
-        meta = {"input_token_logprobs": [[-0.25, 12], [-0.75, 13]]}
+        meta = {
+            "input_token_logprobs": [[None, 11], [-0.25, 12], [-0.75, 13]]
+        }
         self.assertAlmostEqual(
             MODULE._sglang_loglikelihood(meta, [10, 11, 12, 13], 2), -1.0
         )
         with self.assertRaisesRegex(RuntimeError, "different order"):
             MODULE._sglang_loglikelihood(
-                {"input_token_logprobs": [[-0.25, 99], [-0.75, 13]]},
+                {
+                    "input_token_logprobs": [
+                        [None, 11],
+                        [-0.25, 99],
+                        [-0.75, 13],
+                    ]
+                },
                 [10, 11, 12, 13],
                 2,
+            )
+
+    def test_sglang_loglikelihood_requires_exact_leading_sentinel(self):
+        tokens = [10, 11, 12]
+        with self.assertRaisesRegex(RuntimeError, "length differs"):
+            MODULE._sglang_loglikelihood(
+                {"input_token_logprobs": [[-0.25, 12]]}, tokens, 2
+            )
+        with self.assertRaisesRegex(RuntimeError, "unexpectedly scored"):
+            MODULE._sglang_loglikelihood(
+                {"input_token_logprobs": [[-0.5, 11], [-0.25, 12]]}, tokens, 2
+            )
+        with self.assertRaisesRegex(RuntimeError, "sentinel token ID differs"):
+            MODULE._sglang_loglikelihood(
+                {"input_token_logprobs": [[None, 99], [-0.25, 12]]}, tokens, 2
+            )
+
+    def test_sglang_loglikelihood_rejects_invalid_continuation_values(self):
+        tokens = [10, 11, 12]
+        with self.assertRaisesRegex(RuntimeError, "non-numeric"):
+            MODULE._sglang_loglikelihood(
+                {"input_token_logprobs": [[None, 11], [None, 12]]}, tokens, 2
+            )
+        with self.assertRaisesRegex(RuntimeError, "non-finite"):
+            MODULE._sglang_loglikelihood(
+                {"input_token_logprobs": [[None, 11], [float("nan"), 12]]},
+                tokens,
+                2,
+            )
+        with self.assertRaisesRegex(ValueError, "non-empty suffix"):
+            MODULE._sglang_loglikelihood(
+                {"input_token_logprobs": []}, tokens, len(tokens)
             )
 
     def test_sglang_logprob_start_len_scores_first_continuation_token(self):
@@ -206,6 +246,7 @@ class SglangVllmQuarotW4A16BoolQTests(unittest.TestCase):
         self.assertIn('cuda_home / "lib64"', text)
         self.assertIn("GenerateReqInput(", text)
         self.assertIn("request.normalize_batch_and_arguments()", text)
+        self.assertIn("logprob_result_processor.py", text)
 
     def test_environment_setup_pins_build_toolchain(self):
         text = (
