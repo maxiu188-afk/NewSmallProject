@@ -35,6 +35,30 @@ from scripts.run_vllm_w4afp8_llama2_13b_boolq import (  # noqa: E402
 
 
 MODEL_NAME = "quarot_w4a16"
+SGLANG_EXPECTED_SOURCE_SHA256 = {
+    "sglang.jit_kernel.gptq_marlin_repack": (
+        "c8ec88a9882b0c5befaf7204c5e4c1b328fa33e4f5923696dee7ffa9a1be7e8f"
+    ),
+    "sglang.jit_kernel.gptq_marlin_repack.cuh": (
+        "a1fd81cbce9dacc6bb9d54129a2d266ed594a243d4fdd8fad7d1eb93cf02ad0b"
+    ),
+    "sglang.srt.layers.quantization.compressed_tensors.schemes."
+    "compressed_tensors_wNa16": (
+        "b2ffbd41a6c46ecbe4efbbbfb94be9531dc7ffd01d8432870022a21766d3249b"
+    ),
+    "sglang.srt.managers.io_struct": (
+        "627b4d3a2881b8eee2bebacef2270c092e9ef488d3c47e8d18fbaef943acda53"
+    ),
+    "sglang.srt.managers.schedule_batch": (
+        "27e20908294c9d76d0a8ae1199ecac4379232532878013404a8b4fb08842ac43"
+    ),
+    "sglang.srt.managers.scheduler_components.logprob_result_processor": (
+        "06fafabefa93327b831c663a3d8e47a3e3450ea719ff5451c8392da4704f9311"
+    ),
+    "sglang.srt.managers.tokenizer_manager": (
+        "4646904f0da00d4810db3e08b90d0dee41d8ecf317c68e99ad8ca727fa96deb8"
+    ),
+}
 
 
 def _validate_config(config: dict[str, Any]) -> None:
@@ -56,6 +80,27 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("SGLang must not retry the unavailable default FA3 backend")
     if config["sglang"].get("offline_quantization_argument") is not None:
         raise ValueError("the accepted checkpoint must load without requantization")
+    if config["sglang"].get("toolchain") != {
+        "compiler_module": "gcc-native/13.2",
+        "cuda_module": "cuda/12.6",
+        "expected_compiler_major": 13,
+        "expected_compressed_tensors_version": "0.17.2a20260731",
+        "expected_cray_cuda_version": "12.6",
+        "expected_cudart_soname": "libcudart.so.12",
+        "expected_flashinfer_version": "0.6.14",
+        "jit_cache_namespace": "cuda-12.6-gcc-13.2-tvmffi-0.1.11",
+        "expected_ninja_version": "1.13.0",
+        "expected_nvcc_release": "12.6",
+        "expected_nvcc_version": "12.6.77",
+        "expected_sglang_kernel_version": "0.4.5+cu129",
+        "expected_transformers_version": "5.12.1",
+        "expected_tvm_ffi_version": "0.1.11",
+    }:
+        raise ValueError("SGLang WNA16 toolchain contract drifted")
+    if config["sglang"].get("expected_source_sha256") != (
+        SGLANG_EXPECTED_SOURCE_SHA256
+    ):
+        raise ValueError("SGLang WNA16 source hash contract drifted")
 
 
 def _requests(tokenizer: Any, examples: list[dict[str, Any]], config: dict[str, Any]):
@@ -76,6 +121,9 @@ def _requests(tokenizer: Any, examples: list[dict[str, Any]], config: dict[str, 
                     "choice_position": choice_position,
                     "tokens": tokens,
                     "continuation_start": continuation_start,
+                    "logprob_start_len": _sglang_logprob_start_len(
+                        continuation_start
+                    ),
                 }
             )
     return requests
@@ -84,27 +132,62 @@ def _requests(tokenizer: Any, examples: list[dict[str, Any]], config: dict[str, 
 def _sglang_loglikelihood(
     meta_info: dict[str, Any], expected_tokens: list[int], continuation_start: int
 ) -> float:
+    if continuation_start < 1 or continuation_start >= len(expected_tokens):
+        raise ValueError(
+            "continuation must be a non-empty suffix after the first token"
+        )
     values = meta_info.get("input_token_logprobs")
     if not isinstance(values, list):
         raise RuntimeError("SGLang did not return input_token_logprobs")
+    logprob_start_len = _sglang_logprob_start_len(continuation_start)
+    expected_window = expected_tokens[logprob_start_len:]
     expected_continuation = expected_tokens[continuation_start:]
-    if len(values) != len(expected_continuation):
+    if len(values) != len(expected_window):
         raise RuntimeError(
-            "SGLang continuation logprob length differs from the tokenized request"
+            "SGLang input-token logprob length differs from the requested window: "
+            f"observed={len(values)} expected={len(expected_window)}"
         )
+
+    sentinel = values[0]
+    if not isinstance(sentinel, (list, tuple)) or len(sentinel) < 2:
+        raise RuntimeError("SGLang returned a malformed leading logprob sentinel")
+    sentinel_logprob, sentinel_token_id = sentinel[0], sentinel[1]
+    if sentinel_logprob is not None:
+        raise RuntimeError("SGLang leading logprob sentinel is unexpectedly scored")
+    try:
+        observed_sentinel_id = int(sentinel_token_id)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("SGLang leading logprob sentinel has no token ID") from error
+    if observed_sentinel_id != expected_window[0]:
+        raise RuntimeError("SGLang leading logprob sentinel token ID differs")
+
     total = 0.0
     observed_ids = []
-    for item in values:
+    for item in values[1:]:
         if not isinstance(item, (list, tuple)) or len(item) < 2:
             raise RuntimeError("SGLang returned a malformed input-token logprob")
         logprob, token_id = item[0], item[1]
-        if logprob is None or not math.isfinite(float(logprob)):
+        try:
+            numeric_logprob = float(logprob)
+            observed_token_id = int(token_id)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError(
+                "SGLang returned a non-numeric continuation logprob or token ID"
+            ) from error
+        if not math.isfinite(numeric_logprob):
             raise RuntimeError("SGLang returned a non-finite continuation logprob")
-        observed_ids.append(int(token_id))
-        total += float(logprob)
+        observed_ids.append(observed_token_id)
+        total += numeric_logprob
     if observed_ids != expected_continuation:
         raise RuntimeError("SGLang returned continuation token IDs in a different order")
     return total
+
+
+def _sglang_logprob_start_len(continuation_start: int) -> int:
+    """SGLang scores the token after logprob_start_len in the prompt."""
+    if continuation_start < 1:
+        raise ValueError("a continuation cannot start before the second token")
+    return continuation_start - 1
 
 
 def _metrics(
@@ -193,7 +276,7 @@ def _run_sglang(
                     },
                     "return_logprob": True,
                     "logprob_start_len": [
-                        item["continuation_start"] for item in batch
+                        item["logprob_start_len"] for item in batch
                     ],
                     "top_logprobs_num": 0,
                     "return_text_in_logprobs": False,
@@ -305,6 +388,7 @@ def main() -> int:
     parser.add_argument("--tokenizer-model", type=Path, required=True)
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--sglang-python", type=Path)
+    parser.add_argument("--sglang-preflight", type=Path)
     parser.add_argument("--max-examples", type=int, required=True)
     parser.add_argument("--worker-vllm", action="store_true")
     parser.add_argument("--log-dir", type=Path)
@@ -326,9 +410,21 @@ def main() -> int:
         _write_json(args.output.resolve(), result)
         return 0
 
-    if args.sglang_python is None or args.log_dir is None:
-        parser.error("parent mode requires --sglang-python and --log-dir")
+    if (
+        args.sglang_python is None
+        or args.sglang_preflight is None
+        or args.log_dir is None
+    ):
+        parser.error(
+            "parent mode requires --sglang-python, --sglang-preflight, and --log-dir"
+        )
     sglang_python = _absolute_executable(args.sglang_python)
+    sglang_preflight_path = args.sglang_preflight.resolve()
+    sglang_preflight = json.loads(sglang_preflight_path.read_text(encoding="utf-8"))
+    if sglang_preflight.get("status") != "passed":
+        raise RuntimeError("SGLang runtime preflight did not pass")
+    if sglang_preflight.get("config_sha256") != _sha256(config_path):
+        raise RuntimeError("SGLang runtime preflight used a different config")
     log_dir = args.log_dir.resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
     cases: dict[str, dict[str, Any]] = {}
@@ -397,6 +493,11 @@ def main() -> int:
         "protocol": config["protocol"],
         "runtimes": {
             "sglang": _runtime_probe(sglang_python, ["sglang", "torch"]),
+            "sglang_preflight": {
+                "path": str(sglang_preflight_path),
+                "sha256": _sha256(sglang_preflight_path),
+                "record": sglang_preflight,
+            },
             "environment": {
                 "CUDA_HOME": os.environ.get("CUDA_HOME"),
                 "SGLANG_ENABLE_JIT_DEEPGEMM": os.environ.get(

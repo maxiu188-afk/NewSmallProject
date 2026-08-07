@@ -14,6 +14,7 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
+| SGLang-vLLM W4A16 compatibility | Exact-checkpoint 32-example BoolQ smoke complete on GH200; job `5941763` passed | Both backends scored 64 requests: vLLM 28/32, SGLang 27/32, one prediction disagreement; smoke-only compatibility/score-difference evidence, not formal quality or performance |
 | vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
@@ -291,7 +292,82 @@ header was unavailable. GCC 14 is installed and passes the corresponding
 read-only header check, so this remains an environment binding failure rather
 than W4A16 compatibility or incompatibility evidence.
 
-No replacement or formal job is currently submitted. The bounded next fix is
-to load `gcc-native/14.2`, explicitly bind `CC`, `CXX`, and `NVCC_CCBIN`, and
-preflight the C++20 header without changing the model, BoolQ data, quantization,
-or resource request.
+Revision `f083519` implements the bounded correction without changing the
+model, 32-example BoolQ subset, quantization, or one-GH200/two-hour resource
+request. It binds GCC/G++ `14.3.0`, Ninja `1.13.0`, NVCC `13.3.73`, SGLang
+`0.5.16`, PyTorch `2.11.0+cu129`, the remaining WNA16 dependency versions,
+and SHA-256 values for the loaded WNA16/log-probability/JIT sources including
+the exact Marlin `.cuh`. It also corrects SGLang's `logprob_start_len` offset
+so the first BoolQ continuation token is scored. The result-gated batch now
+compiles and executes the exact GPTQ-to-Marlin JIT before either backend is
+evaluated.
+
+Login-node acceptance passed 18 focused tests, the complete version and source
+hash gates, and the immutable checkpoint/source-result validation. Replacement
+smoke `5927118` was submitted alone from clean revision `f083519`, then failed
+closed after 51 seconds during runtime preflight. NVCC compiled the exact
+Marlin CUDA source with GCC `14.3.0`, but TVM-FFI expected
+`${CUDA_HOME}/lib64/libcudart.so` while the pip CUDA `13.3` layout provided only
+`${CUDA_HOME}/lib/libcudart.so.13`; linking failed before model loading. This is
+environment-layout evidence, not SGLang W4A16 compatibility evidence.
+
+Revision `75a805f` adds and validates the exact `libcudart.so.13` compatibility
+link, exports its runtime directory through `LD_LIBRARY_PATH`, and performs a
+real CUDART link and dynamic-load probe before the exact Marlin JIT. The helper
+passed twice on the existing environment, the probe returned runtime version
+`13000`, 19 focused tests passed on Isambard, and the immutable-input gate
+passed again. Replacement smoke `5932590` was submitted alone from clean
+revision `75a805f` after `sbatch --test-only` accepted the unchanged request.
+It failed closed (`1:0`) after 27 seconds before model loading. CUDART linking,
+dynamic loading, and the exact Marlin JIT build all passed, but its first
+synthetic CUDA call failed with `CUDA driver version is insufficient for CUDA
+runtime version`. The JIT was compiled and linked against pip CUDA 13.3, so
+this verifies the prior layout fix while exposing a separate CUDA 13/driver
+boundary; it is not checkpoint compatibility evidence.
+
+Revision `bfe2e3a` moves the SGLang source JIT to the complete system
+`cuda/12.6` toolkit (`nvcc 12.6.77`, `libcudart.so.12`) and
+`gcc-native/13.2`, while retaining the pinned PyTorch cu129 environment. It
+removes the artificial pip-CUDA-13 link and uses the isolated TVM-FFI cache
+namespace `cuda-12.6-gcc-13.2-tvmffi-0.1.11` so the CUDA 13 shared object
+cannot be reused. Eighteen focused tests, the immutable-input gate, and
+`sbatch --test-only` passed on Isambard. The exact generated Marlin source also
+compiled for `sm_90a`, linked to system `libcudart.so.12`, and dynamically
+loaded on the login node; GPU execution remains deliberately unclaimed.
+Replacement smoke `5940088` was submitted alone from clean revision `bfe2e3a`
+with no formal dependency. It failed closed (`1:0`) after 8 minutes 15 seconds,
+but the CUDA 12.6 preflight and exact Marlin synthetic GPU execution passed.
+SGLang loaded the unchanged checkpoint as `compressed-tensors` W4A16, used
+6.82 GB for weights, reached healthy serving, and returned HTTP 200 for the
+first eight-request BoolQ batch. This establishes unchanged-checkpoint
+load/serve compatibility. vLLM again completed all 64 requests with 28/32
+correct, but score parity remains unverified.
+
+The incomplete comparison was caused by the harness parser, not the backend.
+SGLang `0.5.16` returns an unscored `[None, token_id]` entry at
+`logprob_start_len`, followed by scored tokens. The request must retain
+`continuation_start - 1` to score the first (single-token here) continuation;
+the parser had instead required the response length to equal only the
+continuation length. Revision `b348fc3` now strictly validates and removes the
+sentinel before checking token order and summing finite continuation scores.
+It also binds the exact `logprob_result_processor.py` source hash. Twenty
+focused tests, all seven source hashes, the immutable-input gate, and
+`sbatch --test-only` passed on Isambard. Replacement smoke `5941763` was
+submitted alone from clean revision `b348fc3` with no formal dependency. It
+completed `0:0` in 3 minutes 33 seconds with empty stderr. The exact Marlin GPU
+preflight and all seven source-hash gates passed; both backends scored all 64
+choice requests. vLLM reached 28/32 (87.5%) and SGLang 27/32 (84.375%). They
+disagreed only on example 6; the mean absolute choice-loglikelihood difference
+was 0.0351943 and the maximum was 0.0953803. All manifest entries and retained
+artifact/log hashes were recomputed successfully. This accepts the bounded
+exact-checkpoint compatibility and smoke score-difference result, not formal
+BoolQ quality or serving performance. No formal job is submitted.
+
+The next bounded step is now submitted but not accepted. Revision `78ed96c`
+adds one repository-owned OpenAI streaming client and a pre-hashed 64-request
+corpus that reconstructs the accepted random 256-token workload. It explicitly
+aligns BF16 KV, the 8 GiB KV budget, prefix-cache disabling, and chunked-prefill
+disabling across both backends. Result-gated job `5944823` was submitted alone
+with only concurrency 1 and eight measured 64-token outputs per backend. Its
+artifacts have not been reviewed; no SGLang performance number is accepted,
+and no concurrency-8 or formal paired-repetition job is submitted.
