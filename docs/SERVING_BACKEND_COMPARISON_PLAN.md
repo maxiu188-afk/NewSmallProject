@@ -9,13 +9,17 @@ includes the negative unchanged-checkpoint W4AFP8 boundary and an accepted
 exact-checkpoint W4A16 compatibility/score-difference smoke. No SGLang
 performance result has been accepted.
 
-Gate 3 implementation is now result-gated. Serving-client smoke job `5944823`
-was submitted alone from clean revision `78ed96c` on 2026-08-07. It runs only
-the accepted rotated W4A16 checkpoint, one fresh process per backend,
-concurrency 1, one unmeasured validation request, four warm-ups, and eight
-measured 256+64 requests. It is a data/client-chain smoke, not a performance
-result. No concurrency-8 cell, paired repetition, formal benchmark, or Slurm
-dependency was submitted, and its artifacts remain unreviewed.
+Gate 3 implementation is result-gated. Serving-client smoke job `5944823`,
+submitted alone from clean revision `78ed96c` on 2026-08-07, failed closed
+after 4 minutes 12 seconds because of two harness gates. SGLang passed the CUDA
+12.6 Marlin preflight, loaded the exact W4A16 checkpoint, allocated the matched
+8 GiB BF16 KV cache, and reached a healthy server, but the launcher omitted
+`--served-model-name`; the client therefore rejected the checkpoint path
+returned by `/v1/models` before sending measured requests. vLLM completed its
+one validation, four warm-up, and eight measured 256+64 requests, but was
+rejected by an invalid legacy generated-text equality gate. Neither failure is
+backend-performance evidence. No concurrency-8 cell, paired repetition,
+formal benchmark, or Slurm dependency was submitted.
 
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
@@ -404,26 +408,32 @@ same model rather than a silently converted or degraded variant.
 
 ## Gate 3: primary matched serving benchmark
 
-Before the formal matrix, job `5944823` exercises the shared client and frozen
-request-data chain only. The repository-owned client uses the same OpenAI
+Before the formal matrix, a replacement for job `5944823` must exercise the
+shared client and frozen request-data chain only. The repository-owned client
+uses the same OpenAI
 `/v1/completions` streaming implementation for both backends and requires final
 server usage to report exactly 256 input and 64 output tokens per request. The
-64-request corpus is reconstructed from the accepted vLLM `0.25.1` random
+64-request corpus is reconstructed from the pinned vLLM `0.25.1` random
 dataset algorithm and pinned by file SHA-256
 `1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1`,
 prompt-list SHA-256
 `8f39ad1cc07322ccda082afe6ebd0f0341d8466a76b85e99506bc7ae5c3b1f1f`,
 and token-ID-list SHA-256
 `b467ded09b08e40a86757e693db66b4a455343e2f62e1b9a35fba746c5b3fc1f`.
-The vLLM half additionally must reproduce the first-eight generated-text hash
-retained by accepted serving job `5780631`; this closes the link to the earlier
-workload instead of treating only matching lengths and seed as sufficient.
+Accepted serving job `5780631` retained generated outputs and lengths but did
+not retain its prompts or prompt token IDs. Therefore exact request identity
+with that historical job cannot be proved. Job `5944823` also showed that its
+first-eight output hash differs under the current explicitly greedy client.
+That output hash is retained as a diagnostic only; it is not a request-corpus
+identity gate. The cross-backend study uses the newly frozen corpus above for
+both backends and claims reuse of the 256+64 generator parameters, not exact
+identity with the unretained historical prompts.
 
 Both servers explicitly use BF16 KV with the matched 8 GiB budget and disable
 prefix caching and chunked prefill. Installed vLLM argument/dataset/client
 sources and SGLang OpenAI completion sources are version-hashed before GPU
-execution. The smoke must be reviewed before the formal matrix below is
-authorized.
+execution. The replacement smoke must be reviewed before the formal matrix
+below is authorized.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

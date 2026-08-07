@@ -1,6 +1,6 @@
 {
   "config_version": 1,
-  "status": "prepared_awaiting_result_gated_smoke",
+  "status": "prepared_awaiting_replacement_result_gated_smoke",
   "source_gate": {
     "status": "accepted",
     "job_id": "5769503",
@@ -16,6 +16,12 @@
     "job_id": "5941763",
     "result_sha256": "62346ab360a025efc2636a9ab7a0d493ea7b2ae711c979b6c84139721d7aa5b0",
     "comparison_status": "both_backends_scored"
+  },
+  "harness_repair": {
+    "supersedes_job_id": "5944823",
+    "sglang_failure": "served model name was not passed, so the harness rejected the checkpoint path returned by v1/models before any measured request",
+    "vllm_failure": "legacy generated-text equality was incorrectly used as a request-corpus identity gate",
+    "scope": "harness-only repair; model, runtime environments, request corpus, workload, resource request, and experiment matrix unchanged"
   },
   "model": "quarot_w4a16",
   "backends": [
@@ -91,7 +97,9 @@
       "job_id": "5780631",
       "raw_result": "results/vllm-w4a16-serving-llama2-13b/serving-benchmark-raw/rotated_w4a16-latency_c1.json",
       "raw_result_sha256": "7d4dfdda800e0eb8a89b9c30e4f3258e740f4217b7862eb31345ee64cb6bf807",
-      "first_eight_generated_texts_sha256": "bcb47a523c7a736eed444648e25d12d4f8a474318ef0dffa24e5675e745d4797"
+      "first_eight_generated_texts_sha256": "bcb47a523c7a736eed444648e25d12d4f8a474318ef0dffa24e5675e745d4797",
+      "prompts_retained": false,
+      "output_hash_policy": "diagnostic_only_not_corpus_identity"
     }
   },
   "vllm": {

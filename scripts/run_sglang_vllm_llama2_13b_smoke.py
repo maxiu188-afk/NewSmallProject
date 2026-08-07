@@ -153,6 +153,8 @@ def _server_command(
         str(config["sglang"]["module"]),
         "--model-path",
         str(model_path),
+        "--served-model-name",
+        served_name,
         "--host",
         str(server["host"]),
         "--port",

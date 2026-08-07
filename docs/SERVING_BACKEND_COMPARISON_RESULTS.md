@@ -9,11 +9,11 @@ concurrency, formal quality, or reliability comparison is accepted here, and
 no formal benchmark has been submitted.
 
 The next result-gated serving-client smoke, job `5944823`, was submitted alone
-from clean revision `78ed96c` on 2026-08-07. It contains one concurrency-1
-smoke repetition with eight measured requests per backend; it does not contain
-the concurrency-8 cell or the three paired repetitions required for the formal
-matrix. Its artifacts have not been reviewed, so even its smoke measurements
-must not be cited. No formal job is queued.
+from clean revision `78ed96c` on 2026-08-07 and failed closed `1:0` after
+`00:04:12`. Its reviewed artifacts identify two harness failures and no SGLang
+runtime failure. It does not contain a valid paired performance result, the
+concurrency-8 cell, or the three paired repetitions required for the formal
+matrix. No formal job is queued.
 
 The reviewed SGLang evidence establishes one negative boundary for the exact
 W4AFP8 checkpoint, identifies one correctable BF16 launch-environment failure,
@@ -178,7 +178,7 @@ equivalence, throughput, latency, concurrency, or reliability.
 Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
 SpinQuant, checkpoint conversion, or a new quantization run.
 
-## Pending serving-client evidence gate
+## First serving-client smoke review
 
 Revision `78ed96c` adds the backend-neutral streaming client, frozen request
 generator, predeclared corpus hashes, explicit matched cache/scheduler flags,
@@ -187,9 +187,38 @@ version/source gates. Local full-suite validation passed 179 tests with one
 skip; 34 focused tests, the 280-packed-linear checkpoint gate, external source
 hashes, and `sbatch --test-only` also passed on Isambard before submission.
 
-Job `5944823` is the only submitted work for this gate. Acceptance requires
-reviewing Slurm outcome, stdout/stderr, both server logs, raw request records,
-the generated request corpus, preflight JSON, result JSON, source manifest,
-memory recovery, and all hashes. Until that review, `SGLang versus vLLM W4A16
+Job `5944823` recorded:
+
+| Item | Reviewed value |
+|---|---|
+| Slurm outcome | `FAILED`, exit `1:0`, elapsed `00:04:12` |
+| Project revision | `78ed96c25fcf217d7256fbf1afa67e93ab645661`, clean checkout |
+| Result SHA-256 | `c8b2c278917420d583302f67aed19706d336e09c7a854ff17c8e59c26e8c4aaf` |
+| Request-corpus SHA-256 | `1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1` |
+| SGLang preflight SHA-256 | `7b1ec75917262bfc8dcdbfc4d7b99bebc487eb63604dad7f158c5ae252885171` |
+| vLLM raw SHA-256 | `8fe11fc7f0611d20cefda4ef2ab7f9b12273997cf54932b72cf93e1f68c59972` |
+| vLLM log SHA-256 | `32f84b013ccc97e6fef0c1aace8172e3e1dd1e18c0a049b36c8cc6dbc0701740` |
+| SGLang log SHA-256 | `360810e1466b32ffe5607b87dac96b512d9707500a68b1b6ab5cd5f6588340f9` |
+
+The SGLang preflight passed exact Marlin synthetic GPU execution. SGLang then
+loaded the unchanged checkpoint with 6.82 GB weight memory, allocated 10,485
+BF16 KV tokens (4 GiB K plus 4 GiB V), captured decode graphs, and returned
+HTTP 200 from `/health`. The shared launcher had not passed
+`--served-model-name`, so `/v1/models` correctly returned the checkpoint path
+and the harness stopped before any serving request. This is a model-name
+adapter failure, not SGLang incompatibility.
+
+vLLM completed all 13 client calls: one validation, four warm-ups, and eight
+measured requests. Every call recorded exactly 256 prompt and 64 completion
+tokens. The measured phase completed, but its first-eight generated-text hash
+differed from job `5780631`. Since that historical artifact did not retain
+prompts, output equality cannot establish request identity and must not be a
+pass/fail gate. The new corpus remains independently frozen by its file,
+prompt-list, and token-ID-list hashes for use identically across both backends.
+
+The bounded repair adds SGLang's explicit served model name and retains the old
+output comparison as a diagnostic only. Model, environments, request corpus,
+workload, resources, and experiment matrix remain unchanged. A single
+replacement result-gated smoke is required; `SGLang versus vLLM W4A16
 performance` remains unproven and the formal concurrency 1/8 x three-paired-
 repetition matrix remains unauthorized.
