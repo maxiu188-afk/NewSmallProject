@@ -1,6 +1,6 @@
 {
   "config_version": 1,
-  "status": "prepared_awaiting_replacement_result_gated_smoke",
+  "status": "replacement_result_gated_smoke_submitted_awaiting_review",
   "source_gate": {
     "status": "accepted",
     "job_id": "5769503",
@@ -19,6 +19,9 @@
   },
   "harness_repair": {
     "supersedes_job_id": "5944823",
+    "replacement_job_id": "5949509",
+    "replacement_source_revision": "ac82347cb4bbe467c5242ebc35faf23d7be160af",
+    "replacement_submission_policy": "submitted alone with no formal dependency; do not inspect until explicitly requested",
     "sglang_failure": "served model name was not passed, so the harness rejected the checkpoint path returned by v1/models before any measured request",
     "vllm_failure": "legacy generated-text equality was incorrectly used as a request-corpus identity gate",
     "scope": "harness-only repair; model, runtime environments, request corpus, workload, resource request, and experiment matrix unchanged"

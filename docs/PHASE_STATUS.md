@@ -378,4 +378,8 @@ rejected by an invalid old generated-output equality gate. The old serving
 artifact retained no prompts, so that comparison is diagnostic rather than
 request identity. A harness-only replacement is required. No SGLang
 performance number is accepted, and no concurrency-8 or formal paired-
-repetition job is submitted.
+repetition job is submitted. Revision `ac82347` fixes only those two harness
+gates. Replacement result-gated smoke `5949509` was submitted alone from that
+clean revision with no formal dependency. Its result is unreviewed; submission
+is not evidence that either backend passed, and it will not be monitored until
+the user explicitly requests inspection.

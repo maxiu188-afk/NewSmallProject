@@ -219,6 +219,10 @@ prompt-list, and token-ID-list hashes for use identically across both backends.
 The bounded repair adds SGLang's explicit served model name and retains the old
 output comparison as a diagnostic only. Model, environments, request corpus,
 workload, resources, and experiment matrix remain unchanged. A single
-replacement result-gated smoke is required; `SGLang versus vLLM W4A16
-performance` remains unproven and the formal concurrency 1/8 x three-paired-
-repetition matrix remains unauthorized.
+replacement result-gated smoke, job `5949509`, was submitted alone from clean
+repair revision `ac82347cb4bbe467c5242ebc35faf23d7be160af`, with no formal
+dependency. Its artifacts have not been reviewed, so `SGLang versus vLLM
+W4A16 performance` remains unproven and the formal concurrency 1/8 x three-
+paired-repetition matrix remains unauthorized. Per the result-gated workflow,
+the job is not continuously monitored and will be inspected only after an
+explicit user request.

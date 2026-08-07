@@ -433,7 +433,10 @@ Both servers explicitly use BF16 KV with the matched 8 GiB budget and disable
 prefix caching and chunked prefill. Installed vLLM argument/dataset/client
 sources and SGLang OpenAI completion sources are version-hashed before GPU
 execution. The replacement smoke must be reviewed before the formal matrix
-below is authorized.
+below is authorized. The bounded repair was committed as `ac82347`, and
+replacement result-gated smoke `5949509` was submitted alone from that clean
+revision with no formal dependency. It remains unreviewed and will not be
+polled until the user explicitly asks for inspection.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

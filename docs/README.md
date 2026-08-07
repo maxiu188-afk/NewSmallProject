@@ -80,8 +80,10 @@ result-gated smoke into an automatically queued formal job.
   accepted exact-checkpoint QuaRot W4A16 BoolQ smoke: vLLM 28/32, SGLang
   27/32, one prediction disagreement. Serving-client smoke `5944823` failed on
   two reviewed harness gates after SGLang successfully loaded and became
-  healthy; a harness-only replacement is required and no formal job is queued.
-  This is not yet formal quality or serving-performance evidence.
+  healthy. Harness-only repair revision `ac82347` was validated, and its single
+  replacement result-gated smoke `5949509` was submitted alone; it is
+  unreviewed, no formal job is queued, and it is not being continuously
+  monitored. This is not yet formal quality or serving-performance evidence.
 
 ## Method, policy, and reusable reference
 
