@@ -78,9 +78,10 @@ result-gated smoke into an automatically queued formal job.
   reviewed GH200 compatibility-smoke record. It confirms that SGLang `0.5.16`
   cannot load the exact unchanged dense W4AFP8 checkpoint, and records the
   accepted exact-checkpoint QuaRot W4A16 BoolQ smoke: vLLM 28/32, SGLang
-  27/32, one prediction disagreement. Result-gated serving-client smoke
-  `5944823` is submitted but unreviewed; no formal job is queued. This is not
-  yet formal quality or serving-performance evidence.
+  27/32, one prediction disagreement. Serving-client smoke `5944823` failed on
+  two reviewed harness gates after SGLang successfully loaded and became
+  healthy; a harness-only replacement is required and no formal job is queued.
+  This is not yet formal quality or serving-performance evidence.
 
 ## Method, policy, and reusable reference
 

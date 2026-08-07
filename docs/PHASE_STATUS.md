@@ -363,11 +363,19 @@ artifact/log hashes were recomputed successfully. This accepts the bounded
 exact-checkpoint compatibility and smoke score-difference result, not formal
 BoolQ quality or serving performance. No formal job is submitted.
 
-The next bounded step is now submitted but not accepted. Revision `78ed96c`
+The next bounded step was submitted but is not accepted. Revision `78ed96c`
 adds one repository-owned OpenAI streaming client and a pre-hashed 64-request
 corpus that reconstructs the accepted random 256-token workload. It explicitly
 aligns BF16 KV, the 8 GiB KV budget, prefix-cache disabling, and chunked-prefill
 disabling across both backends. Result-gated job `5944823` was submitted alone
-with only concurrency 1 and eight measured 64-token outputs per backend. Its
-artifacts have not been reviewed; no SGLang performance number is accepted,
-and no concurrency-8 or formal paired-repetition job is submitted.
+with only concurrency 1 and eight measured 64-token outputs per backend. It
+failed closed `1:0` after 4 minutes 12 seconds for two harness reasons. SGLang
+passed the CUDA 12.6 Marlin preflight, loaded W4A16, allocated the exact 8 GiB
+BF16 KV pool, and reached healthy service; the launcher then omitted its served
+model name, so the harness rejected the checkpoint path returned by
+`/v1/models` before measured requests. vLLM completed all 13 requests but was
+rejected by an invalid old generated-output equality gate. The old serving
+artifact retained no prompts, so that comparison is diagnostic rather than
+request identity. A harness-only replacement is required. No SGLang
+performance number is accepted, and no concurrency-8 or formal paired-
+repetition job is submitted.

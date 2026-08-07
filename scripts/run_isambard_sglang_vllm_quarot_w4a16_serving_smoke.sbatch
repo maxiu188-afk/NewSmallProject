@@ -160,7 +160,7 @@ for case in result["cases"].values():
     assert case["metrics"]["failed"] == 0, case
     assert case["metrics"]["input_tokens"] == 8 * 256, case
     assert case["metrics"]["output_tokens"] == 8 * 64, case
-assert result["cases"]["vllm:smoke_c1"]["legacy_vllm_corpus_link"]["status"] == "matched", result
+assert result["cases"]["vllm:smoke_c1"]["legacy_vllm_output_diagnostic"]["policy"] == "diagnostic_only_not_corpus_identity", result
 assert result["comparison"]["status"] == "smoke_observation_not_formal_performance_evidence", result
 print("ISAMBARD_SGLANG_VLLM_QUAROT_W4A16_SERVING_SMOKE_RECORDED")
 PY
