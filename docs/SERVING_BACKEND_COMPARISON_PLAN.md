@@ -181,7 +181,7 @@ Primary source bindings:
 |---|---|---|---|
 | A: BF16 control | Exact pinned BF16 Llama-2-13B snapshot | BF16-only corrected smoke required; no formal submitted | Cross-backend serving comparison for the frozen workload |
 | B: W4AFP8 primary | Exact accepted FP8-targeted SpinQuant W4AFP8 artifact and tree hash | Stopped: unchanged load failed in SGLang `0.5.16` | No cross-backend performance claim; negative compatibility boundary only |
-| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | Replacement `5940088` submitted from `bfe2e3a`; compatibility remains unverified pending artifact review | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
+| C: QuaRot W4A16 | Exact accepted rotated W4A16 artifact | SGLang load/serve compatibility observed in `5940088`; score comparison replacement `5941763` submitted from `b348fc3` | Same-checkpoint cross-backend BoolQ score parity; no formal claim before review |
 
 If SGLang cannot load Track B unchanged, Track A may proceed, but the paired
 W4AFP8 comparison stops. A newly exported SGLang-native checkpoint would be a
@@ -298,9 +298,37 @@ execution, which remains the smoke's first runtime gate.
 
 `sbatch --test-only` accepted the unchanged one-GH200, two-hour request.
 Replacement smoke `5940088` was submitted alone from clean revision `bfe2e3a`
+with no formal dependency. It failed closed (`1:0`) after 8 minutes 15 seconds,
+but passed the complete CUDA 12.6 preflight, including exact Marlin synthetic
+GPU execution. SGLang then loaded the accepted checkpoint as
+`compressed-tensors` W4A16, reported 6.82 GB weight memory, completed server
+startup, and returned HTTP 200 for the first eight-request BoolQ batch. This
+is positive unchanged-checkpoint load/serve compatibility evidence. vLLM
+again scored all 64 requests with 28/32 correct.
+
+The comparison remained incomplete because the local result parser rejected
+SGLang's version-specific leading log-probability sentinel. In SGLang `0.5.16`,
+`input_token_logprobs` covers `origin_input_ids[logprob_start_len:]`: the first
+entry is an unscored `[None, token_id]` sentinel and subsequent entries score
+tokens after `logprob_start_len`. The existing request offset
+`continuation_start - 1` was therefore necessary and correct, but the parser
+incorrectly expected only the continuation entries. This is a harness parsing
+failure after successful backend execution; it does not supply the missing
+cross-backend score comparison.
+
+Revision `b348fc32313ef9456ea755558163d2942fe0b5a1` preserves that request
+offset, requires the exact leading sentinel, removes it, and then validates and
+sums only the continuation token log-probabilities. It also binds SHA-256
+`06fafabefa93327b831c663a3d8e47a3e3450ea719ff5451c8392da4704f9311`
+for SGLang's `logprob_result_processor.py`. Twenty focused tests cover the
+accepted response and fail-closed length, sentinel, token-order, numeric, and
+finite-value boundaries; all passed locally and on Isambard. All seven bound
+SGLang source hashes and the immutable-input gate passed remotely.
+
+`sbatch --test-only` accepted the unchanged one-GH200, two-hour request.
+Replacement smoke `5941763` was submitted alone from clean revision `b348fc3`
 with no formal dependency. Its state is intentionally not polled;
-compatibility remains unverified until the preflight JSON, backend logs,
-comparison JSON, source manifest, exit status, and hashes are reviewed. No
+cross-backend score parity remains unverified pending artifact review. No
 formal job is submitted, and Track C still excludes BF16, unrotated W4A16,
 SpinQuant, re-quantization, and re-export.
 

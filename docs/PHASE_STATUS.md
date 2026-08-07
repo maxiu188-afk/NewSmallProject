@@ -334,5 +334,24 @@ cannot be reused. Eighteen focused tests, the immutable-input gate, and
 compiled for `sm_90a`, linked to system `libcudart.so.12`, and dynamically
 loaded on the login node; GPU execution remains deliberately unclaimed.
 Replacement smoke `5940088` was submitted alone from clean revision `bfe2e3a`
-with no formal dependency and is intentionally not monitored. Compatibility
-remains unverified pending artifact review; no formal job is submitted.
+with no formal dependency. It failed closed (`1:0`) after 8 minutes 15 seconds,
+but the CUDA 12.6 preflight and exact Marlin synthetic GPU execution passed.
+SGLang loaded the unchanged checkpoint as `compressed-tensors` W4A16, used
+6.82 GB for weights, reached healthy serving, and returned HTTP 200 for the
+first eight-request BoolQ batch. This establishes unchanged-checkpoint
+load/serve compatibility. vLLM again completed all 64 requests with 28/32
+correct, but score parity remains unverified.
+
+The incomplete comparison was caused by the harness parser, not the backend.
+SGLang `0.5.16` returns an unscored `[None, token_id]` entry at
+`logprob_start_len`, followed by scored tokens. The request must retain
+`continuation_start - 1` to score the first (single-token here) continuation;
+the parser had instead required the response length to equal only the
+continuation length. Revision `b348fc3` now strictly validates and removes the
+sentinel before checking token order and summing finite continuation scores.
+It also binds the exact `logprob_result_processor.py` source hash. Twenty
+focused tests, all seven source hashes, the immutable-input gate, and
+`sbatch --test-only` passed on Isambard. Replacement smoke `5941763` was
+submitted alone from clean revision `b348fc3` with no formal dependency and is
+intentionally not monitored. Cross-backend score parity remains unverified
+pending artifact review; no formal job is submitted.

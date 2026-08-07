@@ -2,14 +2,17 @@
 
 ## Status and claim boundary
 
-This record closes the four-case compatibility smoke for job `5896201`. It is
-not a serving-performance result: no throughput, latency, concurrency, quality,
-or reliability comparison is accepted here, and no formal benchmark has been
-submitted.
+This record closes the four-case compatibility smoke for job `5896201` and
+tracks the bounded QuaRot W4A16 BoolQ compatibility sequence through job
+`5940088`. It is not a serving-performance result: no throughput, latency,
+concurrency, formal quality, or reliability comparison is accepted here, and
+no formal benchmark has been submitted.
 
-The only positive serving observations are vLLM smoke controls. The reviewed
-SGLang evidence establishes one negative boundary for the exact W4AFP8
-checkpoint and identifies one correctable BF16 launch-environment failure.
+The reviewed SGLang evidence establishes one negative boundary for the exact
+W4AFP8 checkpoint, identifies one correctable BF16 launch-environment failure,
+and now confirms that SGLang `0.5.16` can load and serve the exact accepted
+QuaRot-style W4A16 checkpoint. Cross-backend W4A16 score parity remains
+unverified because job `5940088` stopped at a harness response-parser boundary.
 
 ## Provenance
 
@@ -36,6 +39,8 @@ committed to this repository.
 | vLLM | Exact FP8-targeted W4AFP8 | Endpoint ready; same eight-token completion; CUTLASS `CompressedTensorsW4A8Fp8` kernel selected; ready GPU memory 16,934 MiB | Passed smoke control only |
 | SGLang | BF16 Llama-2-13B | Weights loaded; default FA3 backend then failed because installed `sgl_kernel` has no `flash_ops` | Inconclusive for model compatibility; launch environment must be corrected |
 | SGLang | Exact FP8-targeted W4AFP8 | Loader raised `No compressed-tensors compatible scheme was found` | Unsupported unchanged in SGLang `0.5.16`; paired Track B stops |
+| vLLM | Exact QuaRot-style W4A16 | Frozen 32-example BoolQ smoke completed 64 choice requests with 28/32 correct | Passed repeated smoke control only; not formal accuracy |
+| SGLang | Exact QuaRot-style W4A16 | CUDA 12.6 Marlin preflight passed; unchanged checkpoint loaded; server became healthy; first eight-request BoolQ batch returned HTTP 200 | Load/serve compatibility confirmed; score comparison incomplete in harness parser |
 
 The two ready-memory values and server-start times are single smoke
 observations. They must not be reported as comparative performance numbers.
@@ -99,10 +104,44 @@ default host C++ compiler was GCC `7.5.0` and could not provide the C++20
 can preprocess that header. This is a host-compiler binding failure, not
 end-to-end W4A16 compatibility or incompatibility evidence.
 
-The bounded corrective option is to load `gcc-native/14.2` and explicitly bind
-`CC`, `CXX`, and `NVCC_CCBIN`; the module alone is insufficient because `c++`
-still resolves to GCC 7. No corrected job or formal job has been submitted, and
-no cross-backend result is claimed.
+The bounded corrective option was to bind the compiler and JIT toolchain;
+subsequent corrections and the first successful SGLang W4A16 runtime boundary
+are recorded below. No formal job has been submitted.
+
+## Track C reviewed runtime boundary
+
+Jobs `5927118` and `5932590` remained pre-model toolchain failures. The former
+compiled the exact Marlin source but could not link `-lcudart` from the pip CUDA
+13 layout. The latter fixed that layout and compiled/loaded the module, but its
+synthetic CUDA call exposed a CUDA 13 runtime/driver mismatch. Revision
+`bfe2e3a` moved only SGLang's source JIT to system CUDA `12.6` and isolated the
+TVM-FFI cache, without changing the model, dataset, or evaluation protocol.
+
+Job `5940088` is the first accepted positive SGLang runtime boundary for the
+exact checkpoint:
+
+| Item | Reviewed value |
+|---|---|
+| Slurm outcome | `FAILED`, exit `1:0`, elapsed `00:08:15`; fail-closed comparison gate |
+| Project revision | `bfe2e3a344ce2cb96701a6aaa9f82ef4e027c8b0`, clean checkout |
+| Result JSON SHA-256 | `9e2afb4076051a5674c33e0250e51d487cdd60305672194300e88a4f748f2406` |
+| SGLang preflight SHA-256 | `f44d01eca2e68b38a238eeaa2013783dce81b51fe08a9c8f2e7912de61087fdd` |
+| Source manifest SHA-256 | `a3ba4eca84a6f23870c2600cfe5c6a31f3768c8c9bee1dafb9fef309ab697122` |
+| SGLang log SHA-256 | `04aacb015e1caa41c74fad6633a07f84759a9230d3a5e1c9ff5cc5084bc24c55` |
+| vLLM log SHA-256 | `db57b88d4608a80a8f3d210808836f524758600be383a7a4d5a9594ea19f402f` |
+| Checkpoint tree SHA-256 | `2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99` |
+| SGLang toolchain gate | CUDA `12.6`, NVCC `12.6.77`, CUDART runtime `12060`, GCC/G++ `13.3.1`; exact Marlin synthetic GPU execution passed |
+| SGLang model runtime | `compressed-tensors` W4A16 loaded; 6.82 GB weight memory; healthy server; first eight-request batch returned HTTP 200 |
+| Comparison | `incomplete`; SGLang score rejected by harness parser before metrics were recorded |
+
+The parser failure is exact and bounded. SGLang `0.5.16` returns an unscored
+sentinel at `logprob_start_len`, followed by scores for later tokens. The
+request offset `continuation_start - 1` must remain so a single-token BoolQ
+choice is scored; revision `b348fc3` corrects only the parser to validate and
+remove that sentinel. It also binds the responsible SGLang source hash.
+Replacement smoke `5941763` was submitted alone from that clean revision and
+is intentionally not monitored. Until its artifacts are reviewed, no
+cross-backend score-parity result is accepted.
 
 Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
 SpinQuant, checkpoint conversion, or a new quantization run.
