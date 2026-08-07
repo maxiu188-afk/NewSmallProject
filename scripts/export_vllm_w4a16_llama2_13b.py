@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -26,6 +27,14 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from repro.offline_llama_rotation import (
     apply_offline_llama_rotation,
     assert_standard_llama_layout,
+)
+from repro.spinquant.artifacts import load_rotation_artifact
+from repro.spinquant.offline import apply_spinquant_llama_offline
+from repro.spinquant.rotations import SpinQuantRotations
+from repro.vllm_w4a16 import (
+    checkpoint_tree_sha256,
+    validate_checkpoint_quantization_config,
+    validate_spinquant_export_config,
 )
 
 
@@ -61,12 +70,88 @@ def _packed_linears(output_dir: Path) -> list[str]:
     return sorted(packed)
 
 
+def _spinquant_rotations(model: Any, seed: int) -> SpinQuantRotations:
+    config = model.config
+    return SpinQuantRotations(
+        hidden_size=int(config.hidden_size),
+        head_dim=int(config.hidden_size) // int(config.num_attention_heads),
+        num_layers=int(config.num_hidden_layers),
+        seed=seed,
+        dtype=torch.float32,
+        device=next(model.parameters()).device,
+    )
+
+
+@torch.inference_mode()
+def _apply_rotation(
+    model: Any,
+    mode: str,
+    config: dict[str, Any],
+    rotation_manifest: Path | None,
+) -> dict[str, Any]:
+    if mode == "unrotated":
+        if rotation_manifest is not None:
+            raise ValueError("unrotated export does not accept a rotation manifest")
+        return {"applied": False, "kind": "none"}
+    if mode == "rotated":
+        if rotation_manifest is not None:
+            raise ValueError("QuaRot-style export does not accept a learned rotation")
+        summary = apply_offline_llama_rotation(model)
+        assert_standard_llama_layout(model)
+        return {**summary, "applied": True, "kind": "quarot_style_fixed_offline"}
+    if mode != "spinquant":
+        raise ValueError(f"unsupported W4A16 export mode: {mode}")
+    if rotation_manifest is None:
+        raise ValueError("SpinQuant W4A16 export requires --rotation-manifest")
+
+    validate_spinquant_export_config(config)
+    rotation_spec = config["rotation"]
+    if _sha256(rotation_manifest) != rotation_spec["spinquant_rotation_manifest_sha256"]:
+        raise RuntimeError("SpinQuant rotation manifest SHA-256 changed")
+    rotations = _spinquant_rotations(model, int(rotation_spec["seed"]))
+    loaded = load_rotation_artifact(
+        rotation_manifest,
+        target=rotations,
+        maximum_orthogonality_error=float(
+            rotation_spec["maximum_orthogonality_error"]
+        ),
+    )
+    if (
+        loaded["manifest"]["file"]["sha256"]
+        != rotation_spec["spinquant_rotation_safetensors_sha256"]
+    ):
+        raise RuntimeError("SpinQuant rotation SafeTensor SHA-256 changed")
+    manifest_provenance = loaded["manifest"].get("provenance", {})
+    if (
+        manifest_provenance.get("project_revision")
+        != rotation_spec["spinquant_training_project_revision"]
+    ):
+        raise RuntimeError("SpinQuant rotation training revision changed")
+    summary = apply_spinquant_llama_offline(model, rotations)
+    del rotations
+    assert_standard_llama_layout(model)
+    return {
+        **summary,
+        "applied": True,
+        "kind": "spinquant_learned_offline",
+        "evidence_label": rotation_spec["spinquant_evidence_label"],
+        "training_job_id": rotation_spec["spinquant_training_job_id"],
+        "training_project_revision": rotation_spec[
+            "spinquant_training_project_revision"
+        ],
+        "observed_orthogonality_error": loaded[
+            "observed_orthogonality_error"
+        ],
+    }
+
+
 def export(
     config_path: Path,
     calibration_dir: Path,
     output_dir: Path,
     report_path: Path,
     mode: str,
+    rotation_manifest: Path | None = None,
 ) -> dict:
     if not torch.cuda.is_available():
         raise RuntimeError("Llama-2-13B W4A16 export requires an allocated CUDA device")
@@ -114,23 +199,23 @@ def export(
     with torch.inference_mode():
         baseline_last_logits = model(input_ids=prompt, use_cache=False).logits[:, -1].float().cpu()
 
-    rotation = {"applied": False, "kind": "none"}
+    rotation = _apply_rotation(model, mode, config, rotation_manifest)
     rotation_error = None
-    if mode == "rotated":
-        rotation = apply_offline_llama_rotation(model)
-        assert_standard_llama_layout(model)
+    if mode != "unrotated":
         with torch.inference_mode():
-            rotated_last_logits = model(input_ids=prompt, use_cache=False).logits[:, -1].float().cpu()
-        rotation_error = float((baseline_last_logits - rotated_last_logits).abs().max().item())
-        if not torch.isfinite(rotated_last_logits).all():
-            raise RuntimeError("offline-rotated BF16 logits are not finite")
+            transformed_last_logits = (
+                model(input_ids=prompt, use_cache=False).logits[:, -1].float().cpu()
+            )
+        rotation_error = float(
+            (baseline_last_logits - transformed_last_logits).abs().max().item()
+        )
+        if not torch.isfinite(transformed_last_logits).all():
+            raise RuntimeError("offline-transformed BF16 logits are not finite")
         tolerance = float(config["rotation"]["max_absolute_logit_error_tolerance"])
         if rotation_error > tolerance:
             raise RuntimeError(
                 f"offline rotation error {rotation_error} exceeds tolerance {tolerance}"
             )
-    elif mode != "unrotated":
-        raise ValueError(f"unsupported mode: {mode}")
 
     recipe = GPTQModifier(
         targets=quant["targets"],
@@ -162,19 +247,10 @@ def export(
     quantization_config = saved_config.get("quantization_config")
     if not isinstance(quantization_config, dict):
         raise RuntimeError("saved checkpoint lacks quantization_config")
-    if (
-        quantization_config.get("quant_method") != "compressed-tensors"
-        or quantization_config.get("format") != quant["format"]
-        or quantization_config.get("quantization_status") != "compressed"
-    ):
-        raise RuntimeError(f"unexpected quantization metadata: {quantization_config}")
-    groups = list(quantization_config.get("config_groups", {}).values())
-    if (
-        len(groups) != 1
-        or groups[0].get("weights", {}).get("num_bits") != 4
-        or groups[0].get("weights", {}).get("group_size") != int(quant["group_size"])
-    ):
-        raise RuntimeError(f"checkpoint is not group-128 W4: {quantization_config}")
+    try:
+        validate_checkpoint_quantization_config(quantization_config)
+    except ValueError as error:
+        raise RuntimeError(str(error)) from error
     packed_linears = _packed_linears(incomplete)
     if len(packed_linears) != int(model_spec["expected_decoder_linears"]):
         raise RuntimeError(
@@ -185,7 +261,10 @@ def export(
 
     result = {
         "status": "passed",
-        "scope": "complete Llama-2-13B compressed-tensors GPTQ W4A16 export; vLLM execution is separate",
+        "scope": (
+            "complete Llama-2-13B compressed-tensors GPTQ W4A16 export; "
+            "vLLM execution is separate"
+        ),
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "project_revision": _revision(),
         "config_sha256": _sha256(config_path),
@@ -199,6 +278,7 @@ def export(
         "checkpoint_bytes": sum(
             path.stat().st_size for path in output_dir.rglob("*") if path.is_file()
         ),
+        "checkpoint_tree_sha256": checkpoint_tree_sha256(output_dir),
         "checkpoint": str(output_dir),
         "runtime": {
             "gpu": torch.cuda.get_device_name(0),
@@ -224,7 +304,12 @@ def main() -> int:
     parser.add_argument("--calibration-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--mode", choices=("unrotated", "rotated"), required=True)
+    parser.add_argument(
+        "--mode",
+        choices=("unrotated", "rotated", "spinquant"),
+        required=True,
+    )
+    parser.add_argument("--rotation-manifest", type=Path)
     args = parser.parse_args()
     export(
         args.config.resolve(),
@@ -232,6 +317,7 @@ def main() -> int:
         args.output_dir.resolve(),
         args.report.resolve(),
         args.mode,
+        args.rotation_manifest.resolve() if args.rotation_manifest else None,
     )
     return 0
 
