@@ -130,9 +130,6 @@ def main() -> int:
             toolchain["expected_compressed_tensors_version"]
         ),
         "flashinfer-python": str(toolchain["expected_flashinfer_version"]),
-        "nvidia-cuda-nvcc": str(
-            toolchain["expected_nvidia_cuda_nvcc_version"]
-        ),
         "sglang-kernel": str(toolchain["expected_sglang_kernel_version"]),
         "transformers": str(toolchain["expected_transformers_version"]),
     }
@@ -147,7 +144,15 @@ def main() -> int:
     if drifted_packages:
         raise RuntimeError(f"SGLang dependency versions drifted: {drifted_packages}")
 
+    cray_cuda_version = os.environ.get("CRAY_CUDA_VERSION")
+    if cray_cuda_version != str(toolchain["expected_cray_cuda_version"]):
+        raise RuntimeError(f"CUDA module drifted: {cray_cuda_version}")
+
     cuda_home = Path(os.environ.get("CUDA_HOME", ""))
+    if not cuda_home.is_absolute() or not cuda_home.is_dir():
+        raise RuntimeError(
+            f"CUDA_HOME is not an absolute toolkit directory: {cuda_home}"
+        )
     nvcc = cuda_home / "bin/nvcc"
     if not os.access(nvcc, os.X_OK):
         raise RuntimeError(f"CUDA_HOME does not provide nvcc: {nvcc}")
@@ -156,9 +161,22 @@ def main() -> int:
     nvcc_release = release_match.group(1) if release_match else None
     if nvcc_release != str(toolchain["expected_nvcc_release"]):
         raise RuntimeError(f"NVCC release drifted: {nvcc_release}")
+    version_match = re.search(r"\bV(\d+\.\d+\.\d+)\b", nvcc_version)
+    nvcc_build_version = version_match.group(1) if version_match else None
+    if nvcc_build_version != str(toolchain["expected_nvcc_version"]):
+        raise RuntimeError(f"NVCC build version drifted: {nvcc_build_version}")
+
+    cache_dir_raw = os.environ.get("TVM_FFI_CACHE_DIR", "")
+    jit_cache_dir = Path(cache_dir_raw)
+    if not jit_cache_dir.is_absolute() or not jit_cache_dir.is_dir():
+        raise RuntimeError(
+            f"TVM_FFI_CACHE_DIR is not an absolute existing directory: {jit_cache_dir}"
+        )
+    if jit_cache_dir.name != str(toolchain["jit_cache_namespace"]):
+        raise RuntimeError(f"TVM-FFI cache namespace drifted: {jit_cache_dir}")
 
     cudart_soname = str(toolchain["expected_cudart_soname"])
-    cudart_runtime_dir = (cuda_home / "lib").resolve()
+    cudart_runtime_dir = (cuda_home / "lib64").resolve()
     cudart_runtime = cudart_runtime_dir / cudart_soname
     cudart_link = cuda_home / "lib64/libcudart.so"
     if not cudart_runtime.is_file():
@@ -319,6 +337,8 @@ def main() -> int:
         },
         "toolchain": {
             "compiler_module": toolchain["compiler_module"],
+            "cuda_module": toolchain["cuda_module"],
+            "CRAY_CUDA_VERSION": cray_cuda_version,
             "CC": str(cc),
             "CC_version": cc_version,
             "CXX": str(cxx),
@@ -332,10 +352,13 @@ def main() -> int:
             "LD_LIBRARY_PATH": os.environ["LD_LIBRARY_PATH"],
             "nvcc": str(nvcc),
             "nvcc_release": nvcc_release,
+            "nvcc_build_version": nvcc_build_version,
             "nvcc_version_output": nvcc_version.splitlines(),
             "ninja": ninja,
             "ninja_cli_version": ninja_cli_version,
             "cxx20_version_header": "passed",
+            "TVM_FFI_CACHE_DIR": str(jit_cache_dir),
+            "jit_cache_namespace": toolchain["jit_cache_namespace"],
         },
         "cuda": {
             "available": True,

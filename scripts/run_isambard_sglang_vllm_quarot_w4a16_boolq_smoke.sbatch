@@ -14,7 +14,8 @@
 set -euo pipefail
 
 module load cray-python/3.11.7
-module load gcc-native/14.2
+module load cuda/12.6
+module load gcc-native/13.2
 project_root="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "${project_root}"
 
@@ -41,8 +42,8 @@ for required in \
     "${vllm_env}/bin/python" \
     "${sglang_env}/bin/python" \
     "${sglang_env}/bin/ninja" \
-    "${sglang_env}/lib/python3.11/site-packages/nvidia/cu13/lib64/libcudart.so" \
-    "${project_root}/scripts/prepare_sglang_cuda_jit_layout.sh" \
+    "${CUDA_HOME}/bin/nvcc" \
+    "${CUDA_HOME}/lib64/libcudart.so" \
     "${project_root}/scripts/preflight_sglang_wna16_runtime.py" \
     "${project_root}/scripts/setup_isambard_sglang_env.sh" \
     "${config}" \
@@ -75,9 +76,10 @@ export HF_DATASETS_OFFLINE=1
 export VLLM_ENABLE_V1_MULTIPROCESSING=0
 export VLLM_USE_FLASHINFER_SAMPLER=0
 export TOKENIZERS_PARALLELISM=false
-export CUDA_HOME="${sglang_env}/lib/python3.11/site-packages/nvidia/cu13"
-export LD_LIBRARY_PATH="${CUDA_HOME}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+export LD_LIBRARY_PATH="${CUDA_HOME}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+export TVM_FFI_CACHE_DIR="${PROJECTDIR}/${USER}/newsmallproject-sglang/tvm-ffi-cache/cuda-12.6-gcc-13.2-tvmffi-0.1.11"
 export SGLANG_ENABLE_JIT_DEEPGEMM=0
+mkdir -p "${TVM_FFI_CACHE_DIR}"
 
 echo "SGLANG_VLLM_W4A16_BOOLQ_NINJA=$(ninja --version)"
 echo "SGLANG_VLLM_W4A16_BOOLQ_STAGE=runtime_preflight"
@@ -105,7 +107,6 @@ echo "SGLANG_VLLM_W4A16_BOOLQ_STAGE=source_gate"
         "${config}" \
         "${project_root}/scripts/run_sglang_vllm_quarot_w4a16_boolq.py" \
         "${project_root}/scripts/preflight_sglang_wna16_runtime.py" \
-        "${project_root}/scripts/prepare_sglang_cuda_jit_layout.sh" \
         "${project_root}/scripts/setup_isambard_sglang_env.sh" \
         "${project_root}/scripts/validate_sglang_vllm_quarot_w4a16_inputs.py" \
         "${project_root}/scripts/run_sglang_vllm_llama2_13b_smoke.py" \

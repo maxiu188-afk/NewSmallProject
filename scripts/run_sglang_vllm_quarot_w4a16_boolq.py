@@ -78,14 +78,17 @@ def _validate_config(config: dict[str, Any]) -> None:
     if config["sglang"].get("offline_quantization_argument") is not None:
         raise ValueError("the accepted checkpoint must load without requantization")
     if config["sglang"].get("toolchain") != {
-        "compiler_module": "gcc-native/14.2",
-        "expected_compiler_major": 14,
+        "compiler_module": "gcc-native/13.2",
+        "cuda_module": "cuda/12.6",
+        "expected_compiler_major": 13,
         "expected_compressed_tensors_version": "0.17.2a20260731",
-        "expected_cudart_soname": "libcudart.so.13",
+        "expected_cray_cuda_version": "12.6",
+        "expected_cudart_soname": "libcudart.so.12",
         "expected_flashinfer_version": "0.6.14",
+        "jit_cache_namespace": "cuda-12.6-gcc-13.2-tvmffi-0.1.11",
         "expected_ninja_version": "1.13.0",
-        "expected_nvidia_cuda_nvcc_version": "13.3.73",
-        "expected_nvcc_release": "13.3",
+        "expected_nvcc_release": "12.6",
+        "expected_nvcc_version": "12.6.77",
         "expected_sglang_kernel_version": "0.4.5+cu129",
         "expected_transformers_version": "5.12.1",
         "expected_tvm_ffi_version": "0.1.11",
