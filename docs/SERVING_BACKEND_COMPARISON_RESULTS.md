@@ -8,6 +8,13 @@ job `5941763`. It is not a serving-performance result: no throughput, latency,
 concurrency, formal quality, or reliability comparison is accepted here, and
 no formal benchmark has been submitted.
 
+The next result-gated serving-client smoke, job `5944823`, was submitted alone
+from clean revision `78ed96c` on 2026-08-07. It contains one concurrency-1
+smoke repetition with eight measured requests per backend; it does not contain
+the concurrency-8 cell or the three paired repetitions required for the formal
+matrix. Its artifacts have not been reviewed, so even its smoke measurements
+must not be cited. No formal job is queued.
+
 The reviewed SGLang evidence establishes one negative boundary for the exact
 W4AFP8 checkpoint, identifies one correctable BF16 launch-environment failure,
 and confirms that SGLang `0.5.16` can load, serve, and score the exact accepted
@@ -170,3 +177,19 @@ equivalence, throughput, latency, concurrency, or reliability.
 
 Track B W4AFP8 must not be rerun. Track C does not add BF16, unrotated W4A16,
 SpinQuant, checkpoint conversion, or a new quantization run.
+
+## Pending serving-client evidence gate
+
+Revision `78ed96c` adds the backend-neutral streaming client, frozen request
+generator, predeclared corpus hashes, explicit matched cache/scheduler flags,
+per-request raw timings, token-usage assertions, GPU-memory sampling, and
+version/source gates. Local full-suite validation passed 179 tests with one
+skip; 34 focused tests, the 280-packed-linear checkpoint gate, external source
+hashes, and `sbatch --test-only` also passed on Isambard before submission.
+
+Job `5944823` is the only submitted work for this gate. Acceptance requires
+reviewing Slurm outcome, stdout/stderr, both server logs, raw request records,
+the generated request corpus, preflight JSON, result JSON, source manifest,
+memory recovery, and all hashes. Until that review, `SGLang versus vLLM W4A16
+performance` remains unproven and the formal concurrency 1/8 x three-paired-
+repetition matrix remains unauthorized.

@@ -9,6 +9,14 @@ includes the negative unchanged-checkpoint W4AFP8 boundary and an accepted
 exact-checkpoint W4A16 compatibility/score-difference smoke. No SGLang
 performance result has been accepted.
 
+Gate 3 implementation is now result-gated. Serving-client smoke job `5944823`
+was submitted alone from clean revision `78ed96c` on 2026-08-07. It runs only
+the accepted rotated W4A16 checkpoint, one fresh process per backend,
+concurrency 1, one unmeasured validation request, four warm-ups, and eight
+measured 256+64 requests. It is a data/client-chain smoke, not a performance
+result. No concurrency-8 cell, paired repetition, formal benchmark, or Slurm
+dependency was submitted, and its artifacts remain unreviewed.
+
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
 acceptance before a formal comparison is submitted.
@@ -395,6 +403,27 @@ same model rather than a silently converted or degraded variant.
    plan.
 
 ## Gate 3: primary matched serving benchmark
+
+Before the formal matrix, job `5944823` exercises the shared client and frozen
+request-data chain only. The repository-owned client uses the same OpenAI
+`/v1/completions` streaming implementation for both backends and requires final
+server usage to report exactly 256 input and 64 output tokens per request. The
+64-request corpus is reconstructed from the accepted vLLM `0.25.1` random
+dataset algorithm and pinned by file SHA-256
+`1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1`,
+prompt-list SHA-256
+`8f39ad1cc07322ccda082afe6ebd0f0341d8466a76b85e99506bc7ae5c3b1f1f`,
+and token-ID-list SHA-256
+`b467ded09b08e40a86757e693db66b4a455343e2f62e1b9a35fba746c5b3fc1f`.
+The vLLM half additionally must reproduce the first-eight generated-text hash
+retained by accepted serving job `5780631`; this closes the link to the earlier
+workload instead of treating only matching lengths and seed as sufficient.
+
+Both servers explicitly use BF16 KV with the matched 8 GiB budget and disable
+prefix caching and chunked prefill. Installed vLLM argument/dataset/client
+sources and SGLang OpenAI completion sources are version-hashed before GPU
+execution. The smoke must be reviewed before the formal matrix below is
+authorized.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

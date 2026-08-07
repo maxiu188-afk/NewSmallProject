@@ -78,8 +78,9 @@ result-gated smoke into an automatically queued formal job.
   reviewed GH200 compatibility-smoke record. It confirms that SGLang `0.5.16`
   cannot load the exact unchanged dense W4AFP8 checkpoint, and records the
   accepted exact-checkpoint QuaRot W4A16 BoolQ smoke: vLLM 28/32, SGLang
-  27/32, one prediction disagreement. This is not formal quality or serving
-  performance evidence; BF16 performance remains unverified.
+  27/32, one prediction disagreement. Result-gated serving-client smoke
+  `5944823` is submitted but unreviewed; no formal job is queued. This is not
+  yet formal quality or serving-performance evidence.
 
 ## Method, policy, and reusable reference
 
