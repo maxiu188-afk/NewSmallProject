@@ -131,6 +131,8 @@ def _server_command(
             str(server["max_running_requests"]),
             "--kv-cache-memory-bytes",
             str(server["kv_cache_memory_bytes"]),
+            "--kv-cache-dtype",
+            str(server["kv_cache_dtype"]),
             "--seed",
             str(server["seed"]),
             "--generation-config",
@@ -138,6 +140,10 @@ def _server_command(
         ]
         if config["vllm"]["disable_log_stats"]:
             command.append("--disable-log-stats")
+        if server.get("disable_prefix_cache"):
+            command.append("--no-enable-prefix-caching")
+        if server.get("disable_chunked_prefill"):
+            command.append("--no-enable-chunked-prefill")
         return command
     if backend != "sglang":
         raise ValueError(f"unsupported backend: {backend}")

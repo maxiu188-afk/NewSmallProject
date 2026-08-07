@@ -1,0 +1,159 @@
+{
+  "config_version": 1,
+  "status": "prepared_awaiting_result_gated_smoke",
+  "source_gate": {
+    "status": "accepted",
+    "job_id": "5769503",
+    "source_revision": "18d448554ec096842d87e84828d24eee43949c06",
+    "required_marker": "ISAMBARD_VLLM_W4A16_LLAMA2_13B_GATE_PASSED",
+    "result": "results/vllm-w4a16-llama2-13b/offline-inference-retry.json",
+    "result_sha256": "3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10",
+    "expected_model": "rotated_w4a16",
+    "checkpoint_tree_sha256": "2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99"
+  },
+  "compatibility_gate": {
+    "status": "accepted",
+    "job_id": "5941763",
+    "result_sha256": "62346ab360a025efc2636a9ab7a0d493ea7b2ae711c979b6c84139721d7aa5b0",
+    "comparison_status": "both_backends_scored"
+  },
+  "model": "quarot_w4a16",
+  "backends": [
+    "vllm",
+    "sglang"
+  ],
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18000,
+    "dtype": "bfloat16",
+    "max_model_len": 512,
+    "max_running_requests": 8,
+    "seed": 0,
+    "ready_timeout_seconds": 900,
+    "stop_timeout_seconds": 90,
+    "kv_cache_dtype": "bfloat16",
+    "kv_cache_memory_bytes": 8589934592,
+    "kv_bytes_per_token": 819200,
+    "max_total_tokens": 10485,
+    "disable_prefix_cache": true,
+    "disable_chunked_prefill": true
+  },
+  "benchmark": {
+    "protocol": "repository_openai_completions_stream_v1",
+    "endpoint": "/v1/completions",
+    "temperature": 0.0,
+    "repetition_penalty": 1.0,
+    "ignore_eos": true,
+    "stream_include_usage": true,
+    "validation_requests": 1,
+    "warmup_requests": 4,
+    "measured_requests": 8,
+    "cases": [
+      {
+        "name": "smoke_c1",
+        "max_concurrency": 1
+      }
+    ],
+    "metric_percentiles": [
+      50,
+      95,
+      99
+    ],
+    "memory_sample_interval_seconds": 0.2
+  },
+  "request_corpus": {
+    "algorithm": "vllm-random-dataset-0.25.1-compatible",
+    "seed": 0,
+    "requests": 64,
+    "input_tokens_with_special": 256,
+    "input_tokens_without_special": 255,
+    "output_tokens": 64,
+    "prefix_len": 0,
+    "range_ratio": 0.0,
+    "tokenizer_revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "tokenizer_class": "LlamaTokenizer",
+    "tokenizer_vocab_size": 32000,
+    "tokenizer_all_special_ids": [
+      1,
+      2,
+      0
+    ],
+    "tokenizer_file_sha256": {
+      "special_tokens_map.json": "6fa06efa2785e450051989a6f8fb4416b10149ded485ddd3f127a40734f5cfd0",
+      "tokenizer.json": "bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e",
+      "tokenizer.model": "9e556afd44213b6bd1be2b850ebbbd98f5481437a8021afaf58ee7fb1818d347",
+      "tokenizer_config.json": "f514e7c3008881b6ba7e6a0cdb44c71ce47dc335920dac143ae7bc788197e53a"
+    },
+    "file_sha256": "1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1",
+    "prompt_list_sha256": "8f39ad1cc07322ccda082afe6ebd0f0341d8466a76b85e99506bc7ae5c3b1f1f",
+    "token_id_list_sha256": "b467ded09b08e40a86757e693db66b4a455343e2f62e1b9a35fba746c5b3fc1f",
+    "legacy_vllm_evidence": {
+      "job_id": "5780631",
+      "raw_result": "results/vllm-w4a16-serving-llama2-13b/serving-benchmark-raw/rotated_w4a16-latency_c1.json",
+      "raw_result_sha256": "7d4dfdda800e0eb8a89b9c30e4f3258e740f4217b7862eb31345ee64cb6bf807",
+      "first_eight_generated_texts_sha256": "bcb47a523c7a736eed444648e25d12d4f8a474318ef0dffa24e5675e745d4797"
+    }
+  },
+  "vllm": {
+    "generation_config": "vllm",
+    "disable_log_stats": true,
+    "expected_version": "0.25.1+cu129",
+    "expected_torch_version": "2.11.0+cu129",
+    "expected_source_sha256": {
+      "benchmarks/datasets/datasets.py": "3b2ca59e8f9ece9b53d418ddf0b29d38f077ee8118559552cfdcf907973ab099",
+      "benchmarks/datasets/utils.py": "14efee4c78ea60b38e1be458c192ff1972c3295dbebe91bacff414ebcf89c3b6",
+      "benchmarks/lib/endpoint_request_func.py": "e9ab4df19c5d89e1b73f116b4e21f2cc6c7da077266367c4b1b2bd7e015fda59",
+      "engine/arg_utils.py": "3b3ffa6b403d34188c6d2fe7a2dc36debcee7402a17fc6a6145e885130f3dacd"
+    }
+  },
+  "sglang": {
+    "module": "sglang.launch_server",
+    "expected_version": "0.5.16",
+    "expected_torch_version": "2.11.0+cu129",
+    "attention_backend": "flashinfer",
+    "offline_quantization_argument": null,
+    "sampling_defaults": "openai",
+    "enable_jit_deep_gemm": false,
+    "toolchain": {
+      "compiler_module": "gcc-native/13.2",
+      "cuda_module": "cuda/12.6",
+      "expected_compiler_major": 13,
+      "expected_compressed_tensors_version": "0.17.2a20260731",
+      "expected_cray_cuda_version": "12.6",
+      "expected_cudart_soname": "libcudart.so.12",
+      "expected_flashinfer_version": "0.6.14",
+      "jit_cache_namespace": "cuda-12.6-gcc-13.2-tvmffi-0.1.11",
+      "expected_ninja_version": "1.13.0",
+      "expected_nvcc_release": "12.6",
+      "expected_nvcc_version": "12.6.77",
+      "expected_sglang_kernel_version": "0.4.5+cu129",
+      "expected_transformers_version": "5.12.1",
+      "expected_tvm_ffi_version": "0.1.11"
+    },
+    "expected_openai_source_sha256": {
+      "srt/entrypoints/openai/protocol.py": "e032466bf673b4d2e61ba685d085596e44a906b64a1412255d27539255e37281",
+      "srt/entrypoints/openai/serving_completions.py": "ecbc9f5e705ab371381f31c4853e7c397e4b693f0688e73b2c54f8adff73e3cc"
+    },
+    "expected_source_sha256": {
+      "sglang.jit_kernel.gptq_marlin_repack": "c8ec88a9882b0c5befaf7204c5e4c1b328fa33e4f5923696dee7ffa9a1be7e8f",
+      "sglang.jit_kernel.gptq_marlin_repack.cuh": "a1fd81cbce9dacc6bb9d54129a2d266ed594a243d4fdd8fad7d1eb93cf02ad0b",
+      "sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_wNa16": "b2ffbd41a6c46ecbe4efbbbfb94be9531dc7ffd01d8432870022a21766d3249b",
+      "sglang.srt.managers.io_struct": "627b4d3a2881b8eee2bebacef2270c092e9ef488d3c47e8d18fbaef943acda53",
+      "sglang.srt.managers.schedule_batch": "27e20908294c9d76d0a8ae1199ecac4379232532878013404a8b4fb08842ac43",
+      "sglang.srt.managers.scheduler_components.logprob_result_processor": "06fafabefa93327b831c663a3d8e47a3e3450ea719ff5451c8392da4704f9311",
+      "sglang.srt.managers.tokenizer_manager": "4646904f0da00d4810db3e08b90d0dee41d8ecf317c68e99ad8ca727fa96deb8"
+    }
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "sglang_version": "0.5.16",
+    "torch_version": "2.11.0+cu129",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [
+      9,
+      0
+    ]
+  },
+  "scope": "Result-gated client/data-chain smoke for the exact accepted QuaRot-style rotated GPTQ W4A16 checkpoint through one repository-owned OpenAI completions client on vLLM and SGLang; one concurrency-1 repetition with eight measured 256+64 requests; not formal serving-performance evidence"
+}
