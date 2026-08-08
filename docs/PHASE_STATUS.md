@@ -14,7 +14,8 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| SGLang-vLLM W4A16 compatibility | Exact-checkpoint 32-example BoolQ smoke complete on GH200; job `5941763` passed | Both backends scored 64 requests: vLLM 28/32, SGLang 27/32, one prediction disagreement; smoke-only compatibility/score-difference evidence, not formal quality or performance |
+| SpinQuant-derived vLLM W4A16 | Export/load gate `5945162` accepted; full BoolQ job `5952594` submitted and pending | The packed checkpoint has 280 W4A16 decoder linears and passed fresh-process vLLM inference; no BoolQ metric, PPL, serving, or acceleration result is accepted yet |
+| SGLang-vLLM W4A16 compatibility | Exact-checkpoint 32-example BoolQ smoke `5941763` accepted; serving-client smoke `5952554` submitted and pending | Both backends scored 64 BoolQ requests in the accepted smoke: vLLM 28/32, SGLang 27/32, one disagreement. The pending serving smoke is not formal quality or performance evidence |
 | vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
@@ -205,6 +206,18 @@ gap to BF16 while leaving serving performance materially unchanged.
 Downstream-task or broader generation evaluation is not covered and is not
 planned for this closed phase; deployed-checkpoint perplexity is complete.
 
+A separate SpinQuant-derived packed-W4A16 extension now reuses the same vLLM
+runtime without changing the accepted QuaRot-style checkpoint or results.
+Export/load gate `5945162` completed `0:0` from clean revision `f490f58`: the
+checkpoint contains 280 packed decoder linears, selected
+`MacheteLinearKernel`, and passed matched fresh-process BF16/W4A16 inference.
+The accepted export-result, inference-result, and checkpoint-tree SHA-256
+values are recorded in [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md).
+Formal-only BoolQ job `5952594` was submitted from clean revision `138ae9f`
+over the frozen 3,270-example protocol. The latest read-only scheduler snapshot
+shows `PENDING (Priority)` and no result artifact exists, so no downstream
+accuracy is accepted.
+
 The SpinQuant work is isolated under its own implementation, configuration,
 script, and test directories. It does not modify the completed QuaRot pipeline
 or the remote vLLM checkout. Jobs `5841874` and `5842047` accepted one-step and
@@ -233,8 +246,9 @@ claim-to-artifact closeout index.
 
 ## Future separately scoped comparison
 
-The current QuaRot/SpinQuant evidence phase is closed, but this does not close
-serving-system research. A future study may compare SGLang and vLLM under the
+The earlier QuaRot/SpinQuant reproduction phase is closed; the separately
+scoped deployment extensions above do not rewrite its results. Serving-system
+research may compare SGLang and vLLM under the
 same GH200, checkpoint, request stream, quality gate, and observed resource
 budget. It is defined separately in
 [`SERVING_BACKEND_COMPARISON_PLAN.md`](SERVING_BACKEND_COMPARISON_PLAN.md).
@@ -398,5 +412,6 @@ and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
 any future timeout. This does not accept SGLang performance or authorize the
 formal matrix. The repair was committed as `752a01d`; replacement smoke
 `5952554` was submitted alone from that clean revision after local and
-Isambard static acceptance, with no formal dependency. Its result is unreviewed
-and will not be monitored until the user explicitly requests inspection.
+Isambard static acceptance, with no formal dependency. The 2026-08-08
+read-only snapshot shows `PENDING (Priority)` and no result artifact. No formal
+matrix is queued, and no serving-performance value is accepted.

@@ -249,6 +249,12 @@ sbatch \
   scripts/run_isambard_vllm_spinquant_w4a16_llama2_13b_boolq.sbatch formal
 ```
 
+Execution record: scheduler validation passed and formal-only job `5952594`
+was submitted from clean revision
+`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f`. The 2026-08-08 read-only
+snapshot is `PENDING (Priority)` with no result artifact. Do not treat the
+submission as accuracy evidence and do not submit a duplicate job.
+
 Success requires exit code `0:0`, 3,270 examples and 6,540 choice requests for
 both models, and
 `ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_BOOLQ_PASSED`. The job-specific JSON

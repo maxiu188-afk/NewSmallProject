@@ -21,6 +21,13 @@ rejected by an invalid legacy generated-text equality gate. Neither failure is
 backend-performance evidence. No concurrency-8 cell, paired repetition,
 formal benchmark, or Slurm dependency was submitted.
 
+The first repair replacement `5949509` later reached W4A16 load and CUDA-graph
+capture but stalled at Uvicorn application startup. A second bounded repair
+restores the known-good checkpoint-path model ID and captures startup stacks on
+timeout. Result-gated smoke `5952554` was submitted alone from clean revision
+`752a01d`; the 2026-08-08 snapshot is `PENDING (Priority)` with no artifact.
+No formal matrix is authorized or queued.
+
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
 acceptance before a formal comparison is submitted.
@@ -446,7 +453,9 @@ and SGLang stack diagnostics before cleanup if readiness still times out. The
 model, environments, corpus, workload, resources, and formal matrix remain
 unchanged. The repair was committed as `752a01d`; replacement smoke `5952554`
 was submitted alone from that clean revision with no formal dependency. It
-must be explicitly reviewed before any formal matrix is authorized.
+must be explicitly reviewed before any formal matrix is authorized. The
+2026-08-08 read-only snapshot remains `PENDING (Priority)` and contains no
+result artifact.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

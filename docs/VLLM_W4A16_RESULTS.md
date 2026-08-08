@@ -10,7 +10,8 @@ checkpoints on one NVIDIA GH200.
 
 This route is not original QuaRot W4A4KV4. It omits online MLP/QK transforms
 and the custom KV4 cache. It is also separate from the repository's owned W4A8
-kernel.
+kernel. A separately scoped SpinQuant-derived packed-W4A16 extension is
+recorded below; it does not change the accepted QuaRot-style results.
 
 ## Accepted evidence chain
 
@@ -24,6 +25,7 @@ kernel.
 | Matched full-model serving | `5780631` | Six model/concurrency groups each completed 64/64 measured requests with zero failures |
 | Real layer-0 hook smoke | `5784966` | The packed W4A16 `LlamaDecoderLayer` executed with valid CUDA-event prefill and decode records |
 | Matched layer-0 diagnostic | `5784967` | BF16 and both W4A16 variants completed all eight prefill/decode cases |
+| SpinQuant-derived export/load gate | `5945162` | The learned R1/R2 artifact produced a complete 280-linear packed W4A16 checkpoint and passed fresh-process vLLM inference; downstream quality and performance remained unmeasured |
 
 The Llama-2-13B offline inference result used vLLM `0.25.1+cu129`, PyTorch
 `2.11.0+cu129`, CUDA 12.9, and GH200 SM90. The W4 checkpoints each contain 280
@@ -126,6 +128,36 @@ not show a stable performance advantage over unrotated W4A16.
 
 The accepted diagnostic-result SHA-256 is
 `0a5e9658c3a2205b6e2465472f81bd004370ba7b4db1c46f07123fe3a538c5cb`.
+
+## Active SpinQuant-derived packed-W4A16 extension
+
+Source gate `5945162` completed `0:0` in 22 minutes 7 seconds from clean
+revision `f490f58f94f4af30d4a8f326dcab0fbaf4ff5213`. It reused the accepted
+100-step SpinQuant W4A16 weight-QDQ-trained R1/R2 artifact, fused the learned
+rotation offline, calibrated group-128 GPTQ on 128 x 2,048 WikiText-2 tokens,
+and exported a standard compressed-tensors `pack-quantized` checkpoint. The
+checkpoint has 280 packed decoder linears, no activation quantization, no
+online rotation modules, and selected `MacheteLinearKernel` when loaded by
+vLLM `0.25.1+cu129` on GH200.
+
+The gate launched BF16 and `spinquant_w4a16` in separate fresh processes. Both
+returned the same eight greedy token IDs; this is load/inference evidence, not
+task accuracy. The reviewed bindings are:
+
+| Artifact | SHA-256 |
+|---|---|
+| Export result | `b21ca19f34bf24470fdec797f90821b46edb77bfc1717c23724b989aa4ff05cf` |
+| Offline inference result | `fa533a64f7b8345b547f45b6fa666ca8e6181d3369dc487dc74c5cf171f995c4` |
+| Source manifest | `4d11a0186139a840f9e94e27fb810957afcb7e2af53083af62cdb11934a963f4` |
+| Checkpoint tree | `41a79153d2ad7e0fb598819adc538ce65ba7c1a05629459f77cb816d226ce2da` |
+
+Formal-only BoolQ job `5952594` was submitted from clean evaluation revision
+`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f` using the same frozen zero-shot
+3,270-example validation artifact and scoring protocol as the accepted W4AFP8
+BoolQ evaluations. The 2026-08-08 read-only scheduler snapshot is
+`PENDING (Priority)` and the result directory contains no job artifact.
+Therefore no SpinQuant W4A16 BoolQ accuracy, PPL, serving, memory, or
+acceleration result is accepted.
 
 ## Conclusions and closed boundary
 

@@ -15,6 +15,15 @@ runtime failure. It does not contain a valid paired performance result, the
 concurrency-8 cell, or the three paired repetitions required for the formal
 matrix. No formal job is queued.
 
+The subsequent harness-only replacement `5949509` also failed before a paired
+result: vLLM completed the smoke workload, while SGLang loaded the exact W4A16
+checkpoint and captured CUDA graphs but remained at Uvicorn application
+startup until timeout. Repair revision `752a01d` restores the previously
+healthy checkpoint-path model ID and adds bounded startup diagnostics.
+Result-gated smoke `5952554` was submitted alone from that revision. The
+2026-08-08 scheduler snapshot is `PENDING (Priority)`, no artifact exists, and
+the formal matrix remains unqueued.
+
 The reviewed SGLang evidence establishes one negative boundary for the exact
 W4AFP8 checkpoint, identifies one correctable BF16 launch-environment failure,
 and confirms that SGLang `0.5.16` can load, serve, and score the exact accepted
@@ -247,4 +256,5 @@ revision `752a01d950e3886989ad4541f901c9a31d6ba195` passed 180 local tests with
 one skip, 15 focused Isambard tests, external-source hashes, the immutable
 280-linear checkpoint gate, and `sbatch --test-only`. Replacement smoke
 `5952554` was then submitted alone with no formal dependency; its artifacts
-are unreviewed and it will not be continuously monitored.
+are absent in the 2026-08-08 `PENDING (Priority)` snapshot. It will not be
+treated as evidence or trigger a formal matrix before explicit result review.
