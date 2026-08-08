@@ -1,6 +1,6 @@
 {
   "config_version": 1,
-  "status": "replacement_result_gated_smoke_submitted_awaiting_review",
+  "status": "failed_replacement_reviewed_harness_repair_prepared",
   "source_gate": {
     "status": "accepted",
     "job_id": "5769503",
@@ -21,7 +21,12 @@
     "supersedes_job_id": "5944823",
     "replacement_job_id": "5949509",
     "replacement_source_revision": "ac82347cb4bbe467c5242ebc35faf23d7be160af",
-    "replacement_submission_policy": "submitted alone with no formal dependency; do not inspect until explicitly requested",
+    "replacement_submission_policy": "submitted alone with no formal dependency; inspected only after the user explicitly reported failure",
+    "replacement_outcome": "failed after SGLang loaded the exact checkpoint and completed CUDA graph capture but did not complete HTTP application startup within the shared readiness timeout",
+    "replacement_result_sha256": "8e17f4939dc5ffcf7d048c61a11c3a34a97c8764d26924755100bbc7ae772908",
+    "replacement_sglang_log_sha256": "bf3f00dd5b78cc3c652d78df01302cd02581d545019c3939ca236eb5bac7cec3",
+    "replacement_vllm_raw_sha256": "3ee7cbb2610d3c60f530093bca77bed3d046d6212402aba9407fa4cfb3e96723",
+    "next_repair": "restore the previously healthy checkpoint-path model ID for both backends, validate the ID returned by v1/models, use backend-specific readiness budgets, and capture process, port, GPU, and SGLang stack diagnostics on timeout",
     "sglang_failure": "served model name was not passed, so the harness rejected the checkpoint path returned by v1/models before any measured request",
     "vllm_failure": "legacy generated-text equality was incorrectly used as a request-corpus identity gate",
     "scope": "harness-only repair; model, runtime environments, request corpus, workload, resource request, and experiment matrix unchanged"
@@ -39,7 +44,12 @@
     "max_running_requests": 8,
     "seed": 0,
     "ready_timeout_seconds": 900,
+    "ready_timeout_seconds_by_backend": {
+      "vllm": 900,
+      "sglang": 1200
+    },
     "stop_timeout_seconds": 90,
+    "served_model_id_policy": "checkpoint_path",
     "kv_cache_dtype": "bfloat16",
     "kv_cache_memory_bytes": 8589934592,
     "kv_bytes_per_token": 819200,

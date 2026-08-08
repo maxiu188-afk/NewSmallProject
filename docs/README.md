@@ -81,9 +81,11 @@ result-gated smoke into an automatically queued formal job.
   27/32, one prediction disagreement. Serving-client smoke `5944823` failed on
   two reviewed harness gates after SGLang successfully loaded and became
   healthy. Harness-only repair revision `ac82347` was validated, and its single
-  replacement result-gated smoke `5949509` was submitted alone; it is
-  unreviewed, no formal job is queued, and it is not being continuously
-  monitored. This is not yet formal quality or serving-performance evidence.
+  replacement result-gated smoke `5949509` failed after vLLM completed the
+  workload and SGLang loaded/captured graphs but stalled before Uvicorn
+  application startup completed. A bounded repair restores the known-good
+  checkpoint-path model ID and adds timeout diagnostics; no formal job is
+  queued. This is not yet formal quality or serving-performance evidence.
 
 ## Method, policy, and reusable reference
 
