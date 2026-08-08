@@ -112,6 +112,10 @@ def _server_command(
     config: dict[str, Any],
 ) -> list[str]:
     server = config["server"]
+    use_explicit_served_name = (
+        server.get("served_model_id_policy", "explicit_alias")
+        != "checkpoint_path"
+    )
     if backend == "vllm":
         command = [
             str(executable),
@@ -121,8 +125,6 @@ def _server_command(
             str(server["host"]),
             "--port",
             str(server["port"]),
-            "--served-model-name",
-            served_name,
             "--dtype",
             str(server["dtype"]),
             "--max-model-len",
@@ -138,6 +140,8 @@ def _server_command(
             "--generation-config",
             str(config["vllm"]["generation_config"]),
         ]
+        if use_explicit_served_name:
+            command.extend(["--served-model-name", served_name])
         if config["vllm"]["disable_log_stats"]:
             command.append("--disable-log-stats")
         if server.get("disable_prefix_cache"):
@@ -172,6 +176,8 @@ def _server_command(
         "--sampling-defaults",
         str(config["sglang"]["sampling_defaults"]),
     ]
+    if use_explicit_served_name:
+        command.extend(["--served-model-name", served_name])
     if server["disable_prefix_cache"]:
         command.append("--disable-radix-cache")
     if server["disable_chunked_prefill"]:
@@ -235,6 +241,89 @@ class _Server:
         self.released_memory_mib = 0
         self.startup_seconds = 0.0
 
+    def _ready_timeout_seconds(self) -> int:
+        server = self.config["server"]
+        per_backend = server.get("ready_timeout_seconds_by_backend", {})
+        return int(per_backend.get(self.backend, server["ready_timeout_seconds"]))
+
+    def _append_timeout_diagnostics(self, timeout_seconds: int) -> None:
+        if self.process is None or self.log_handle is None:
+            return
+        self.log_handle.flush()
+        header = (
+            "\nSGLANG_VLLM_SERVER_READINESS_TIMEOUT "
+            f"backend={self.backend} pid={self.process.pid} "
+            f"timeout_seconds={timeout_seconds}\n"
+        )
+        self.log_handle.write(header)
+        commands = [
+            (
+                "process_session",
+                [
+                    "ps",
+                    "-ww",
+                    "-o",
+                    "pid,ppid,pgid,sid,stat,etime,pcpu,pmem,rss,vsz,wchan:32,cmd",
+                    "--sid",
+                    str(self.process.pid),
+                ],
+            ),
+            (
+                "listening_port",
+                [
+                    "ss",
+                    "-ltnp",
+                    "sport",
+                    "=",
+                    f":{self.config['server']['port']}",
+                ],
+            ),
+            (
+                "gpu_processes",
+                [
+                    "nvidia-smi",
+                    "--query-compute-apps=pid,used_memory",
+                    "--format=csv,noheader,nounits",
+                ],
+            ),
+        ]
+        py_spy = self.executable.parent / "py-spy"
+        if py_spy.is_file():
+            commands.append(
+                ("python_stack", [str(py_spy), "dump", "--pid", str(self.process.pid)])
+            )
+        for label, command in commands:
+            self.log_handle.write(f"SGLANG_VLLM_TIMEOUT_DIAGNOSTIC_BEGIN={label}\n")
+            try:
+                completed = subprocess.run(
+                    command,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                self.log_handle.write(f"returncode={completed.returncode}\n")
+                self.log_handle.write(completed.stdout)
+                self.log_handle.write(completed.stderr)
+            except Exception as error:
+                self.log_handle.write(f"diagnostic_error={error!r}\n")
+            self.log_handle.write(f"SGLANG_VLLM_TIMEOUT_DIAGNOSTIC_END={label}\n")
+        self.log_handle.flush()
+
+        # SGLang installs a SIGQUIT diagnostic handler that attempts to dump
+        # its live scheduler stacks. At this point readiness has already timed
+        # out, so trigger it before the normal process-group cleanup.
+        if self.backend == "sglang" and self.process.poll() is None:
+            try:
+                os.kill(self.process.pid, signal.SIGQUIT)
+                self.process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                pass
+            except ProcessLookupError:
+                pass
+            finally:
+                self.log_handle.flush()
+
     @property
     def base_url(self) -> str:
         server = self.config["server"]
@@ -261,7 +350,8 @@ class _Server:
             start_new_session=True,
         )
         started = time.monotonic()
-        deadline = started + int(server["ready_timeout_seconds"])
+        timeout_seconds = self._ready_timeout_seconds()
+        deadline = started + timeout_seconds
         try:
             while time.monotonic() < deadline:
                 return_code = self.process.poll()
@@ -276,7 +366,10 @@ class _Server:
                     return self
                 except (OSError, RuntimeError, json.JSONDecodeError):
                     time.sleep(2.0)
-            raise TimeoutError(f"{self.backend} did not become ready")
+            self._append_timeout_diagnostics(timeout_seconds)
+            raise TimeoutError(
+                f"{self.backend} did not become ready within {timeout_seconds} seconds"
+            )
         except BaseException:
             self.__exit__(*sys.exc_info())
             raise

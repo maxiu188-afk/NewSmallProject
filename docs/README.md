@@ -38,8 +38,9 @@ result-gated smoke into an automatically queued formal job.
 - [`OFFICIAL_QUAROT_RESULTS.md`](OFFICIAL_QUAROT_RESULTS.md): consolidated
   official-backend full-model and paper-aligned single-block results.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
-  deployed-checkpoint PPL, full-model serving result, and same-environment
-  layer-0 diagnostic.
+  QuaRot-style deployed-checkpoint PPL, full-model serving result, and
+  same-environment layer-0 diagnostic, plus the accepted SpinQuant-derived
+  packed-W4A16 export/load gate and its still-pending BoolQ extension.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
   and matched serving for the INT8-trained transfer and FP8-targeted SpinQuant
   endpoints, plus the accepted min/max-versus-MSE and old/new SpinQuant BoolQ
@@ -63,7 +64,8 @@ result-gated smoke into an automatically queued formal job.
 ## Active implementation and runbook
 
 - [`VLLM_W4A16_ISAMBARD_RUNBOOK.md`](VLLM_W4A16_ISAMBARD_RUNBOOK.md):
-  Isambard GH200 environment, completed gates, and reproduction procedure.
+  Isambard GH200 environment, completed gates, SpinQuant-derived W4A16 BoolQ
+  submission state, and reproduction procedure.
 - [`W4A8_CUDA_KERNEL_RESULTS.md`](W4A8_CUDA_KERNEL_RESULTS.md): owned packed-W4
   and W4A8 correctness record, including the 280-linear decoder gate.
 - [`PACKED_W4_FORMAT.md`](PACKED_W4_FORMAT.md): owned checkpoint format and
@@ -78,9 +80,16 @@ result-gated smoke into an automatically queued formal job.
   reviewed GH200 compatibility-smoke record. It confirms that SGLang `0.5.16`
   cannot load the exact unchanged dense W4AFP8 checkpoint, and records the
   accepted exact-checkpoint QuaRot W4A16 BoolQ smoke: vLLM 28/32, SGLang
-  27/32, one prediction disagreement. Result-gated serving-client smoke
-  `5944823` is submitted but unreviewed; no formal job is queued. This is not
-  yet formal quality or serving-performance evidence.
+  27/32, one prediction disagreement. Serving-client smoke `5944823` failed on
+  two reviewed harness gates after SGLang successfully loaded and became
+  healthy. Harness-only repair revision `ac82347` was validated, and its single
+  replacement result-gated smoke `5949509` failed after vLLM completed the
+  workload and SGLang loaded/captured graphs but stalled before Uvicorn
+  application startup completed. A bounded repair restores the known-good
+  checkpoint-path model ID and adds timeout diagnostics. Replacement smoke
+  `5952554` was submitted alone from repair revision `752a01d`; it is
+  still pending with no result artifact, and no formal job is queued. This is
+  not yet formal quality or serving-performance evidence.
 
 ## Method, policy, and reusable reference
 

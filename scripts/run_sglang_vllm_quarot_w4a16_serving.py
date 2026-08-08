@@ -82,6 +82,11 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("prefix caching must remain disabled")
     if not server.get("disable_chunked_prefill"):
         raise ValueError("chunked prefill must remain disabled")
+    if server.get("served_model_id_policy") != "checkpoint_path":
+        raise ValueError("serving smoke must use the shared checkpoint-path model ID")
+    ready_timeouts = server.get("ready_timeout_seconds_by_backend")
+    if ready_timeouts != {"vllm": 900, "sglang": 1200}:
+        raise ValueError("backend-specific readiness budgets drifted")
 
     benchmark = config["benchmark"]
     if benchmark.get("protocol") != "repository_openai_completions_stream_v1":
@@ -117,6 +122,14 @@ def _validate_config(config: dict[str, Any]) -> None:
     for key, value in expected_corpus.items():
         if corpus.get(key) != value:
             raise ValueError(f"request corpus field drifted: {key}")
+    legacy = corpus["legacy_vllm_evidence"]
+    if legacy.get("prompts_retained") is not False:
+        raise ValueError("legacy serving provenance must not claim retained prompts")
+    if (
+        legacy.get("output_hash_policy")
+        != "diagnostic_only_not_corpus_identity"
+    ):
+        raise ValueError("legacy output-hash evidence policy drifted")
     if config["sglang"].get("attention_backend") != "flashinfer":
         raise ValueError("SGLang must use the accepted FlashInfer attention path")
     if config["sglang"].get("offline_quantization_argument") is not None:
@@ -525,7 +538,7 @@ def _sample_memory(
         stop.wait(interval_seconds)
 
 
-def _validate_legacy_vllm_outputs(
+def _legacy_vllm_output_diagnostic(
     measured: list[dict[str, Any]], config: dict[str, Any]
 ) -> dict[str, Any]:
     generated = [item["generated_text"] for item in measured]
@@ -534,6 +547,7 @@ def _validate_legacy_vllm_outputs(
         "first_eight_generated_texts_sha256"
     ]
     return {
+        "policy": "diagnostic_only_not_corpus_identity",
         "status": "matched" if observed == expected else "mismatched",
         "observed_first_eight_generated_texts_sha256": observed,
         "expected_first_eight_generated_texts_sha256": expected,
@@ -552,7 +566,7 @@ def _run_case(
     log_dir: Path,
     raw_dir: Path,
 ) -> dict[str, Any]:
-    served_name = f"llama2-13b-{backend}-quarot-w4a16"
+    served_name = str(model_path)
     case_name = str(case["name"])
     log_path = log_dir / f"{backend}-{case_name}-server.log"
     raw_path = raw_dir / f"{backend}-{case_name}.json"
@@ -613,8 +627,8 @@ def _run_case(
             raise RuntimeError("GPU memory sampler recorded no observations")
 
     assert server is not None and workload is not None
-    legacy_link = (
-        _validate_legacy_vllm_outputs(workload["measured"], config)
+    legacy_diagnostic = (
+        _legacy_vllm_output_diagnostic(workload["measured"], config)
         if backend == "vllm"
         else None
     )
@@ -622,15 +636,12 @@ def _run_case(
         "backend": backend,
         "case": case,
         "server_command": command,
+        "served_model_ids": model_ids,
         "workload": workload,
         "memory_samples": memory_samples,
-        "legacy_vllm_corpus_link": legacy_link,
+        "legacy_vllm_output_diagnostic": legacy_diagnostic,
     }
     _write_json(raw_path, raw_record)
-    if legacy_link is not None and legacy_link["status"] != "matched":
-        raise RuntimeError(
-            "vLLM outputs do not link the reconstructed corpus to accepted job 5780631"
-        )
     peak_memory = max(
         [server.ready_memory_mib]
         + [int(item["gpu_memory_used_mib"]) for item in memory_samples]
@@ -650,7 +661,7 @@ def _run_case(
         "server_log_sha256": _sha256(log_path),
         "raw_result": str(raw_path),
         "raw_result_sha256": _sha256(raw_path),
-        "legacy_vllm_corpus_link": legacy_link,
+        "legacy_vllm_output_diagnostic": legacy_diagnostic,
         "kernel_log_excerpt": _log_excerpt(
             log_path,
             [
@@ -785,7 +796,16 @@ def main() -> int:
                         _sha256(raw_path) if raw_path.is_file() else None
                     ),
                     "log_excerpt": _log_excerpt(
-                        log_path, ["error", "exception", "traceback", "kernel"]
+                        log_path,
+                        [
+                            "error",
+                            "exception",
+                            "traceback",
+                            "kernel",
+                            "readiness_timeout",
+                            "timeout_diagnostic",
+                            "waiting for application startup",
+                        ],
                     ),
                 }
 

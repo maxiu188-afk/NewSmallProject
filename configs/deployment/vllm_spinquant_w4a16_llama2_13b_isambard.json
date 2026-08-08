@@ -1,0 +1,59 @@
+{
+  "config_version": 1,
+  "status": "accepted_rotation_ready_for_export_gate",
+  "model": {
+    "id": "meta-llama/Llama-2-13b-hf",
+    "revision": "5c31dfb671ce7cfe2d7bb7c04375e44c55e815b1",
+    "dtype": "bfloat16",
+    "expected_architecture": "LlamaForCausalLM",
+    "expected_layers": 40,
+    "expected_decoder_linears": 280
+  },
+  "calibration": {
+    "dataset_id": "Salesforce/wikitext",
+    "dataset_subset": "wikitext-2-raw-v1",
+    "dataset_split": "train",
+    "dataset_revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "text_field": "text",
+    "samples": 128,
+    "sequence_length": 2048,
+    "max_rows": 100000,
+    "seed": 0
+  },
+  "quantization": {
+    "algorithm": "GPTQ",
+    "scheme": "W4A16",
+    "group_size": 128,
+    "targets": "Linear",
+    "ignore": ["lm_head"],
+    "format": "pack-quantized"
+  },
+  "rotation": {
+    "seed": 0,
+    "max_absolute_logit_error_tolerance": 0.25,
+    "maximum_orthogonality_error": 0.0001,
+    "spinquant_training_job_id": "5842047",
+    "spinquant_training_project_revision": "ee5e754f80f29925ce0531c5357bee3b835de5d0",
+    "spinquant_training_result_sha256": "7da9f951a65f0962f7a08eea72934c5976bdeb483410487b1b5947358a72af6e",
+    "spinquant_rotation_manifest_sha256": "825701f474aa38d9b3c063775429813c9ce7673f229282df7ed6b7d54f156ad5",
+    "spinquant_rotation_safetensors_sha256": "303c614f425ea5d37e138643dd52a2410a4747fda7e3038587c93a2db05a57fe",
+    "spinquant_evidence_label": "W4A16_weight_trained_rotation_to_packed_W4A16"
+  },
+  "inference": {
+    "prompt": "The capital of France is",
+    "max_new_tokens": 8,
+    "max_model_len": 256,
+    "max_logprobs": 128,
+    "gpu_memory_utilization": 0.75
+  },
+  "runtime": {
+    "torch_version": "2.11.0+cu129",
+    "vllm_version": "0.25.1+cu129",
+    "llmcompressor_version": "0.12.0",
+    "quantizer_compressed_tensors_version": "0.17.1",
+    "quantizer_transformers_version": "5.10.1",
+    "safetensors_version": "0.8.0",
+    "artifact_subdir": "newsmallproject-vllm/llama2-13b-spinquant-w4a16"
+  },
+  "scope": "Export and fresh-process vLLM load gate for a SpinQuant-derived packed Llama-2-13B W4A16 endpoint using the accepted W4A16 weight-QDQ-trained R1/R2 artifact; no BoolQ, PPL, serving, acceleration, or paper-faithful deployment claim"
+}

@@ -131,7 +131,7 @@ and the formal result SHA256 is
 The rotation artifact is accepted as the source of the completed corrected
 PPL result; its training loss alone is not quality evidence.
 
-## Closed deployment continuation
+## Completed W4AFP8 deployment continuation
 
 The formerly planned W4AFP8 continuation is complete. The corrected learned
 rotation was retained as an INT8-trained transfer endpoint, and a separate
@@ -140,7 +140,15 @@ under the backend-constrained group-128/no-actorder/min-max W4AFP8 protocol.
 Packed fresh-process loading, formal deployed PPL, matched full-model serving,
 and BoolQ are accepted in [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md).
 
-No further experiment is planned in this phase. The separately labelled
-paper-GPTQ W4A8 endpoint, the paper's online `had` R3/R4 extension, FP8 KV, and
-new serving backends remain unmeasured scope boundaries rather than pending
-stages.
+The original reproduction and W4AFP8 continuation remain closed. A later,
+separately scoped deployment extension exported the accepted 100-step W4A16
+weight-QDQ-trained R1/R2 artifact as a standard packed W4A16 checkpoint.
+Export/load gate `5945162` is accepted; formal BoolQ job `5952594` is submitted
+but still pending with no result artifact. This does not convert the fake-quant
+PPL above into packed-deployment evidence and does not establish BoolQ,
+serving, or acceleration. Its provenance and current state are recorded in
+[`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md).
+
+The separately labelled paper-GPTQ W4A8 endpoint, the paper's online `had`
+R3/R4 extension, and FP8 KV remain unmeasured scope boundaries rather than
+pending stages.

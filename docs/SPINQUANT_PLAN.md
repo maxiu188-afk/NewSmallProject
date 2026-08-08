@@ -3,7 +3,8 @@
 > Status: the experimental stages described here are complete or deliberately
 > closed. This file is retained for implementation and decision provenance;
 > [`SPINQUANT_RESULTS.md`](SPINQUANT_RESULTS.md),
-> [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md), and
+> [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md),
+> [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md), and
 > [`EVIDENCE_LEDGER.md`](EVIDENCE_LEDGER.md) are the current result entry points.
 
 ## Scope and implementation policy
@@ -216,6 +217,14 @@ The completed W4A16 SpinQuant experiment is retained as a matched weight-only
 ablation. The completed QuaRot-style W4A16 vLLM deployment remains valid for
 its own workstream; neither result is relabelled as paper-faithful SpinQuant
 deployment.
+
+A later isolated extension uses the accepted 100-step W4A16 rotation as input
+to a standard packed group-128 W4A16 export. Gate `5945162` accepted export,
+280-linear coverage, `MacheteLinearKernel`, and fresh-process vLLM inference.
+Formal BoolQ job `5952594` is submitted from its own evaluation revision but is
+still pending with no result artifact. This extension is tracked in
+[`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md); it does not alter this
+closed reproduction plan or establish serving acceleration.
 
 ### Pre-execution migration assessment
 

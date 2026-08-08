@@ -14,7 +14,8 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| SGLang-vLLM W4A16 compatibility | Exact-checkpoint 32-example BoolQ smoke complete on GH200; job `5941763` passed | Both backends scored 64 requests: vLLM 28/32, SGLang 27/32, one prediction disagreement; smoke-only compatibility/score-difference evidence, not formal quality or performance |
+| SpinQuant-derived vLLM W4A16 | Export/load gate `5945162` accepted; full BoolQ job `5952594` submitted and pending | The packed checkpoint has 280 W4A16 decoder linears and passed fresh-process vLLM inference; no BoolQ metric, PPL, serving, or acceleration result is accepted yet |
+| SGLang-vLLM W4A16 compatibility | Exact-checkpoint 32-example BoolQ smoke `5941763` accepted; serving-client smoke `5952554` submitted and pending | Both backends scored 64 BoolQ requests in the accepted smoke: vLLM 28/32, SGLang 27/32, one disagreement. The pending serving smoke is not formal quality or performance evidence |
 | vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
@@ -205,6 +206,18 @@ gap to BF16 while leaving serving performance materially unchanged.
 Downstream-task or broader generation evaluation is not covered and is not
 planned for this closed phase; deployed-checkpoint perplexity is complete.
 
+A separate SpinQuant-derived packed-W4A16 extension now reuses the same vLLM
+runtime without changing the accepted QuaRot-style checkpoint or results.
+Export/load gate `5945162` completed `0:0` from clean revision `f490f58`: the
+checkpoint contains 280 packed decoder linears, selected
+`MacheteLinearKernel`, and passed matched fresh-process BF16/W4A16 inference.
+The accepted export-result, inference-result, and checkpoint-tree SHA-256
+values are recorded in [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md).
+Formal-only BoolQ job `5952594` was submitted from clean revision `138ae9f`
+over the frozen 3,270-example protocol. The latest read-only scheduler snapshot
+shows `PENDING (Priority)` and no result artifact exists, so no downstream
+accuracy is accepted.
+
 The SpinQuant work is isolated under its own implementation, configuration,
 script, and test directories. It does not modify the completed QuaRot pipeline
 or the remote vLLM checkout. Jobs `5841874` and `5842047` accepted one-step and
@@ -233,8 +246,9 @@ claim-to-artifact closeout index.
 
 ## Future separately scoped comparison
 
-The current QuaRot/SpinQuant evidence phase is closed, but this does not close
-serving-system research. A future study may compare SGLang and vLLM under the
+The earlier QuaRot/SpinQuant reproduction phase is closed; the separately
+scoped deployment extensions above do not rewrite its results. Serving-system
+research may compare SGLang and vLLM under the
 same GH200, checkpoint, request stream, quality gate, and observed resource
 budget. It is defined separately in
 [`SERVING_BACKEND_COMPARISON_PLAN.md`](SERVING_BACKEND_COMPARISON_PLAN.md).
@@ -363,11 +377,41 @@ artifact/log hashes were recomputed successfully. This accepts the bounded
 exact-checkpoint compatibility and smoke score-difference result, not formal
 BoolQ quality or serving performance. No formal job is submitted.
 
-The next bounded step is now submitted but not accepted. Revision `78ed96c`
+The next bounded step was submitted but is not accepted. Revision `78ed96c`
 adds one repository-owned OpenAI streaming client and a pre-hashed 64-request
 corpus that reconstructs the accepted random 256-token workload. It explicitly
 aligns BF16 KV, the 8 GiB KV budget, prefix-cache disabling, and chunked-prefill
 disabling across both backends. Result-gated job `5944823` was submitted alone
-with only concurrency 1 and eight measured 64-token outputs per backend. Its
-artifacts have not been reviewed; no SGLang performance number is accepted,
-and no concurrency-8 or formal paired-repetition job is submitted.
+with only concurrency 1 and eight measured 64-token outputs per backend. It
+failed closed `1:0` after 4 minutes 12 seconds for two harness reasons. SGLang
+passed the CUDA 12.6 Marlin preflight, loaded W4A16, allocated the exact 8 GiB
+BF16 KV pool, and reached healthy service; the launcher then omitted its served
+model name, so the harness rejected the checkpoint path returned by
+`/v1/models` before measured requests. vLLM completed all 13 requests but was
+rejected by an invalid old generated-output equality gate. The old serving
+artifact retained no prompts, so that comparison is diagnostic rather than
+request identity. A harness-only replacement is required. No SGLang
+performance number is accepted, and no concurrency-8 or formal paired-
+repetition job is submitted. Revision `ac82347` fixes only those two harness
+gates. Replacement result-gated smoke `5949509` was submitted alone from that
+clean revision with no formal dependency. It failed `1:0` after 24 minutes 34
+seconds. The prior fixes worked: vLLM passed all eight measured 256+64 requests,
+and SGLang received the configured served model name. SGLang also passed the
+CUDA 12.6 Marlin preflight, loaded the exact 6.82 GB W4A16 checkpoint, allocated
+the 8 GiB BF16 KV pool, and completed decode CUDA-graph capture without an OOM
+or exception. It then remained at Uvicorn `Waiting for application startup`
+until the 900-second readiness deadline. Result SHA-256 is
+`8e17f4939dc5ffcf7d048c61a11c3a34a97c8764d26924755100bbc7ae772908`;
+SGLang log SHA-256 is
+`bf3f00dd5b78cc3c652d78df01302cd02581d545019c3939ca236eb5bac7cec3`.
+The underlying application-startup stall is not localized because the failed
+run retained no process stack. The next harness-only repair restores the
+previously healthy checkpoint-path model ID for both servers, validates the
+single ID returned by `/v1/models`, assigns SGLang its own readiness budget,
+and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
+any future timeout. This does not accept SGLang performance or authorize the
+formal matrix. The repair was committed as `752a01d`; replacement smoke
+`5952554` was submitted alone from that clean revision after local and
+Isambard static acceptance, with no formal dependency. The 2026-08-08
+read-only snapshot shows `PENDING (Priority)` and no result artifact. No formal
+matrix is queued, and no serving-performance value is accepted.

@@ -35,6 +35,13 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
             [{"name": "smoke_c1", "max_concurrency": 1}],
         )
         self.assertIn("not formal", self.config["scope"])
+        self.assertEqual(
+            self.config["server"]["served_model_id_policy"], "checkpoint_path"
+        )
+        self.assertEqual(
+            self.config["server"]["ready_timeout_seconds_by_backend"],
+            {"vllm": 900, "sglang": 1200},
+        )
 
     def test_request_corpus_is_precommitted_by_three_hashes(self):
         corpus = self.config["request_corpus"]
@@ -69,6 +76,7 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
         self.assertEqual(
             vllm[vllm.index("--kv-cache-dtype") + 1], "bfloat16"
         )
+        self.assertNotIn("--served-model-name", vllm)
 
         sglang = _server_command(
             backend="sglang",
@@ -81,7 +89,16 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
         self.assertEqual(
             sglang[sglang.index("--chunked-prefill-size") + 1], "-1"
         )
+        self.assertNotIn("--served-model-name", sglang)
         self.assertNotIn("--quantization", sglang)
+
+    def test_timeout_diagnostics_are_fail_closed(self):
+        source = (
+            PROJECT_ROOT / "scripts/run_sglang_vllm_llama2_13b_smoke.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SGLANG_VLLM_SERVER_READINESS_TIMEOUT", source)
+        self.assertIn("SGLANG_VLLM_TIMEOUT_DIAGNOSTIC_BEGIN", source)
+        self.assertIn("signal.SIGQUIT", source)
 
     def test_summary_reports_all_required_throughputs_and_percentiles(self):
         measured = []
@@ -116,10 +133,13 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE._percentile([], 50)
 
-    def test_legacy_link_fails_closed_on_output_drift(self):
+    def test_legacy_output_mismatch_is_diagnostic_not_corpus_identity(self):
         measured = [{"generated_text": str(index)} for index in range(8)]
-        result = MODULE._validate_legacy_vllm_outputs(measured, self.config)
+        result = MODULE._legacy_vllm_output_diagnostic(measured, self.config)
         self.assertEqual(result["status"], "mismatched")
+        self.assertEqual(
+            result["policy"], "diagnostic_only_not_corpus_identity"
+        )
         self.assertEqual(result["accepted_job"]["job_id"], "5780631")
 
     def test_batch_script_submits_no_formal_work(self):
@@ -130,6 +150,9 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
         self.assertNotIn("afterok", text)
         self.assertNotIn("sbatch ", text.replace("#   sbatch ", ""))
         self.assertIn("formal_job=not_submitted", text)
+        self.assertNotIn(
+            'legacy_vllm_corpus_link"]["status"] == "matched"', text
+        )
         self.assertIn("module load cuda/12.6", text)
         self.assertIn("module load gcc-native/13.2", text)
         self.assertIn("SGLANG_VLLM_W4A16_SERVING_EXTERNAL_SOURCES_ACCEPTED", text)

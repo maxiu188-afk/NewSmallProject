@@ -216,6 +216,54 @@ The accepted formal-result SHA-256 is
 The retained token-ID SHA-256 is
 `0f49a76a5cc6f3841356f09fee93eb5a8de9cc37d6b65af54e40614d6eac0de9`.
 
+## SpinQuant-derived W4A16 BoolQ formal job
+
+The separately accepted SpinQuant-derived packed W4A16 endpoint is bound to
+export/load gate `5945162`, clean revision `f490f58`, export-result SHA-256
+`b21ca19f34bf24470fdec797f90821b46edb77bfc1717c23724b989aa4ff05cf`,
+inference-result SHA-256
+`fa533a64f7b8345b547f45b6fa666ca8e6181d3369dc487dc74c5cf171f995c4`,
+and checkpoint-tree SHA-256
+`41a79153d2ad7e0fb598819adc538ce65ba7c1a05629459f77cb816d226ce2da`.
+The BoolQ input validator rechecks those records, their source manifest, the
+Machete kernel log marker, Git ancestry, unchanged gate-producing files, the
+checkpoint tree, 280 packed decoder linears, and exact W4A16 metadata.
+
+This job reuses the immutable 3,270-example artifact and the exact zero-shot
+prompt, choice order, token boundary, and raw-accuracy scoring used by the
+accepted W4AFP8 BoolQ runs. It evaluates only matched BF16 and SpinQuant W4A16
+models, each in a fresh vLLM process. It is formal-only: the complete export
+and fresh-process load gate has already passed, and a smaller BoolQ subset
+would not authorize a different formal configuration or result decision.
+`sbatch --test-only` is still required for scheduler validation, but it is not
+an experimental smoke.
+
+From the clean dedicated checkout:
+
+```bash
+cd "$HOME/NewSmallProject-spinquant-w4a16-export"
+mkdir -p results/vllm-spinquant-w4a16-boolq-llama2-13b
+sbatch --test-only \
+  scripts/run_isambard_vllm_spinquant_w4a16_llama2_13b_boolq.sbatch formal
+sbatch \
+  scripts/run_isambard_vllm_spinquant_w4a16_llama2_13b_boolq.sbatch formal
+```
+
+Execution record: scheduler validation passed and formal-only job `5952594`
+was submitted from clean revision
+`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f`. The 2026-08-08 read-only
+snapshot is `PENDING (Priority)` with no result artifact. Do not treat the
+submission as accuracy evidence and do not submit a duplicate job.
+
+Success requires exit code `0:0`, 3,270 examples and 6,540 choice requests for
+both models, and
+`ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_BOOLQ_PASSED`. The job-specific JSON
+is written below `results/vllm-spinquant-w4a16-boolq-llama2-13b/`. No BoolQ
+metric is accepted until that JSON, the per-model records, hashes, logs, and
+Slurm state are reviewed. This is downstream deployed-quality evidence only;
+it is not the paper's W4A8KV16 endpoint and provides no PPL or acceleration
+claim.
+
 ## Service smoke and dependent formal benchmark
 
 The service stage uses the separate serving configuration at
