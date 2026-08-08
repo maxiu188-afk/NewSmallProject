@@ -84,8 +84,10 @@ result-gated smoke into an automatically queued formal job.
   replacement result-gated smoke `5949509` failed after vLLM completed the
   workload and SGLang loaded/captured graphs but stalled before Uvicorn
   application startup completed. A bounded repair restores the known-good
-  checkpoint-path model ID and adds timeout diagnostics; no formal job is
-  queued. This is not yet formal quality or serving-performance evidence.
+  checkpoint-path model ID and adds timeout diagnostics. Replacement smoke
+  `5952554` was submitted alone from repair revision `752a01d`; it is
+  unreviewed and no formal job is queued. This is not yet formal quality or
+  serving-performance evidence.
 
 ## Method, policy, and reusable reference
 

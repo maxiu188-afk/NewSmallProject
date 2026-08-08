@@ -1,6 +1,6 @@
 {
   "config_version": 1,
-  "status": "failed_replacement_reviewed_harness_repair_prepared",
+  "status": "diagnostic_replacement_submitted_awaiting_review",
   "source_gate": {
     "status": "accepted",
     "job_id": "5769503",
@@ -27,6 +27,9 @@
     "replacement_sglang_log_sha256": "bf3f00dd5b78cc3c652d78df01302cd02581d545019c3939ca236eb5bac7cec3",
     "replacement_vllm_raw_sha256": "3ee7cbb2610d3c60f530093bca77bed3d046d6212402aba9407fa4cfb3e96723",
     "next_repair": "restore the previously healthy checkpoint-path model ID for both backends, validate the ID returned by v1/models, use backend-specific readiness budgets, and capture process, port, GPU, and SGLang stack diagnostics on timeout",
+    "diagnostic_replacement_job_id": "5952554",
+    "diagnostic_replacement_source_revision": "752a01d950e3886989ad4541f901c9a31d6ba195",
+    "diagnostic_replacement_submission_policy": "submitted alone with no formal dependency; do not inspect until explicitly requested",
     "sglang_failure": "served model name was not passed, so the harness rejected the checkpoint path returned by v1/models before any measured request",
     "vllm_failure": "legacy generated-text equality was incorrectly used as a request-corpus identity gate",
     "scope": "harness-only repair; model, runtime environments, request corpus, workload, resource request, and experiment matrix unchanged"
