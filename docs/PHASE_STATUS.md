@@ -380,6 +380,20 @@ request identity. A harness-only replacement is required. No SGLang
 performance number is accepted, and no concurrency-8 or formal paired-
 repetition job is submitted. Revision `ac82347` fixes only those two harness
 gates. Replacement result-gated smoke `5949509` was submitted alone from that
-clean revision with no formal dependency. Its result is unreviewed; submission
-is not evidence that either backend passed, and it will not be monitored until
-the user explicitly requests inspection.
+clean revision with no formal dependency. It failed `1:0` after 24 minutes 34
+seconds. The prior fixes worked: vLLM passed all eight measured 256+64 requests,
+and SGLang received the configured served model name. SGLang also passed the
+CUDA 12.6 Marlin preflight, loaded the exact 6.82 GB W4A16 checkpoint, allocated
+the 8 GiB BF16 KV pool, and completed decode CUDA-graph capture without an OOM
+or exception. It then remained at Uvicorn `Waiting for application startup`
+until the 900-second readiness deadline. Result SHA-256 is
+`8e17f4939dc5ffcf7d048c61a11c3a34a97c8764d26924755100bbc7ae772908`;
+SGLang log SHA-256 is
+`bf3f00dd5b78cc3c652d78df01302cd02581d545019c3939ca236eb5bac7cec3`.
+The underlying application-startup stall is not localized because the failed
+run retained no process stack. The next harness-only repair restores the
+previously healthy checkpoint-path model ID for both servers, validates the
+single ID returned by `/v1/models`, assigns SGLang its own readiness budget,
+and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
+any future timeout. This does not accept SGLang performance or authorize the
+formal matrix.

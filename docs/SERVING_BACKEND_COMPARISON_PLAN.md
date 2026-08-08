@@ -435,8 +435,16 @@ sources and SGLang OpenAI completion sources are version-hashed before GPU
 execution. The replacement smoke must be reviewed before the formal matrix
 below is authorized. The bounded repair was committed as `ac82347`, and
 replacement result-gated smoke `5949509` was submitted alone from that clean
-revision with no formal dependency. It remains unreviewed and will not be
-polled until the user explicitly asks for inspection.
+revision with no formal dependency. It failed after SGLang loaded the exact
+checkpoint and captured decode CUDA graphs but did not complete Uvicorn
+application startup within 900 seconds. No process stack was retained, so the
+underlying stall is not localized. The next bounded repair removes the only
+new SGLang startup argument by restoring the checkpoint path as the common
+model ID, while the client validates the ID advertised by `/v1/models`. It also
+uses a 1,200-second SGLang-only readiness budget and records process, port, GPU,
+and SGLang stack diagnostics before cleanup if readiness still times out. The
+model, environments, corpus, workload, resources, and formal matrix remain
+unchanged.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

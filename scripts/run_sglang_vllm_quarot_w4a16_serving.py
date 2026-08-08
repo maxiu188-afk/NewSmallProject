@@ -82,6 +82,11 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("prefix caching must remain disabled")
     if not server.get("disable_chunked_prefill"):
         raise ValueError("chunked prefill must remain disabled")
+    if server.get("served_model_id_policy") != "checkpoint_path":
+        raise ValueError("serving smoke must use the shared checkpoint-path model ID")
+    ready_timeouts = server.get("ready_timeout_seconds_by_backend")
+    if ready_timeouts != {"vllm": 900, "sglang": 1200}:
+        raise ValueError("backend-specific readiness budgets drifted")
 
     benchmark = config["benchmark"]
     if benchmark.get("protocol") != "repository_openai_completions_stream_v1":
@@ -561,7 +566,7 @@ def _run_case(
     log_dir: Path,
     raw_dir: Path,
 ) -> dict[str, Any]:
-    served_name = f"llama2-13b-{backend}-quarot-w4a16"
+    served_name = str(model_path)
     case_name = str(case["name"])
     log_path = log_dir / f"{backend}-{case_name}-server.log"
     raw_path = raw_dir / f"{backend}-{case_name}.json"
@@ -631,6 +636,7 @@ def _run_case(
         "backend": backend,
         "case": case,
         "server_command": command,
+        "served_model_ids": model_ids,
         "workload": workload,
         "memory_samples": memory_samples,
         "legacy_vllm_output_diagnostic": legacy_diagnostic,
@@ -790,7 +796,16 @@ def main() -> int:
                         _sha256(raw_path) if raw_path.is_file() else None
                     ),
                     "log_excerpt": _log_excerpt(
-                        log_path, ["error", "exception", "traceback", "kernel"]
+                        log_path,
+                        [
+                            "error",
+                            "exception",
+                            "traceback",
+                            "kernel",
+                            "readiness_timeout",
+                            "timeout_diagnostic",
+                            "waiting for application startup",
+                        ],
                     ),
                 }
 

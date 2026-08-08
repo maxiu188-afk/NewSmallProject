@@ -221,8 +221,25 @@ output comparison as a diagnostic only. Model, environments, request corpus,
 workload, resources, and experiment matrix remain unchanged. A single
 replacement result-gated smoke, job `5949509`, was submitted alone from clean
 repair revision `ac82347cb4bbe467c5242ebc35faf23d7be160af`, with no formal
-dependency. Its artifacts have not been reviewed, so `SGLang versus vLLM
-W4A16 performance` remains unproven and the formal concurrency 1/8 x three-
-paired-repetition matrix remains unauthorized. Per the result-gated workflow,
-the job is not continuously monitored and will be inspected only after an
-explicit user request.
+dependency. It failed `1:0` after `00:24:34`; result SHA-256 is
+`8e17f4939dc5ffcf7d048c61a11c3a34a97c8764d26924755100bbc7ae772908`.
+vLLM passed all eight measured requests, with 2.71819 requests/s, 367.67 ms p50
+E2E, 22.50 ms p50 TTFT, 5.477 ms p50 TPOT, and 16,165 MiB ready GPU memory.
+These are retained as one-backend smoke observations, not a cross-backend
+comparison.
+
+SGLang passed the exact Marlin preflight, loaded 6.82 GB of W4A16 weights,
+allocated 10,485 BF16 KV tokens (4 GiB K plus 4 GiB V), and completed decode
+CUDA-graph capture. It emitted no OOM, Python traceback, or CUDA exception, but
+stopped at Uvicorn `Waiting for application startup` until the 900-second
+readiness timeout. Its log SHA-256 is
+`bf3f00dd5b78cc3c652d78df01302cd02581d545019c3939ca236eb5bac7cec3`.
+Because no process stack was captured, this run does not distinguish a slow
+application initialization from a hidden deadlock.
+
+The next harness-only repair restores the previously healthy checkpoint path
+as the common served model ID instead of adding an alias, validates the single
+ID returned by `/v1/models`, uses a 1,200-second SGLang-only readiness budget,
+and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
+timeout. `SGLang versus vLLM W4A16 performance` remains unproven and the formal
+concurrency 1/8 x three-paired-repetition matrix remains unauthorized.

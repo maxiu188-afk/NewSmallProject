@@ -35,6 +35,13 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
             [{"name": "smoke_c1", "max_concurrency": 1}],
         )
         self.assertIn("not formal", self.config["scope"])
+        self.assertEqual(
+            self.config["server"]["served_model_id_policy"], "checkpoint_path"
+        )
+        self.assertEqual(
+            self.config["server"]["ready_timeout_seconds_by_backend"],
+            {"vllm": 900, "sglang": 1200},
+        )
 
     def test_request_corpus_is_precommitted_by_three_hashes(self):
         corpus = self.config["request_corpus"]
@@ -69,6 +76,7 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
         self.assertEqual(
             vllm[vllm.index("--kv-cache-dtype") + 1], "bfloat16"
         )
+        self.assertNotIn("--served-model-name", vllm)
 
         sglang = _server_command(
             backend="sglang",
@@ -81,10 +89,16 @@ class SglangVllmQuarotW4A16ServingTests(unittest.TestCase):
         self.assertEqual(
             sglang[sglang.index("--chunked-prefill-size") + 1], "-1"
         )
-        self.assertEqual(
-            sglang[sglang.index("--served-model-name") + 1], "quarot-w4a16"
-        )
+        self.assertNotIn("--served-model-name", sglang)
         self.assertNotIn("--quantization", sglang)
+
+    def test_timeout_diagnostics_are_fail_closed(self):
+        source = (
+            PROJECT_ROOT / "scripts/run_sglang_vllm_llama2_13b_smoke.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SGLANG_VLLM_SERVER_READINESS_TIMEOUT", source)
+        self.assertIn("SGLANG_VLLM_TIMEOUT_DIAGNOSTIC_BEGIN", source)
+        self.assertIn("signal.SIGQUIT", source)
 
     def test_summary_reports_all_required_throughputs_and_percentiles(self):
         measured = []
