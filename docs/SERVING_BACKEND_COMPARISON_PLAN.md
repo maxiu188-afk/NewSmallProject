@@ -444,7 +444,9 @@ model ID, while the client validates the ID advertised by `/v1/models`. It also
 uses a 1,200-second SGLang-only readiness budget and records process, port, GPU,
 and SGLang stack diagnostics before cleanup if readiness still times out. The
 model, environments, corpus, workload, resources, and formal matrix remain
-unchanged.
+unchanged. The repair was committed as `752a01d`; replacement smoke `5952554`
+was submitted alone from that clean revision with no formal dependency. It
+must be explicitly reviewed before any formal matrix is authorized.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

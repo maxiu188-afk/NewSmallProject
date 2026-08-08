@@ -242,4 +242,9 @@ as the common served model ID instead of adding an alias, validates the single
 ID returned by `/v1/models`, uses a 1,200-second SGLang-only readiness budget,
 and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
 timeout. `SGLang versus vLLM W4A16 performance` remains unproven and the formal
-concurrency 1/8 x three-paired-repetition matrix remains unauthorized.
+concurrency 1/8 x three-paired-repetition matrix remains unauthorized. Repair
+revision `752a01d950e3886989ad4541f901c9a31d6ba195` passed 180 local tests with
+one skip, 15 focused Isambard tests, external-source hashes, the immutable
+280-linear checkpoint gate, and `sbatch --test-only`. Replacement smoke
+`5952554` was then submitted alone with no formal dependency; its artifacts
+are unreviewed and it will not be continuously monitored.

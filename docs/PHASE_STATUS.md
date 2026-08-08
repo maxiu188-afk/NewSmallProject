@@ -396,4 +396,7 @@ previously healthy checkpoint-path model ID for both servers, validates the
 single ID returned by `/v1/models`, assigns SGLang its own readiness budget,
 and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
 any future timeout. This does not accept SGLang performance or authorize the
-formal matrix.
+formal matrix. The repair was committed as `752a01d`; replacement smoke
+`5952554` was submitted alone from that clean revision after local and
+Isambard static acceptance, with no formal dependency. Its result is unreviewed
+and will not be monitored until the user explicitly requests inspection.
