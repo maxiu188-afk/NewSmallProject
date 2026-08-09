@@ -1,0 +1,71 @@
+{
+  "config_version": 1,
+  "status": "accepted_serving_smoke_bound_formal_matrix_authorized",
+  "base_config": "configs/deployment/sglang_vllm_quarot_w4a16_serving_smoke_isambard.json",
+  "base_config_sha256": "b87d2debd15b320c0a4b2f65096a25dc2f145b6af5bb4b29898178fbca641eee",
+  "serving_smoke_gate": {
+    "status": "accepted",
+    "job_id": "5952554",
+    "source_revision": "752a01d950e3886989ad4541f901c9a31d6ba195",
+    "result": "results/sglang-vllm-quarot-w4a16-serving/serving-client-smoke-5952554.json",
+    "result_sha256": "5430c74685e26221a397423cddb355a637015c087566df3b4ddbf24b37f5ac04",
+    "request_corpus": "results/sglang-vllm-quarot-w4a16-serving/serving-client-smoke-5952554-requests.json",
+    "request_corpus_sha256": "1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1",
+    "sglang_preflight": "results/sglang-vllm-quarot-w4a16-serving/serving-client-smoke-5952554-sglang-preflight.json",
+    "sglang_preflight_sha256": "9acb7b2224d192832a9e7b5773c44eaf63bf242b25744ac864174657df5387f4",
+    "source_manifest": "results/sglang-vllm-quarot-w4a16-serving/serving-client-smoke-5952554-source-manifest.txt",
+    "source_manifest_sha256": "3f312b9f1ac689f77cb0d783469e28019c1bbd90aa1f292503f74af9176068fe",
+    "expected_comparison_status": "both_backends_benchmark_client_passed",
+    "producer_sha256": {
+      "configs/deployment/sglang_vllm_quarot_w4a16_serving_smoke_isambard.json": "b87d2debd15b320c0a4b2f65096a25dc2f145b6af5bb4b29898178fbca641eee",
+      "scripts/run_sglang_vllm_quarot_w4a16_serving.py": "a4918068ef97ee262e6ded2d993f38ec84be3180e8c75d7988459e1fc3db33d2",
+      "scripts/run_sglang_vllm_llama2_13b_smoke.py": "dbc0515f8a6a979c0547aab90620a3c8e9d906b805afa237084c24e0706b085b",
+      "scripts/preflight_sglang_wna16_runtime.py": "d44fb30e787e259636e642b8e3badccc7e5c289e9c101259d860bda338cbd6b9",
+      "scripts/validate_sglang_vllm_quarot_w4a16_inputs.py": "132a6489038d6c9ed0cc03568c5f66edce9158244d7254eafbc7b58081ca2880",
+      "scripts/run_isambard_sglang_vllm_quarot_w4a16_serving_smoke.sbatch": "1e7ec9a88cae17ebf8ce3747eda356a2681a2aa1525cec52986f4f61d8530435"
+    }
+  },
+  "benchmark": {
+    "protocol": "repository_openai_completions_stream_v1",
+    "endpoint": "/v1/completions",
+    "temperature": 0.0,
+    "repetition_penalty": 1.0,
+    "ignore_eos": true,
+    "stream_include_usage": true,
+    "validation_requests": 1,
+    "warmup_requests": 4,
+    "measured_requests": 64,
+    "cases": [
+      {
+        "name": "latency_c1",
+        "max_concurrency": 1
+      },
+      {
+        "name": "throughput_c8",
+        "max_concurrency": 8
+      }
+    ],
+    "repetitions": 3,
+    "backend_orders": [
+      [
+        "vllm",
+        "sglang"
+      ],
+      [
+        "sglang",
+        "vllm"
+      ],
+      [
+        "vllm",
+        "sglang"
+      ]
+    ],
+    "metric_percentiles": [
+      50,
+      95,
+      99
+    ],
+    "memory_sample_interval_seconds": 0.2
+  },
+  "scope": "Formal matched serving-performance matrix for the exact accepted QuaRot-style rotated GPTQ W4A16 checkpoint through the same repository-owned OpenAI completions client on vLLM and SGLang; three paired repetitions at concurrency 1 and 8 with 64 measured 256+64 requests per cell; all repetitions retained and summarized without a speedup pass threshold"
+}
