@@ -88,6 +88,10 @@ class VllmSpinQuantW4A16ServingTests(unittest.TestCase):
         self.assertNotIn("afterok:", batch)
         self.assertNotIn("--mode smoke", batch)
         self.assertIn("--mode benchmark", batch)
+        self.assertIn('ipc_tmp_dir="/tmp/vs-${SLURM_JOB_ID}"', batch)
+        self.assertIn("ipc_path_length=$((${#TMPDIR} + 1 + 36))", batch)
+        self.assertIn("if (( ipc_path_length > 107 )); then", batch)
+        self.assertNotIn('export TMPDIR="${SCRATCHDIR}"', batch)
         self.assertIn(
             "ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_SERVING_FORMAL_PASSED",
             batch,

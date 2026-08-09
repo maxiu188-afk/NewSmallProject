@@ -57,9 +57,17 @@ source_stdout="${project_root}/${source_paths[3]}"
 task_tmp_parent="${SCRATCHDIR:-/tmp}"
 export SCRATCHDIR="${task_tmp_parent%/}/newsmallproject-vllm-spinquant-w4a16-serving-${SLURM_JOB_ID}"
 mkdir -p "${SCRATCHDIR}"
-export TMPDIR="${SCRATCHDIR}"
-export TMP="${SCRATCHDIR}"
-export TEMP="${SCRATCHDIR}"
+ipc_tmp_dir="/tmp/vs-${SLURM_JOB_ID}"
+mkdir -p "${ipc_tmp_dir}"
+export TMPDIR="${ipc_tmp_dir}"
+export TMP="${ipc_tmp_dir}"
+export TEMP="${ipc_tmp_dir}"
+ipc_path_length=$((${#TMPDIR} + 1 + 36))
+if (( ipc_path_length > 107 )); then
+    echo "VLLM_SPINQUANT_W4A16_SERVING_IPC_PATH_TOO_LONG=${ipc_path_length}" >&2
+    exit 1
+fi
+echo "VLLM_SPINQUANT_W4A16_SERVING_IPC_TMPDIR=${TMPDIR}"
 export HF_HOME="${HOME}/.cache/huggingface"
 export HF_HUB_CACHE="${HF_HOME}"
 export HF_HUB_OFFLINE=1
