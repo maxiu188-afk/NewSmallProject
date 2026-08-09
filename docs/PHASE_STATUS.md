@@ -14,8 +14,8 @@ through 2026-07-22 is preserved in
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
 | vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
-| SpinQuant-derived vLLM W4A16 | Export/load gate `5945162` and full BoolQ job `5952594` accepted | The packed checkpoint has 280 W4A16 decoder linears and reached 79.7554% over 3,270 BoolQ examples versus 80.5810% BF16; no packed PPL or SpinQuant-specific serving/acceleration result |
-| SGLang-vLLM W4A16 compatibility | Exact-checkpoint BoolQ smoke `5941763` and concurrency-1 serving-client smoke `5952554` accepted | Both backends passed the frozen serving smoke; its single eight-request repetition is compatibility and diagnostic performance evidence only, not the formal concurrency 1/8 matrix |
+| SpinQuant-derived vLLM W4A16 | Export/load `5945162`, full BoolQ `5952594`, and formal serving `5961810` accepted | The packed checkpoint reached 79.7554% over 3,270 BoolQ examples versus 80.5810% BF16; serving delivered 1.379--1.537x BF16 request throughput and 52.2--52.7% lower ready GPU memory, with a small TTFT trade-off |
+| SGLang-vLLM W4A16 serving | Exact-checkpoint BoolQ smoke `5941763`, serving smoke `5952554`, and formal matrix `5960180` accepted | All 12 concurrency 1/8 x three-repetition cells passed. SGLang led throughput/E2E at concurrency 1 and TPOT in both cells; vLLM had lower TTFT, and concurrency-8 throughput/E2E was effectively tied |
 | vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
@@ -219,8 +219,8 @@ clean revision `138ae9f` over the frozen 3,270-example protocol. BF16 scored
 (79.7554%), a `-0.8257` pp delta. Exact paired McNemar `p=0.05431`; this is not
 an equivalence claim. The accepted result SHA-256 is
 `bdc6ac3263d14695321569b1c7b869fa11f24492e7ddbd82fb66315812549b64`.
-This closes downstream deployed quality for that endpoint only; packed PPL and
-SpinQuant-specific serving acceleration remain unmeasured.
+Formal serving job `5961810` subsequently completed the requested acceleration
+evidence; packed PPL remains unmeasured.
 
 The SpinQuant work is isolated under its own implementation, configuration,
 script, and test directories. It does not modify the completed QuaRot pipeline
@@ -248,18 +248,30 @@ procedure, and
 the full decision record, and [`EVIDENCE_LEDGER.md`](EVIDENCE_LEDGER.md) for the
 claim-to-artifact closeout index.
 
-## Future separately scoped comparison
+The SpinQuant-derived deployment extension is now complete for the requested
+BoolQ and serving comparison. Formal job `5961810` passed all four BF16/W4A16
+cells with 64/64 requests each. Relative to same-run BF16, W4A16 improved
+request throughput by 1.537x and 1.379x at concurrency 1 and 8, reduced p50 E2E
+by 34.9% and 27.4%, and reduced ready GPU memory by 52.2% and 52.7%. p50 TTFT
+was 16.1% and 4.4% higher, so the result is not uniformly better on every
+latency component. Its serving-result SHA-256 is
+`8115da350e6c3c5c82f11a811f2e7ab6b1eda8bb8e504a3b3247a0f593e456e0`.
+
+## Separately scoped backend comparison
 
 The earlier QuaRot/SpinQuant reproduction phase is closed; the separately
-scoped deployment extensions above do not rewrite its results. Serving-system
-research may compare SGLang and vLLM under the
-same GH200, checkpoint, request stream, quality gate, and observed resource
-budget. It is defined separately in
+scoped deployment extensions above do not rewrite its results. The SGLang and
+vLLM study used the same GH200, checkpoint, request stream, quality gate, and
+observed resource budget defined in
 [`SERVING_BACKEND_COMPARISON_PLAN.md`](SERVING_BACKEND_COMPARISON_PLAN.md).
-Its read-only compatibility audit and result-gated smoke are complete, but no
-SGLang performance result is currently accepted. The source audit predicted
-that SGLang `0.5.16` could not dispatch the unchanged dense compressed-tensors
-W4AFP8 checkpoint; job `5896201` now confirms that negative runtime boundary.
+Formal job `5960180` passed all 12 concurrency 1/8 x three-paired-repetition
+cells. SGLang's median request throughput was 20.45% higher at concurrency 1
+and 1.07% higher at concurrency 8; p50 TPOT was 20.03% and 19.23% lower, while
+p50 TTFT was 25.87% and 64.89% higher. This is a metric-specific result, not a
+blanket backend winner. The source audit also predicted that SGLang `0.5.16`
+could not dispatch the unchanged dense compressed-tensors W4AFP8 checkpoint;
+job `5896201` confirms that separate negative runtime boundary. The historical
+repair and smoke sequence is retained below.
 Result-gated smoke job `5895081` was submitted from clean revision `3578427`
 without a formal-job dependency. It completed, but its SGLang cases used the
 Cray base interpreter after an erroneous virtual-environment symlink resolution
@@ -278,8 +290,9 @@ passed, including CUTLASS W4AFP8 selection. SGLang reached the exact W4AFP8
 loader and raised `No compressed-tensors compatible scheme was found`, so the
 unchanged-checkpoint W4AFP8 comparison stops. The SGLang BF16 weights loaded,
 but its default FA3 backend failed because the installed `sgl_kernel` lacks
-`flash_ops`; this is not BF16 incompatibility. One BF16-only corrected smoke is
-required before Track A can be considered, and no formal job is submitted. See
+`flash_ops`; this is not BF16 incompatibility. At that point, a BF16-only
+corrected smoke was still required before Track A could be considered; no
+BF16/W4AFP8 formal job was submitted. See
 [`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
 
 The next authorized step is Track C first: exact accepted QuaRot-style rotated
@@ -379,7 +392,8 @@ disagreed only on example 6; the mean absolute choice-loglikelihood difference
 was 0.0351943 and the maximum was 0.0953803. All manifest entries and retained
 artifact/log hashes were recomputed successfully. This accepts the bounded
 exact-checkpoint compatibility and smoke score-difference result, not formal
-BoolQ quality or serving performance. No formal job is submitted.
+BoolQ quality or serving performance. No formal job had been submitted at that
+stage; the later formal W4A16 serving matrix is recorded below.
 
 The next bounded step used revision `78ed96c`
 adds one repository-owned OpenAI streaming client and a pre-hashed 64-request
@@ -418,6 +432,9 @@ versus 304.38 ms p50 E2E, 22.52 versus 28.76 ms p50 TTFT, and 5.511 versus
 4.374 ms p50 TPOT for vLLM and SGLang respectively. Ready memory was 16,166
 versus 16,735 MiB. The result SHA-256 is
 `5430c74685e26221a397423cddb355a637015c087566df3b4ddbf24b37f5ac04`.
-These are accepted smoke observations only. No concurrency-8 or three-paired-
-repetition result exists; the formal matrix remains unqueued and requires a
-separate explicit submission instruction.
+These remain smoke observations only. The subsequently accepted formal matrix
+is job `5960180`: all 768 measured requests passed, and all 45 manifest
+bindings were rehashed. Its result SHA-256 is
+`fcaf3fef48dfa7d11f45fe20566789e95878938d106fdd539743425fb49d64be`.
+Full repetition-level metrics and the shutdown-noise boundary are recorded in
+[`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).

@@ -19,7 +19,7 @@
 
 \title{QuaRot与SpinQuant低比特量化复现及部署证据总结}
 \author{}
-\date{2026年8月3日}
+\date{2026年8月9日}
 
 \begin{document}
 
@@ -36,7 +36,9 @@ RTX 6000 Ada的batch-1服务场景中仍慢于FP16。最终，Isambard GH200上�
 W4A16完整模型服务测试同时获得显存、吞吐和TPOT/E2E收益；W4A8则保留为正确性与
 底层kernel研究路线。在此基础上，硬件对齐的W4AFP8路线已经完成packed checkpoint
 PPL、matched serving和BoolQ闭环，并同时保留QuaRot-style、旧SpinQuant transfer及
-FP8-targeted SpinQuant三种旋转端点的明确边界。
+FP8-targeted SpinQuant三种旋转端点的明确边界。最近补充的SpinQuant-derived packed
+W4A16已经完成同一BoolQ与服务协议，SGLang和vLLM也完成了同checkpoint的正式配对
+服务矩阵。
 
 \section{Fake quant：验证算法精度}
 
@@ -199,6 +201,34 @@ BF16、普通W4A16和旋转W4A16的PPL分别为5.007820、5.289677和5.132755。
 差异，但在真实packed checkpoint上带来了可测量的质量收益。旋转版本仍比BF16高
 2.49\%，且该结果不替代下游任务或更广泛的生成质量评估。
 
+\subsection*{SpinQuant-derived W4A16：同协议BoolQ与服务补充}
+
+独立扩展将已经接受的100-step SpinQuant W4A16 R1/R2离线融合后，导出为280个
+decoder linear均使用Machete kernel的标准packed W4A16 checkpoint。完整BoolQ作业
+\texttt{5952594}中，该端点为2,608/3,270（79.7554\%），同次BF16为
+2,635/3,270（80.5810\%），差0.8257个百分点；精确配对McNemar检验
+$p=0.05431$，因此不能宣称等价。
+
+正式服务作业\texttt{5961810}的四个BF16/W4A16单元均完成64/64个256+64请求。
+相对同次BF16，W4A16在concurrency 1/8的请求吞吐分别为1.537/1.379倍，p50 E2E
+降低34.9\%/27.4\%，ready显存降低52.2\%/52.7\%；但p50 TTFT分别高16.1\%和
+4.4\%。与FP8-targeted W4AFP8的同协议结果相比：
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lrrrr@{}}
+    \toprule
+    SpinQuant端点 & BoolQ & 吞吐比c1/c8 & E2E下降c1/c8 & 显存下降c1/c8 \\
+    \midrule
+    packed W4A16 & 79.7554\% & 1.537/1.379 & 34.9/27.4\% & 52.2/52.7\% \\
+    FP8-targeted W4AFP8 & 80.2752\% & 1.420/1.385 & 29.5/27.9\% & 50.7/50.7\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{两种SpinQuant部署端点的同协议描述性对照。两行来自独立正式作业，
+  不是交错配对重复，微小性能差异不作统计性归因。}
+\end{table}
+
 \subsection*{W4A16：真实单block诊断}
 
 同环境诊断通过\texttt{LLM.apply\_model()}在真实
@@ -277,18 +307,20 @@ BF16；官方W4A4KV4后端证明了真实低比特执行的容量收益以及特
 离线旋转没有改变W4A16部署性能，但正式部署checkpoint PPL证明了其质量价值：
 PPL从5.289677降低到5.132755，并恢复55.67\%的量化差距。新增SpinQuant-derived
 packed W4A16在完整3,270样本BoolQ上达到79.7554\%，BF16为80.5810\%，差
-0.8257个百分点；精确配对McNemar检验$p=0.05431$，因此不能据此宣称等价。
+0.8257个百分点；正式服务同时取得1.379--1.537倍BF16吞吐和52.2--52.7\%
+ready显存下降，但TTFT略高。精确配对McNemar检验$p=0.05431$，因此不能据此
+宣称BoolQ等价。
 QuaRot-style W4A16下游任务和更广泛的生成质量评估仍属于明确未覆盖范围。
 W4AFP8的FP8-targeted
 SpinQuant端点达到PPL 5.219583和BoolQ 80.2752\%，同时保留50.7\% ready显存下降和
 1.38--1.42倍吞吐收益。fake quant、官方W4A4KV4、W4A16和W4AFP8仍是四条独立证据
 路线，任何一路的精度或性能数字都不能替代另一条路线。
 
-当前证据阶段关闭不等于停止serving系统研究。独立的SGLang与vLLM研究已经用同一
-GH200、同一QuaRot W4A16 checkpoint和同一请求流完成并验收并发1 smoke。八个请求
-均使用256 token输入和64 token输出，且全部成功。SGLang相对vLLM的请求吞吐比为
-1.1701，p50 E2E与TPOT比分别为0.8231和0.7937，而TTFT比为1.2769，ready显存高
-569 MiB。上述只有一次、八请求，仅作为兼容性和性能诊断；并发1与8、三次配对重复
-的正式矩阵尚未执行，因此本报告不把这些smoke数值写成正式SGLang性能结论。
+独立的SGLang与vLLM研究已经在同一GH200、同一QuaRot W4A16 checkpoint和同一
+请求流上完成正式作业\texttt{5960180}。并发1与8、每格三次配对重复的12个单元均
+完成64/64请求，共768个测量请求。SGLang中位请求吞吐在并发1高20.45\%，在并发8
+仅高1.07\%；p50 TPOT分别低20.03\%和19.23\%，但p50 TTFT分别高25.87\%和
+64.89\%。并发8的吞吐与E2E基本持平。因此结论是metric-specific：SGLang在并发1
+吞吐/E2E和两格TPOT上占优，vLLM的TTFT更低，不能给出“某backend全面更快”的结论。
 
 \end{document}

@@ -181,7 +181,70 @@ and
 All 13 source-manifest bindings were rehashed successfully. The W4A16 worker
 recorded 280 packed linears and `MacheteLinearKernel`; the optional DeepGEMM
 import warning was non-fatal. This accepts downstream deployed-checkpoint
-quality only, not a SpinQuant-specific serving, memory, or acceleration result.
+quality. The separately accepted serving result below supplies the performance
+half of this endpoint's evidence package.
+
+## SpinQuant-derived packed-W4A16 serving result
+
+Formal-only serving job `5961810` completed `0:0` in 11 minutes 21 seconds on
+one GH200 from clean revision
+`eb6eff9b4dfb77aa43374730b222d718c995527e`. It reused source gate `5945162`,
+the checkpoint-tree SHA-256 recorded above, and the same random 256-token input,
+forced 64-token output, four-warm-up, 64-request, concurrency 1/8, 8 GiB BF16-KV
+protocol as the accepted vLLM deployment studies. BF16 and SpinQuant W4A16 ran
+in fresh servers for each case.
+
+| Model | Concurrency | Requests/s | p50 TTFT (ms) | p50 TPOT (ms) | p50 E2E (ms) | Ready GPU memory (MiB) |
+|---|---:|---:|---:|---:|---:|---:|
+| BF16 | 1 | 1.759 | 20.883 | 8.689 | 568.345 | 34,099 |
+| SpinQuant-derived packed W4A16 | 1 | 2.704 | 24.237 | 5.487 | 369.925 | 16,292 |
+| BF16 | 8 | 11.371 | 103.440 | 9.514 | 703.396 | 34,100 |
+| SpinQuant-derived packed W4A16 | 8 | 15.681 | 107.964 | 6.390 | 510.526 | 16,126 |
+
+Relative to its same-run BF16 control, SpinQuant W4A16 improved request
+throughput by `1.537x` at concurrency 1 and `1.379x` at concurrency 8. Ready
+GPU memory fell by 52.2% and 52.7%; p50 E2E fell by 34.9% and 27.4%; and p50
+TPOT fell by 36.8% and 32.8%. The trade-off is p50 TTFT increasing by 16.1%
+and 4.4%, so the result is not a claim that every latency metric improves.
+
+All four cells completed 64/64 requests with zero failures and exactly 256
+input plus 64 output tokens per request. Both quantized server logs selected
+`MacheteLinearKernel for CompressedTensorsWNA16`; GPU memory returned to 2--3
+MiB after each server. All four raw-result, server-log, and client-log hashes
+matched the summary, and all 11 source-manifest bindings were independently
+rehashed. The retained bindings are:
+
+| Artifact | SHA-256 |
+|---|---|
+| Formal result | `8115da350e6c3c5c82f11a811f2e7ab6b1eda8bb8e504a3b3247a0f593e456e0` |
+| Source manifest | `8b171af80963d7ad470c0e3298f0042a260b211d990be6d050885793e2ac47c4` |
+| Checkpoint tree | `41a79153d2ad7e0fb598819adc538ce65ba7c1a05629459f77cb816d226ce2da` |
+
+The earlier job `5960073` is rejected performance evidence: its overlong vLLM
+ZeroMQ IPC path failed before serving measurement. Revision `eb6eff9` shortened
+only the per-job IPC directory to `/tmp/vs-${SLURM_JOB_ID}`; model, checkpoint,
+requests, resources, and benchmark protocol remained unchanged. The replacement
+stderr is empty. Optional DeepGEMM import warnings and `EngineDeadError` lines
+occur only during post-measurement server shutdown and do not invalidate the
+complete request records.
+
+## Matched W4A16 and W4AFP8 view
+
+The new BoolQ and serving records make a descriptive comparison possible under
+the same frozen task and serving protocols. They remain separate formal jobs,
+not interleaved paired repetitions, so small differences must not be presented
+as statistically resolved format advantages.
+
+| SpinQuant endpoint | BoolQ accuracy | Throughput ratio, c1 / c8 | p50 E2E reduction, c1 / c8 | Ready-memory reduction, c1 / c8 |
+|---|---:|---:|---:|---:|
+| Packed W4A16 | 79.7554% | 1.537x / 1.379x | 34.9% / 27.4% | 52.2% / 52.7% |
+| FP8-targeted W4AFP8 | 80.2752% | 1.42x / 1.385x | 29.5% / 27.9% | 50.7% / 50.7% |
+
+W4AFP8 is 17 correct answers and 0.5199 percentage points above W4A16 on
+BoolQ. W4A16 has the larger concurrency-1 throughput gain and slightly lower
+ready memory; concurrency-8 throughput and p50 E2E are very close across the
+two separately executed studies. W4A16's TTFT regression is also different
+from the FP8-targeted result and must remain visible when choosing an endpoint.
 
 ## Conclusions and closed boundary
 
@@ -194,11 +257,8 @@ and is not the primary performance claim.
 Offline rotation does not materially change deployment performance relative to
 unrotated W4A16, but the deployed-checkpoint PPL result shows a quality benefit:
 PPL improved from 5.289677 to 5.132755 and recovered 55.67% of the quantization
-gap to BF16. The new SpinQuant-derived BoolQ result adds one downstream-task
-measurement for that separately scoped checkpoint. QuaRot-style W4A16
-downstream accuracy and broader generation quality remain unmeasured. The
-accepted QuaRot-style serving result demonstrates the shared W4A16 runtime
-format and kernel, but it must not be relabelled as a measured SpinQuant
-endpoint acceleration result. Fake-quant PPL from the algorithmic study
-remains a separate evidence route and must not be substituted for either
-packed vLLM result.
+gap to BF16. The SpinQuant-derived extension now has both BoolQ and matched
+serving evidence for its separately scoped packed checkpoint. QuaRot-style
+W4A16 downstream accuracy and broader generation quality remain unmeasured.
+Fake-quant PPL from the algorithmic study remains a separate evidence route
+and must not be substituted for either packed vLLM result.

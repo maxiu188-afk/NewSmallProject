@@ -263,9 +263,41 @@ requests for both models, and
 job-specific JSON, per-model records, logs, and source manifest remain below
 `results/vllm-spinquant-w4a16-boolq-llama2-13b/` on the producing checkout.
 This is downstream deployed-quality evidence only; it is not the paper's
-W4A8KV16 endpoint and provides no PPL or acceleration claim.
+W4A8KV16 endpoint and provides no PPL claim. Its separately executed serving
+result is recorded below.
 
-## Service smoke and dependent formal benchmark
+## SpinQuant-derived W4A16 serving formal job
+
+The serving runner is retained at clean revision
+`eb6eff9b4dfb77aa43374730b222d718c995527e` and uses the same dedicated checkout
+and accepted source gate as the BoolQ job:
+
+```bash
+cd "$HOME/NewSmallProject-spinquant-w4a16-export"
+mkdir -p results/vllm-spinquant-w4a16-serving-llama2-13b
+sbatch --test-only \
+  scripts/run_isambard_vllm_spinquant_w4a16_llama2_13b_serving.sbatch formal
+sbatch \
+  scripts/run_isambard_vllm_spinquant_w4a16_llama2_13b_serving.sbatch formal
+```
+
+This is a formal-only matched BF16/SpinQuant W4A16 benchmark: four warm-ups and
+64 measured 256+64 requests at concurrency 1 and 8, with a fresh vLLM server
+per cell and an explicit 8 GiB BF16 KV budget. Job `5960073` failed before
+measurement because the generated ZeroMQ IPC pathname exceeded the Unix-domain
+socket limit. Revision `eb6eff9` changed only the job-local IPC directory to
+`/tmp/vs-${SLURM_JOB_ID}`. Do not cite `5960073` as performance evidence.
+
+Replacement `5961810` completed `0:0` in 11 minutes 21 seconds. All four cells
+passed 64/64 requests with no failures, both quantized logs selected Machete,
+and memory returned to baseline. Its formal-result and source-manifest SHA-256
+values are
+`8115da350e6c3c5c82f11a811f2e7ab6b1eda8bb8e504a3b3247a0f593e456e0` and
+`8b171af80963d7ad470c0e3298f0042a260b211d990be6d050885793e2ac47c4`.
+The result, four raw records, eight logs, and all 11 source-manifest bindings
+were rehashed during acceptance. Do not submit a duplicate job.
+
+## QuaRot-style service smoke and dependent formal benchmark
 
 The service stage uses the separate serving configuration at
 `configs/deployment/vllm_w4a16_llama2_13b_serving_isambard.json`; the accepted

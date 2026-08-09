@@ -223,9 +223,11 @@ to a standard packed group-128 W4A16 export. Gate `5945162` accepted export,
 280-linear coverage, `MacheteLinearKernel`, and fresh-process vLLM inference.
 Formal BoolQ job `5952594` completed all 3,270 frozen examples: packed
 SpinQuant W4A16 reached 79.7554% versus 80.5810% BF16 (`-0.8257` pp), with
-exact paired McNemar `p=0.05431`. This extension is tracked in
-[`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md); it does not alter this
-closed reproduction plan or establish SpinQuant-specific serving acceleration.
+exact paired McNemar `p=0.05431`. Formal serving job `5961810` then established
+1.537x/1.379x BF16 request throughput and 52.2%/52.7% lower ready GPU memory at
+concurrency 1/8. This extension is tracked in
+[`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md); it does not alter this closed
+reproduction plan or convert the result into paper-faithful W4A8 evidence.
 
 ### Pre-execution migration assessment
 
