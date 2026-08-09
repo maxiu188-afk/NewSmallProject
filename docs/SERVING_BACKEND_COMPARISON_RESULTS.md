@@ -2,11 +2,12 @@
 
 ## Status and claim boundary
 
-This record closes the four-case compatibility smoke for job `5896201` and
-tracks the bounded QuaRot W4A16 BoolQ compatibility sequence through accepted
-job `5941763`. It is not a serving-performance result: no throughput, latency,
-concurrency, formal quality, or reliability comparison is accepted here, and
-no formal benchmark has been submitted.
+This record closes the four-case compatibility smoke for job `5896201`, the
+bounded QuaRot W4A16 BoolQ compatibility sequence through job `5941763`, and
+the result-gated serving-client smoke through job `5952554`. The serving
+numbers are accepted only as a concurrency-1 smoke observation: they do not
+establish formal throughput, latency, concurrency, or reliability, and no
+formal benchmark has been submitted.
 
 The next result-gated serving-client smoke, job `5944823`, was submitted alone
 from clean revision `78ed96c` on 2026-08-07 and failed closed `1:0` after
@@ -18,11 +19,10 @@ matrix. No formal job is queued.
 The subsequent harness-only replacement `5949509` also failed before a paired
 result: vLLM completed the smoke workload, while SGLang loaded the exact W4A16
 checkpoint and captured CUDA graphs but remained at Uvicorn application
-startup until timeout. Repair revision `752a01d` restores the previously
-healthy checkpoint-path model ID and adds bounded startup diagnostics.
-Result-gated smoke `5952554` was submitted alone from that revision. The
-2026-08-08 scheduler snapshot is `PENDING (Priority)`, no artifact exists, and
-the formal matrix remains unqueued.
+startup until timeout. Repair revision `752a01d` restored the previously
+healthy checkpoint-path model ID and added bounded startup diagnostics.
+Result-gated smoke `5952554` then completed both backend workloads and passed
+the frozen-client and recovery gates. The formal matrix remains unqueued.
 
 The reviewed SGLang evidence establishes one negative boundary for the exact
 W4AFP8 checkpoint, identifies one correctable BF16 launch-environment failure,
@@ -246,15 +246,41 @@ readiness timeout. Its log SHA-256 is
 Because no process stack was captured, this run does not distinguish a slow
 application initialization from a hidden deadlock.
 
-The next harness-only repair restores the previously healthy checkpoint path
+The final harness-only repair restored the previously healthy checkpoint path
 as the common served model ID instead of adding an alias, validates the single
 ID returned by `/v1/models`, uses a 1,200-second SGLang-only readiness budget,
 and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
-timeout. `SGLang versus vLLM W4A16 performance` remains unproven and the formal
-concurrency 1/8 x three-paired-repetition matrix remains unauthorized. Repair
+timeout. Repair
 revision `752a01d950e3886989ad4541f901c9a31d6ba195` passed 180 local tests with
 one skip, 15 focused Isambard tests, external-source hashes, the immutable
 280-linear checkpoint gate, and `sbatch --test-only`. Replacement smoke
-`5952554` was then submitted alone with no formal dependency; its artifacts
-are absent in the 2026-08-08 `PENDING (Priority)` snapshot. It will not be
-treated as evidence or trigger a formal matrix before explicit result review.
+`5952554` was then submitted alone with no formal dependency and completed
+`0:0` in 3 minutes 41 seconds. Its accepted smoke result is:
+
+| Metric | vLLM | SGLang | SGLang / vLLM |
+|---|---:|---:|---:|
+| Measured requests | 8 / 8 passed | 8 / 8 passed | -- |
+| Request throughput | 2.7046 req/s | 3.1646 req/s | 1.1701x |
+| p50 E2E | 369.80 ms | 304.38 ms | 0.8231x |
+| p50 TTFT | 22.52 ms | 28.76 ms | 1.2769x |
+| p50 TPOT | 5.511 ms | 4.374 ms | 0.7937x |
+| Ready GPU memory | 16,166 MiB | 16,735 MiB | +569 MiB |
+| Startup | 96.02 s | 35.01 s | -- |
+
+Each backend used the same request IDs, eight 256-token prompts, and forced 64
+output tokens. All requests passed; memory recovered from 16,180 to 4 MiB for
+vLLM and from 16,775 to 5 MiB for SGLang. The SGLang log's final `SIGQUIT`
+followed normal post-workload `SIGTERM`: the terminated detokenizer exited
+`-15`, which triggered SGLang's own cleanup diagnostic after all HTTP 200
+responses. It is shutdown noise rather than a measured-request failure.
+
+The result SHA-256 is
+`5430c74685e26221a397423cddb355a637015c087566df3b4ddbf24b37f5ac04`;
+vLLM and SGLang raw-result SHA-256 values are
+`10cbe2b73633689e26125e2b03fc774b007be0ef0582225935262529f3d6c038`
+and
+`c726ec313c86dfb1d60036fae3fcfda9397180ee63857b82c79302711e6b8253`.
+All 15 source-manifest bindings were rehashed successfully and stderr was
+empty. This closes the result-gated smoke only. The concurrency 1/8 x three
+paired-repetition formal matrix remains unmeasured and requires a separate
+explicit submission instruction.

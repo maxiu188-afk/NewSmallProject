@@ -250,19 +250,20 @@ sbatch \
 ```
 
 Execution record: scheduler validation passed and formal-only job `5952594`
-was submitted from clean revision
-`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f`. The 2026-08-08 read-only
-snapshot is `PENDING (Priority)` with no result artifact. Do not treat the
-submission as accuracy evidence and do not submit a duplicate job.
+completed `0:0` in 5 minutes 38 seconds from clean revision
+`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f`. Both models completed 3,270
+examples and 6,540 choice requests. BF16 scored 2,635/3,270 (80.5810%) and
+SpinQuant W4A16 scored 2,608/3,270 (79.7554%). The aggregate result SHA-256 is
+`bdc6ac3263d14695321569b1c7b869fa11f24492e7ddbd82fb66315812549b64`.
+Do not submit a duplicate job.
 
-Success requires exit code `0:0`, 3,270 examples and 6,540 choice requests for
-both models, and
-`ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_BOOLQ_PASSED`. The job-specific JSON
-is written below `results/vllm-spinquant-w4a16-boolq-llama2-13b/`. No BoolQ
-metric is accepted until that JSON, the per-model records, hashes, logs, and
-Slurm state are reviewed. This is downstream deployed-quality evidence only;
-it is not the paper's W4A8KV16 endpoint and provides no PPL or acceleration
-claim.
+The success contract required exit code `0:0`, 3,270 examples and 6,540 choice
+requests for both models, and
+`ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_BOOLQ_PASSED`; all passed. The
+job-specific JSON, per-model records, logs, and source manifest remain below
+`results/vllm-spinquant-w4a16-boolq-llama2-13b/` on the producing checkout.
+This is downstream deployed-quality evidence only; it is not the paper's
+W4A8KV16 endpoint and provides no PPL or acceleration claim.
 
 ## Service smoke and dependent formal benchmark
 

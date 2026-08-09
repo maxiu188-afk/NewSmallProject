@@ -275,15 +275,20 @@ BF16；官方W4A4KV4后端证明了真实低比特执行的容量收益以及特
 进一步完成packed PPL、matched serving与BoolQ联合验收。
 
 离线旋转没有改变W4A16部署性能，但正式部署checkpoint PPL证明了其质量价值：
-PPL从5.289677降低到5.132755，并恢复55.67\%的量化差距。W4A16下游任务和更广泛的
-生成质量评估属于明确未覆盖范围，不是当前待办。W4AFP8的FP8-targeted
+PPL从5.289677降低到5.132755，并恢复55.67\%的量化差距。新增SpinQuant-derived
+packed W4A16在完整3,270样本BoolQ上达到79.7554\%，BF16为80.5810\%，差
+0.8257个百分点；精确配对McNemar检验$p=0.05431$，因此不能据此宣称等价。
+QuaRot-style W4A16下游任务和更广泛的生成质量评估仍属于明确未覆盖范围。
+W4AFP8的FP8-targeted
 SpinQuant端点达到PPL 5.219583和BoolQ 80.2752\%，同时保留50.7\% ready显存下降和
 1.38--1.42倍吞吐收益。fake quant、官方W4A4KV4、W4A16和W4AFP8仍是四条独立证据
 路线，任何一路的精度或性能数字都不能替代另一条路线。
 
-当前证据阶段关闭不等于停止serving系统研究。后续可以在独立研究中使用同一GH200、
-同一checkpoint、同一请求流、同一质量门和对齐后的资源预算，横向比较SGLang与vLLM。
-在exact checkpoint兼容性、matched PPL和matched serving通过之前，本报告不主张任何
-SGLang性能结论，也不把未来计划写入当前已接受结果。
+当前证据阶段关闭不等于停止serving系统研究。独立的SGLang与vLLM研究已经用同一
+GH200、同一QuaRot W4A16 checkpoint和同一请求流完成并验收并发1 smoke。八个请求
+均使用256 token输入和64 token输出，且全部成功。SGLang相对vLLM的请求吞吐比为
+1.1701，p50 E2E与TPOT比分别为0.8231和0.7937，而TTFT比为1.2769，ready显存高
+569 MiB。上述只有一次、八请求，仅作为兼容性和性能诊断；并发1与8、三次配对重复
+的正式矩阵尚未执行，因此本报告不把这些smoke数值写成正式SGLang性能结论。
 
 \end{document}

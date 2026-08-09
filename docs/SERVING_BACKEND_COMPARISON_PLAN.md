@@ -5,9 +5,10 @@
 This is a separately scoped study. It does not reopen or modify the accepted
 vLLM W4A16/W4AFP8 results. The read-only audit, four-case compatibility smoke,
 and bounded QuaRot W4A16 BoolQ compatibility smoke are complete. The evidence
-includes the negative unchanged-checkpoint W4AFP8 boundary and an accepted
-exact-checkpoint W4A16 compatibility/score-difference smoke. No SGLang
-performance result has been accepted.
+includes the negative unchanged-checkpoint W4AFP8 boundary, an accepted
+exact-checkpoint W4A16 compatibility/score-difference smoke, and a passed
+concurrency-1 serving-client smoke. The latter is a bounded observation, not a
+formal performance result.
 
 Gate 3 implementation is result-gated. Serving-client smoke job `5944823`,
 submitted alone from clean revision `78ed96c` on 2026-08-07, failed closed
@@ -23,10 +24,10 @@ formal benchmark, or Slurm dependency was submitted.
 
 The first repair replacement `5949509` later reached W4A16 load and CUDA-graph
 capture but stalled at Uvicorn application startup. A second bounded repair
-restores the known-good checkpoint-path model ID and captures startup stacks on
-timeout. Result-gated smoke `5952554` was submitted alone from clean revision
-`752a01d`; the 2026-08-08 snapshot is `PENDING (Priority)` with no artifact.
-No formal matrix is authorized or queued.
+restored the known-good checkpoint-path model ID and added startup diagnostics.
+Result-gated smoke `5952554` completed both eight-request concurrency-1
+workloads from clean revision `752a01d`. Its result gate is accepted; the
+formal matrix remains unqueued and requires a separate explicit submission.
 
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
@@ -439,8 +440,8 @@ identity with the unretained historical prompts.
 Both servers explicitly use BF16 KV with the matched 8 GiB budget and disable
 prefix caching and chunked prefill. Installed vLLM argument/dataset/client
 sources and SGLang OpenAI completion sources are version-hashed before GPU
-execution. The replacement smoke must be reviewed before the formal matrix
-below is authorized. The bounded repair was committed as `ac82347`, and
+execution. The replacement smoke had to be reviewed before the formal matrix
+below could proceed. The bounded repair was committed as `ac82347`, and
 replacement result-gated smoke `5949509` was submitted alone from that clean
 revision with no formal dependency. It failed after SGLang loaded the exact
 checkpoint and captured decode CUDA graphs but did not complete Uvicorn
@@ -452,10 +453,14 @@ uses a 1,200-second SGLang-only readiness budget and records process, port, GPU,
 and SGLang stack diagnostics before cleanup if readiness still times out. The
 model, environments, corpus, workload, resources, and formal matrix remain
 unchanged. The repair was committed as `752a01d`; replacement smoke `5952554`
-was submitted alone from that clean revision with no formal dependency. It
-must be explicitly reviewed before any formal matrix is authorized. The
-2026-08-08 read-only snapshot remains `PENDING (Priority)` and contains no
-result artifact.
+completed `0:0` from that clean revision with no formal dependency. Both
+backends passed the eight measured concurrency-1 requests, request identity,
+token-count, and memory-recovery gates. The smoke observation favored SGLang
+for request throughput (1.1701x), p50 E2E (0.8231x), and p50 TPOT (0.7937x),
+while p50 TTFT was higher (1.2769x) and ready memory was 569 MiB higher. These
+single-repetition values authorize only progression past the smoke gate; they
+are not formal performance evidence. The formal matrix is not queued and
+requires a separate explicit submission instruction.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

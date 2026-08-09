@@ -40,7 +40,7 @@ result-gated smoke into an automatically queued formal job.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
   QuaRot-style deployed-checkpoint PPL, full-model serving result, and
   same-environment layer-0 diagnostic, plus the accepted SpinQuant-derived
-  packed-W4A16 export/load gate and its still-pending BoolQ extension.
+  packed-W4A16 export/load and formal BoolQ result.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
   and matched serving for the INT8-trained transfer and FP8-targeted SpinQuant
   endpoints, plus the accepted min/max-versus-MSE and old/new SpinQuant BoolQ
@@ -64,8 +64,8 @@ result-gated smoke into an automatically queued formal job.
 ## Active implementation and runbook
 
 - [`VLLM_W4A16_ISAMBARD_RUNBOOK.md`](VLLM_W4A16_ISAMBARD_RUNBOOK.md):
-  Isambard GH200 environment, completed gates, SpinQuant-derived W4A16 BoolQ
-  submission state, and reproduction procedure.
+  Isambard GH200 environment, completed gates, accepted SpinQuant-derived
+  W4A16 BoolQ execution record, and reproduction procedure.
 - [`W4A8_CUDA_KERNEL_RESULTS.md`](W4A8_CUDA_KERNEL_RESULTS.md): owned packed-W4
   and W4A8 correctness record, including the 280-linear decoder gate.
 - [`PACKED_W4_FORMAT.md`](PACKED_W4_FORMAT.md): owned checkpoint format and
@@ -85,11 +85,11 @@ result-gated smoke into an automatically queued formal job.
   healthy. Harness-only repair revision `ac82347` was validated, and its single
   replacement result-gated smoke `5949509` failed after vLLM completed the
   workload and SGLang loaded/captured graphs but stalled before Uvicorn
-  application startup completed. A bounded repair restores the known-good
-  checkpoint-path model ID and adds timeout diagnostics. Replacement smoke
-  `5952554` was submitted alone from repair revision `752a01d`; it is
-  still pending with no result artifact, and no formal job is queued. This is
-  not yet formal quality or serving-performance evidence.
+  application startup completed. Bounded repair revision `752a01d` restored
+  the known-good checkpoint-path model ID and added timeout diagnostics.
+  Replacement smoke `5952554` passed both eight-request concurrency-1
+  workloads; its numbers remain smoke observations, and no formal concurrency
+  1/8 paired-repetition job is queued.
 
 ## Method, policy, and reusable reference
 

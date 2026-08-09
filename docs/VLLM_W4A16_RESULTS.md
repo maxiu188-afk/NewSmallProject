@@ -25,7 +25,8 @@ recorded below; it does not change the accepted QuaRot-style results.
 | Matched full-model serving | `5780631` | Six model/concurrency groups each completed 64/64 measured requests with zero failures |
 | Real layer-0 hook smoke | `5784966` | The packed W4A16 `LlamaDecoderLayer` executed with valid CUDA-event prefill and decode records |
 | Matched layer-0 diagnostic | `5784967` | BF16 and both W4A16 variants completed all eight prefill/decode cases |
-| SpinQuant-derived export/load gate | `5945162` | The learned R1/R2 artifact produced a complete 280-linear packed W4A16 checkpoint and passed fresh-process vLLM inference; downstream quality and performance remained unmeasured |
+| SpinQuant-derived export/load gate | `5945162` | The learned R1/R2 artifact produced a complete 280-linear packed W4A16 checkpoint and passed fresh-process vLLM inference |
+| SpinQuant-derived formal BoolQ | `5952594` | The packed checkpoint completed all 3,270 frozen examples and reached 79.7554% versus 80.5810% BF16 |
 
 The Llama-2-13B offline inference result used vLLM `0.25.1+cu129`, PyTorch
 `2.11.0+cu129`, CUDA 12.9, and GH200 SM90. The W4 checkpoints each contain 280
@@ -129,7 +130,7 @@ not show a stable performance advantage over unrotated W4A16.
 The accepted diagnostic-result SHA-256 is
 `0a5e9658c3a2205b6e2465472f81bd004370ba7b4db1c46f07123fe3a538c5cb`.
 
-## Active SpinQuant-derived packed-W4A16 extension
+## SpinQuant-derived packed-W4A16 extension
 
 Source gate `5945162` completed `0:0` in 22 minutes 7 seconds from clean
 revision `f490f58f94f4af30d4a8f326dcab0fbaf4ff5213`. It reused the accepted
@@ -151,13 +152,36 @@ task accuracy. The reviewed bindings are:
 | Source manifest | `4d11a0186139a840f9e94e27fb810957afcb7e2af53083af62cdb11934a963f4` |
 | Checkpoint tree | `41a79153d2ad7e0fb598819adc538ce65ba7c1a05629459f77cb816d226ce2da` |
 
-Formal-only BoolQ job `5952594` was submitted from clean evaluation revision
-`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f` using the same frozen zero-shot
-3,270-example validation artifact and scoring protocol as the accepted W4AFP8
-BoolQ evaluations. The 2026-08-08 read-only scheduler snapshot is
-`PENDING (Priority)` and the result directory contains no job artifact.
-Therefore no SpinQuant W4A16 BoolQ accuracy, PPL, serving, memory, or
-acceleration result is accepted.
+Formal-only BoolQ job `5952594` completed `0:0` in 5 minutes 38 seconds from
+clean evaluation revision
+`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f`. It reused the exact frozen
+3,270-example validation artifact and zero-shot scoring protocol from the
+accepted W4AFP8 BoolQ evaluations. Both fresh-process models completed all
+6,540 choice requests:
+
+| Model | Correct | Accuracy | Delta versus BF16 |
+|---|---:|---:|---:|
+| BF16 | 2,635 / 3,270 | 80.5810% | -- |
+| SpinQuant-derived packed W4A16 | 2,608 / 3,270 | 79.7554% | -0.8257 pp |
+
+The paired audit found 105 BF16-only correct examples, 78 W4A16-only correct
+examples, and 183 prediction disagreements. Exact two-sided McNemar
+`p=0.05431`; this is above 0.05 but close enough that the result must not be
+described as equivalence. Under the shared BoolQ protocol, W4A16 is 17 correct
+answers (`-0.5199` pp) below the accepted FP8-targeted SpinQuant W4AFP8 result
+of 80.2752%, and five answers (`+0.1529` pp) above the old INT8-trained
+SpinQuant-transfer W4AFP8 result of 79.6024%.
+
+The formal result SHA-256 is
+`bdc6ac3263d14695321569b1c7b869fa11f24492e7ddbd82fb66315812549b64`;
+the BF16 and W4A16 worker SHA-256 values are
+`029a0884d5e995b9a1a7b3ebaa98ee2e3f714eda9a0eb9aa3c00a0a33d4334d0`
+and
+`95615138efa1e635a4df2399370d49c14340988a31b1a5f2e397d1027dadbe3e`.
+All 13 source-manifest bindings were rehashed successfully. The W4A16 worker
+recorded 280 packed linears and `MacheteLinearKernel`; the optional DeepGEMM
+import warning was non-fatal. This accepts downstream deployed-checkpoint
+quality only, not a SpinQuant-specific serving, memory, or acceleration result.
 
 ## Conclusions and closed boundary
 
@@ -170,7 +194,11 @@ and is not the primary performance claim.
 Offline rotation does not materially change deployment performance relative to
 unrotated W4A16, but the deployed-checkpoint PPL result shows a quality benefit:
 PPL improved from 5.289677 to 5.132755 and recovered 55.67% of the quantization
-gap to BF16. Downstream-task and broader generation-quality evaluation are
-unmeasured and outside this closed phase, not pending tasks. Fake-quant PPL
-from the algorithmic study remains a separate evidence route and must not be
-substituted for this packed vLLM result.
+gap to BF16. The new SpinQuant-derived BoolQ result adds one downstream-task
+measurement for that separately scoped checkpoint. QuaRot-style W4A16
+downstream accuracy and broader generation quality remain unmeasured. The
+accepted QuaRot-style serving result demonstrates the shared W4A16 runtime
+format and kernel, but it must not be relabelled as a measured SpinQuant
+endpoint acceleration result. Fake-quant PPL from the algorithmic study
+remains a separate evidence route and must not be substituted for either
+packed vLLM result.

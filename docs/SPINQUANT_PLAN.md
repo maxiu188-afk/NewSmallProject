@@ -221,10 +221,11 @@ deployment.
 A later isolated extension uses the accepted 100-step W4A16 rotation as input
 to a standard packed group-128 W4A16 export. Gate `5945162` accepted export,
 280-linear coverage, `MacheteLinearKernel`, and fresh-process vLLM inference.
-Formal BoolQ job `5952594` is submitted from its own evaluation revision but is
-still pending with no result artifact. This extension is tracked in
+Formal BoolQ job `5952594` completed all 3,270 frozen examples: packed
+SpinQuant W4A16 reached 79.7554% versus 80.5810% BF16 (`-0.8257` pp), with
+exact paired McNemar `p=0.05431`. This extension is tracked in
 [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md); it does not alter this
-closed reproduction plan or establish serving acceleration.
+closed reproduction plan or establish SpinQuant-specific serving acceleration.
 
 ### Pre-execution migration assessment
 
