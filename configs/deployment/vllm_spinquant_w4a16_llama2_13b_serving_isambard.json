@@ -1,0 +1,100 @@
+{
+  "config_version": 1,
+  "status": "source_gate_accepted_ready_for_serving_formal",
+  "source_gate": {
+    "status": "accepted",
+    "job_id": "5945162",
+    "required_marker": "ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_GATE_PASSED",
+    "required_kernel_evidence": "Using MacheteLinearKernel for CompressedTensorsWNA16",
+    "export_result": "results/vllm-spinquant-w4a16-llama2-13b/spinquant-export-5945162.json",
+    "export_result_sha256": "b21ca19f34bf24470fdec797f90821b46edb77bfc1717c23724b989aa4ff05cf",
+    "inference_result": "results/vllm-spinquant-w4a16-llama2-13b/spinquant-offline-inference-5945162.json",
+    "inference_result_sha256": "fa533a64f7b8345b547f45b6fa666ca8e6181d3369dc487dc74c5cf171f995c4",
+    "source_manifest": "results/vllm-spinquant-w4a16-llama2-13b/spinquant-source-manifest-5945162.txt",
+    "source_manifest_sha256": "4d11a0186139a840f9e94e27fb810957afcb7e2af53083af62cdb11934a963f4",
+    "stdout": "results/vllm-spinquant-w4a16-llama2-13b/vllm-13b-spin-w4a16-gate-5945162.out",
+    "stdout_sha256": "30716c549ffe56484b6ab7cb174aa55d76c8e95d8892fafdd313109a4f21118c",
+    "checkpoint_tree_sha256": "41a79153d2ad7e0fb598819adc538ce65ba7c1a05629459f77cb816d226ce2da",
+    "expected_models": [
+      "bf16",
+      "spinquant_w4a16"
+    ]
+  },
+  "kernel_gate": {
+    "required_quantized_log_pattern": "Using MacheteLinearKernel for CompressedTensorsWNA16",
+    "quantized_models": [
+      "spinquant_w4a16"
+    ]
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18000,
+    "dtype": "bfloat16",
+    "max_model_len": 512,
+    "max_num_seqs": 8,
+    "kv_cache_memory_bytes": 8589934592,
+    "seed": 0,
+    "generation_config": "vllm",
+    "enforce_eager": false,
+    "disable_log_stats": true,
+    "ready_timeout_seconds": 600,
+    "stop_timeout_seconds": 60
+  },
+  "smoke": {
+    "prompt": "The capital of France is",
+    "temperature": 0.0,
+    "max_tokens": 8,
+    "ignore_eos": true,
+    "require_equal_generated_texts": false
+  },
+  "benchmark": {
+    "backend": "vllm",
+    "endpoint": "/v1/completions",
+    "dataset_name": "random",
+    "seed": 0,
+    "input_length": 256,
+    "output_length": 64,
+    "num_prompts": 64,
+    "num_warmups": 4,
+    "request_rate": "inf",
+    "ignore_eos": true,
+    "save_detailed": true,
+    "percentile_metrics": [
+      "ttft",
+      "tpot",
+      "itl",
+      "e2el"
+    ],
+    "metric_percentiles": [
+      50,
+      90,
+      99
+    ],
+    "cases": [
+      {
+        "name": "latency_c1",
+        "max_concurrency": 1
+      },
+      {
+        "name": "throughput_c8",
+        "max_concurrency": 8
+      }
+    ]
+  },
+  "execution": {
+    "kind": "formal_only",
+    "reason": "The accepted export/load gate already exercised the exact SpinQuant checkpoint in a fresh vLLM process, and this benchmark reuses the accepted matched W4A16 serving runner and runtime without a new execution path."
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "torch_version": "2.11.0+cu129",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [
+      9,
+      0
+    ],
+    "vllm_use_flashinfer_sampler": "0"
+  },
+  "scope": "Matched Llama-2-13B BF16 and SpinQuant-derived packed W4A16 full-model serving benchmark on one Isambard GH200 with BF16 KV cache; acceleration, latency, memory, request-completion, and Machete-kernel evidence only, not PPL or BoolQ"
+}
