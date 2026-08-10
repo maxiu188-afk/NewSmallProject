@@ -250,21 +250,54 @@ sbatch \
 ```
 
 Execution record: scheduler validation passed and formal-only job `5952594`
-was submitted from clean revision
-`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f`. The 2026-08-08 read-only
-snapshot is `PENDING (Priority)` with no result artifact. Do not treat the
-submission as accuracy evidence and do not submit a duplicate job.
+completed `0:0` in 5 minutes 38 seconds from clean revision
+`138ae9f0662f6441cd958c1fe9f2ebb1d99f7a3f`. Both models completed 3,270
+examples and 6,540 choice requests. BF16 scored 2,635/3,270 (80.5810%) and
+SpinQuant W4A16 scored 2,608/3,270 (79.7554%). The aggregate result SHA-256 is
+`bdc6ac3263d14695321569b1c7b869fa11f24492e7ddbd82fb66315812549b64`.
+Do not submit a duplicate job.
 
-Success requires exit code `0:0`, 3,270 examples and 6,540 choice requests for
-both models, and
-`ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_BOOLQ_PASSED`. The job-specific JSON
-is written below `results/vllm-spinquant-w4a16-boolq-llama2-13b/`. No BoolQ
-metric is accepted until that JSON, the per-model records, hashes, logs, and
-Slurm state are reviewed. This is downstream deployed-quality evidence only;
-it is not the paper's W4A8KV16 endpoint and provides no PPL or acceleration
-claim.
+The success contract required exit code `0:0`, 3,270 examples and 6,540 choice
+requests for both models, and
+`ISAMBARD_VLLM_SPINQUANT_W4A16_LLAMA2_13B_BOOLQ_PASSED`; all passed. The
+job-specific JSON, per-model records, logs, and source manifest remain below
+`results/vllm-spinquant-w4a16-boolq-llama2-13b/` on the producing checkout.
+This is downstream deployed-quality evidence only; it is not the paper's
+W4A8KV16 endpoint and provides no PPL claim. Its separately executed serving
+result is recorded below.
 
-## Service smoke and dependent formal benchmark
+## SpinQuant-derived W4A16 serving formal job
+
+The serving runner is retained at clean revision
+`eb6eff9b4dfb77aa43374730b222d718c995527e` and uses the same dedicated checkout
+and accepted source gate as the BoolQ job:
+
+```bash
+cd "$HOME/NewSmallProject-spinquant-w4a16-export"
+mkdir -p results/vllm-spinquant-w4a16-serving-llama2-13b
+sbatch --test-only \
+  scripts/run_isambard_vllm_spinquant_w4a16_llama2_13b_serving.sbatch formal
+sbatch \
+  scripts/run_isambard_vllm_spinquant_w4a16_llama2_13b_serving.sbatch formal
+```
+
+This is a formal-only matched BF16/SpinQuant W4A16 benchmark: four warm-ups and
+64 measured 256+64 requests at concurrency 1 and 8, with a fresh vLLM server
+per cell and an explicit 8 GiB BF16 KV budget. Job `5960073` failed before
+measurement because the generated ZeroMQ IPC pathname exceeded the Unix-domain
+socket limit. Revision `eb6eff9` changed only the job-local IPC directory to
+`/tmp/vs-${SLURM_JOB_ID}`. Do not cite `5960073` as performance evidence.
+
+Replacement `5961810` completed `0:0` in 11 minutes 21 seconds. All four cells
+passed 64/64 requests with no failures, both quantized logs selected Machete,
+and memory returned to baseline. Its formal-result and source-manifest SHA-256
+values are
+`8115da350e6c3c5c82f11a811f2e7ab6b1eda8bb8e504a3b3247a0f593e456e0` and
+`8b171af80963d7ad470c0e3298f0042a260b211d990be6d050885793e2ac47c4`.
+The result, four raw records, eight logs, and all 11 source-manifest bindings
+were rehashed during acceptance. Do not submit a duplicate job.
+
+## QuaRot-style service smoke and dependent formal benchmark
 
 The service stage uses the separate serving configuration at
 `configs/deployment/vllm_w4a16_llama2_13b_serving_isambard.json`; the accepted

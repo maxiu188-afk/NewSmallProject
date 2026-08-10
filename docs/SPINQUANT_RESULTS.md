@@ -26,6 +26,9 @@ deployment performance.
 | Corrected paper-aligned W16A8 formal learning | `5854269` | `COMPLETED (0:0)`, 2h12m09s | 800 sequences, 100 finite-loss updates, 100 non-zero gradient records; accepted corrected rotation artifact |
 | Corrected-A8, strong-GPTQ no-had W4A8 PPL smoke | `5854890` | `COMPLETED (0:0)`, 12m33s | Two held-out sequences; BF16, unrotated, and learned-rotation paths completed with 8-sequence GPTQ calibration |
 | Corrected-A8, strong-GPTQ no-had W4A8 PPL formal | `5854891` | `COMPLETED (0:0)`, 19m50s | 162 sequences, 331,614 scored tokens, and 128-sequence GPTQ calibration; all three paths accepted as a matched diagnostic |
+| Packed W4A16 export/load | `5945162` | `COMPLETED (0:0)`, 22m07s | Offline-fused learned rotations, 280 packed decoder linears, Machete load, and fresh-process inference accepted |
+| Packed W4A16 BoolQ formal | `5952594` | `COMPLETED (0:0)`, 5m38s | All 3,270 frozen examples completed; 79.7554% W4A16 versus 80.5810% BF16 |
+| Packed W4A16 serving formal | `5961810` | `COMPLETED (0:0)`, 11m21s | Four matched BF16/W4A16 concurrency 1/8 cells completed; 1.379--1.537x request throughput and 52.2--52.7% lower ready GPU memory versus BF16 |
 
 The first four jobs used project revision
 `5d610b152434ffb04bd405be37aa172114dd6216`. The formal PPL job reused the
@@ -143,10 +146,14 @@ and BoolQ are accepted in [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md).
 The original reproduction and W4AFP8 continuation remain closed. A later,
 separately scoped deployment extension exported the accepted 100-step W4A16
 weight-QDQ-trained R1/R2 artifact as a standard packed W4A16 checkpoint.
-Export/load gate `5945162` is accepted; formal BoolQ job `5952594` is submitted
-but still pending with no result artifact. This does not convert the fake-quant
-PPL above into packed-deployment evidence and does not establish BoolQ,
-serving, or acceleration. Its provenance and current state are recorded in
+Export/load gate `5945162`, formal BoolQ job `5952594`, and formal serving job
+`5961810` are accepted. On the shared 3,270-example protocol, packed SpinQuant
+W4A16 reached 79.7554% versus 80.5810% BF16 (`-0.8257` pp); exact paired
+McNemar `p=0.05431`. In matched serving, it improved request throughput by
+1.537x/1.379x and reduced ready GPU memory by 52.2%/52.7% at concurrency 1/8.
+p50 E2E improved by 34.9%/27.4%, while p50 TTFT was 16.1%/4.4% higher. This
+does not convert the fake-quant PPL above into packed PPL evidence. Full
+provenance and the direct W4AFP8 comparison are recorded in
 [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md).
 
 The separately labelled paper-GPTQ W4A8 endpoint, the paper's online `had`

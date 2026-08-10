@@ -1,35 +1,37 @@
-# SGLang versus vLLM compatibility results
+# SGLang versus vLLM compatibility and serving results
 
 ## Status and claim boundary
 
-This record closes the four-case compatibility smoke for job `5896201` and
-tracks the bounded QuaRot W4A16 BoolQ compatibility sequence through accepted
-job `5941763`. It is not a serving-performance result: no throughput, latency,
-concurrency, formal quality, or reliability comparison is accepted here, and
-no formal benchmark has been submitted.
+This record closes the four-case compatibility smoke for job `5896201`, the
+bounded QuaRot W4A16 BoolQ compatibility sequence through job `5941763`, the
+result-gated serving-client smoke `5952554`, and the formal matched serving
+matrix `5960180`. The formal result supports a cross-backend serving claim for
+the exact accepted QuaRot-style rotated W4A16 checkpoint on one Isambard GH200
+under the frozen 256+64 request workload. It does not establish formal BoolQ
+equivalence, generalize to BF16 or W4AFP8, or compare different checkpoints.
 
-The next result-gated serving-client smoke, job `5944823`, was submitted alone
+The first result-gated serving-client smoke, job `5944823`, was submitted alone
 from clean revision `78ed96c` on 2026-08-07 and failed closed `1:0` after
 `00:04:12`. Its reviewed artifacts identify two harness failures and no SGLang
 runtime failure. It does not contain a valid paired performance result, the
 concurrency-8 cell, or the three paired repetitions required for the formal
-matrix. No formal job is queued.
+matrix. No formal job was queued at that stage.
 
 The subsequent harness-only replacement `5949509` also failed before a paired
 result: vLLM completed the smoke workload, while SGLang loaded the exact W4A16
 checkpoint and captured CUDA graphs but remained at Uvicorn application
-startup until timeout. Repair revision `752a01d` restores the previously
-healthy checkpoint-path model ID and adds bounded startup diagnostics.
-Result-gated smoke `5952554` was submitted alone from that revision. The
-2026-08-08 scheduler snapshot is `PENDING (Priority)`, no artifact exists, and
-the formal matrix remains unqueued.
+startup until timeout. Repair revision `752a01d` restored the previously
+healthy checkpoint-path model ID and added bounded startup diagnostics.
+Result-gated smoke `5952554` then completed both backend workloads and passed
+the frozen-client and recovery gates. Formal job `5960180` subsequently passed
+all 12 backend/concurrency/repetition cells and is reviewed below.
 
 The reviewed SGLang evidence establishes one negative boundary for the exact
 W4AFP8 checkpoint, identifies one correctable BF16 launch-environment failure,
-and confirms that SGLang `0.5.16` can load, serve, and score the exact accepted
-QuaRot-style W4A16 checkpoint. The bounded 32-example result records one
-prediction disagreement; it has no equivalence threshold and is not a formal
-quality claim.
+and confirms that SGLang `0.5.16` can load, serve, score, and formally benchmark
+the exact accepted QuaRot-style W4A16 checkpoint. The bounded 32-example result
+records one prediction disagreement; it has no equivalence threshold and is
+not a formal quality claim.
 
 ## Provenance
 
@@ -124,7 +126,7 @@ end-to-end W4A16 compatibility or incompatibility evidence.
 
 The bounded corrective option was to bind the compiler and JIT toolchain;
 subsequent corrections and the first successful SGLang W4A16 runtime boundary
-are recorded below. No formal job has been submitted.
+are recorded below. No formal job had been submitted at that point.
 
 ## Track C reviewed runtime boundary
 
@@ -246,15 +248,177 @@ readiness timeout. Its log SHA-256 is
 Because no process stack was captured, this run does not distinguish a slow
 application initialization from a hidden deadlock.
 
-The next harness-only repair restores the previously healthy checkpoint path
+The final harness-only repair restored the previously healthy checkpoint path
 as the common served model ID instead of adding an alias, validates the single
 ID returned by `/v1/models`, uses a 1,200-second SGLang-only readiness budget,
 and captures process, port, GPU, and SGLang stack diagnostics before cleanup on
-timeout. `SGLang versus vLLM W4A16 performance` remains unproven and the formal
-concurrency 1/8 x three-paired-repetition matrix remains unauthorized. Repair
+timeout. Repair
 revision `752a01d950e3886989ad4541f901c9a31d6ba195` passed 180 local tests with
 one skip, 15 focused Isambard tests, external-source hashes, the immutable
 280-linear checkpoint gate, and `sbatch --test-only`. Replacement smoke
-`5952554` was then submitted alone with no formal dependency; its artifacts
-are absent in the 2026-08-08 `PENDING (Priority)` snapshot. It will not be
-treated as evidence or trigger a formal matrix before explicit result review.
+`5952554` was then submitted alone with no formal dependency and completed
+`0:0` in 3 minutes 41 seconds. Its accepted smoke result is:
+
+| Metric | vLLM | SGLang | SGLang / vLLM |
+|---|---:|---:|---:|
+| Measured requests | 8 / 8 passed | 8 / 8 passed | -- |
+| Request throughput | 2.7046 req/s | 3.1646 req/s | 1.1701x |
+| p50 E2E | 369.80 ms | 304.38 ms | 0.8231x |
+| p50 TTFT | 22.52 ms | 28.76 ms | 1.2769x |
+| p50 TPOT | 5.511 ms | 4.374 ms | 0.7937x |
+| Ready GPU memory | 16,166 MiB | 16,735 MiB | +569 MiB |
+| Startup | 96.02 s | 35.01 s | -- |
+
+Each backend used the same request IDs, eight 256-token prompts, and forced 64
+output tokens. All requests passed; memory recovered from 16,180 to 4 MiB for
+vLLM and from 16,775 to 5 MiB for SGLang. The SGLang log's final `SIGQUIT`
+followed normal post-workload `SIGTERM`: the terminated detokenizer exited
+`-15`, which triggered SGLang's own cleanup diagnostic after all HTTP 200
+responses. It is shutdown noise rather than a measured-request failure.
+
+The result SHA-256 is
+`5430c74685e26221a397423cddb355a637015c087566df3b4ddbf24b37f5ac04`;
+vLLM and SGLang raw-result SHA-256 values are
+`10cbe2b73633689e26125e2b03fc774b007be0ef0582225935262529f3d6c038`
+and
+`c726ec313c86dfb1d60036fae3fcfda9397180ee63857b82c79302711e6b8253`.
+All 15 source-manifest bindings were rehashed successfully and stderr was
+empty. This closes the result-gated smoke itself and binds the accepted input
+gate for the separately authorized formal matrix reviewed below.
+
+## Formal matched serving benchmark
+
+Formal job `5960180` completed `0:0` in `00:16:56` on one GH200. It used the
+same accepted rotated W4A16 checkpoint, frozen request corpus, tokenizer,
+repository-owned OpenAI-compatible streaming client, 8 GiB BF16 KV budget,
+disabled prefix cache, and disabled chunked prefill as smoke `5952554`. Every
+fresh server received one unmeasured validation request, four warm-up requests,
+and 64 measured requests. Each measured request contained exactly 256 input
+tokens and forced exactly 64 output tokens.
+
+The matrix contains concurrency 1 and 8, three paired repetitions per cell,
+and a fresh server for every backend/case/repetition. Backend order alternated
+as vLLM/SGLang, SGLang/vLLM, and vLLM/SGLang. All 12 cells passed 64/64 measured
+requests with zero failures, for 768 measured requests in total. The study had
+no speedup pass threshold and retains every repetition rather than selecting a
+best run.
+
+### Formal provenance
+
+| Item | Reviewed value |
+|---|---|
+| Slurm outcome | `5960180`, `COMPLETED`, exit `0:0`, elapsed `00:16:56`; stderr empty |
+| Project revision | `5a97ab49393236a8edb44552ef4c032acf9e8058`, clean checkout |
+| Result path | `results/sglang-vllm-quarot-w4a16-serving/serving-formal-5960180.json` |
+| Result SHA-256 | `fcaf3fef48dfa7d11f45fe20566789e95878938d106fdd539743425fb49d64be` |
+| Source-manifest SHA-256 | `071c51aa46b2e290929ddf227521fa818aeb86dd70aee61f5307a938a45ed829` |
+| Effective-config SHA-256 | `1b5123d3b1bf533a5c470797262238f208d5b098b64e0b4f4624793b22fbfc5b` |
+| Formal-input-gate SHA-256 | `f79315cfc0c163faa00f621e82a146b2ddcae1c7842d46381537c0f3b6ed87d6` |
+| Request-corpus SHA-256 | `1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1` |
+| SGLang preflight SHA-256 | `4e49a8fd010b30bcc0d1606acb9e724ff66f6003fddcabbf692594c02df81d4a` |
+| Checkpoint tree SHA-256 | `2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99` |
+| Runtimes | vLLM `0.25.1+cu129`; SGLang `0.5.16`; PyTorch `2.11.0+cu129` |
+
+The formal input gate independently revalidated accepted smoke `5952554`, its
+request corpus and preflight, all 15 smoke-manifest entries, the unchanged
+smoke producers, and the accepted source/checkpoint ancestry. The final formal
+manifest contains 45 bindings, including all 12 server logs and 12 per-cell raw
+records; every binding was independently rehashed successfully. vLLM selected
+`MacheteLinearKernel for CompressedTensorsWNA16`; SGLang passed the exact
+GPTQ-to-Marlin synthetic execution gate and loaded the checkpoint as
+`compressed-tensors` W4A16 with FlashInfer attention.
+
+### Every paired repetition
+
+The table below reports each retained measurement. Latencies are milliseconds;
+memory is total observed GPU memory in MiB.
+
+| Rep | Concurrency | Backend | Request/s | p50 TTFT | p50 TPOT | p50 E2E | Ready / peak MiB | Startup s |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | vLLM | 2.7065 | 22.92 | 5.495 | 369.10 | 16,165 / 16,179 | 106.02 |
+| 1 | 1 | SGLang | 3.2512 | 28.85 | 4.381 | 304.90 | 16,734 / 16,774 | 35.01 |
+| 2 | 1 | vLLM | 2.7130 | 23.05 | 5.480 | 368.25 | 16,167 / 16,181 | 90.02 |
+| 2 | 1 | SGLang | 3.2678 | 28.69 | 4.395 | 305.52 | 16,736 / 16,776 | 29.01 |
+| 3 | 1 | vLLM | 2.7121 | 22.60 | 5.489 | 368.43 | 16,166 / 16,180 | 90.02 |
+| 3 | 1 | SGLang | 3.2724 | 28.70 | 4.390 | 305.25 | 16,735 / 16,775 | 27.01 |
+| 1 | 8 | vLLM | 15.1804 | 108.17 | 6.452 | 514.83 | 16,166 / 16,462 | 86.01 |
+| 1 | 8 | SGLang | 15.6536 | 178.37 | 5.199 | 508.29 | 16,735 / 16,969 | 29.01 |
+| 2 | 8 | vLLM | 15.5740 | 109.83 | 6.395 | 512.94 | 16,168 / 16,464 | 96.02 |
+| 2 | 8 | SGLang | 15.7404 | 178.20 | 5.206 | 508.38 | 16,736 / 16,970 | 27.01 |
+| 3 | 8 | vLLM | 15.6577 | 106.84 | 6.425 | 511.25 | 16,165 / 16,461 | 98.02 |
+| 3 | 8 | SGLang | 15.7549 | 177.79 | 5.190 | 508.12 | 16,735 / 16,969 | 27.01 |
+
+### Median throughput and spread
+
+Values are the median followed by `[minimum, maximum]` over all three
+repetitions. Token throughput follows directly from the fixed 256-input and
+64-output lengths but is retained explicitly in the formal result.
+
+| Concurrency | Backend | Request/s | Input token/s | Output token/s | Total token/s |
+|---:|---|---:|---:|---:|---:|
+| 1 | vLLM | 2.712 `[2.706, 2.713]` | 694.3 `[692.9, 694.5]` | 173.6 `[173.2, 173.6]` | 867.9 `[866.1, 868.2]` |
+| 1 | SGLang | 3.268 `[3.251, 3.272]` | 836.6 `[832.3, 837.7]` | 209.1 `[208.1, 209.4]` | 1,045.7 `[1,040.4, 1,047.2]` |
+| 8 | vLLM | 15.574 `[15.180, 15.658]` | 3,986.9 `[3,886.2, 4,008.4]` | 996.7 `[971.5, 1,002.1]` | 4,983.7 `[4,857.7, 5,010.5]` |
+| 8 | SGLang | 15.740 `[15.654, 15.755]` | 4,029.5 `[4,007.3, 4,033.3]` | 1,007.4 `[1,001.8, 1,008.3]` | 5,036.9 `[5,009.2, 5,041.6]` |
+
+### Median latency and spread
+
+| Concurrency | Backend | Metric | p50 ms | p95 ms | p99 ms |
+|---:|---|---|---:|---:|---:|
+| 1 | vLLM | TTFT | 22.92 `[22.60, 23.05]` | 23.56 `[23.42, 24.54]` | 26.20 `[24.89, 32.98]` |
+| 1 | SGLang | TTFT | 28.70 `[28.69, 28.85]` | 28.92 `[28.91, 29.62]` | 33.40 `[29.43, 41.21]` |
+| 1 | vLLM | TPOT | 5.489 `[5.480, 5.495]` | 5.501 `[5.499, 5.530]` | 5.513 `[5.510, 5.537]` |
+| 1 | SGLang | TPOT | 4.390 `[4.381, 4.395]` | 4.402 `[4.400, 4.407]` | 4.573 `[4.487, 5.388]` |
+| 1 | vLLM | E2E | 368.43 `[368.25, 369.10]` | 370.19 `[369.84, 370.66]` | 372.54 `[371.24, 379.48]` |
+| 1 | SGLang | E2E | 305.25 `[304.90, 305.52]` | 306.08 `[306.00, 306.25]` | 316.65 `[316.18, 368.30]` |
+| 8 | vLLM | TTFT | 108.17 `[106.84, 109.83]` | 115.01 `[111.82, 115.28]` | 115.30 `[112.06, 115.55]` |
+| 8 | SGLang | TTFT | 178.20 `[177.79, 178.37]` | 184.91 `[183.67, 206.14]` | 185.28 `[184.13, 206.49]` |
+| 8 | vLLM | TPOT | 6.425 `[6.395, 6.452]` | 7.422 `[7.376, 7.937]` | 7.441 `[7.415, 8.297]` |
+| 8 | SGLang | TPOT | 5.199 `[5.190, 5.206]` | 6.639 `[6.609, 6.649]` | 6.942 `[6.891, 6.966]` |
+| 8 | vLLM | E2E | 512.94 `[511.25, 514.83]` | 518.14 `[516.49, 608.18]` | 518.43 `[516.77, 608.33]` |
+| 8 | SGLang | E2E | 508.29 `[508.12, 508.38]` | 512.42 `[510.98, 533.09]` | 512.55 `[511.10, 533.33]` |
+
+The result JSON additionally retains p50/p95/p99 inter-token latency, raw
+per-request timestamps and generated-output hashes, server commands, kernel
+excerpts, and every GPU-memory sample.
+
+### Resource observations
+
+| Concurrency | Backend | Startup s | Ready MiB | Peak MiB | Released MiB |
+|---:|---|---:|---:|---:|---:|
+| 1 | vLLM | 90.02 `[90.02, 106.02]` | 16,166 `[16,165, 16,167]` | 16,180 `[16,179, 16,181]` | 3 `[2, 5]` |
+| 1 | SGLang | 29.01 `[27.01, 35.01]` | 16,735 `[16,734, 16,736]` | 16,775 `[16,774, 16,776]` | 4 `[3, 5]` |
+| 8 | vLLM | 96.02 `[86.01, 98.02]` | 16,166 `[16,165, 16,168]` | 16,462 `[16,461, 16,464]` | 4 `[2, 5]` |
+| 8 | SGLang | 27.01 `[27.01, 29.01]` | 16,735 `[16,735, 16,736]` | 16,969 `[16,969, 16,970]` | 5 `[3, 6]` |
+
+SGLang used 569 MiB more ready memory at both concurrency levels. Its median
+peak was 595 MiB higher at concurrency 1 and 507 MiB higher at concurrency 8.
+SGLang startup was substantially shorter, but startup is reported separately
+and is not included in request throughput or request-latency measurements.
+
+### Paired interpretation
+
+| Concurrency | Request-throughput ratio | p50 TTFT ratio | p50 TPOT ratio | p50 E2E ratio |
+|---:|---:|---:|---:|---:|
+| 1 | 1.2045x `[1.2013, 1.2066]` | 1.2587x `[1.2448, 1.2698]` | 0.7997x `[0.7972, 0.8019]` | 0.8285x `[0.8261, 0.8296]` |
+| 8 | 1.0107x `[1.0062, 1.0312]` | 1.6489x `[1.6224, 1.6640]` | 0.8077x `[0.8058, 0.8139]` | 0.9911x `[0.9873, 0.9939]` |
+
+At concurrency 1, SGLang's median request throughput was 20.45% higher, p50
+TPOT was 20.03% lower, and p50 E2E was 17.15% lower, while p50 TTFT was 25.87%
+higher. At concurrency 8, request throughput was only 1.07% higher and p50 E2E
+was 0.89% lower; p50 TPOT remained 19.23% lower, but p50 TTFT was 64.89%
+higher. The accepted result therefore does not support a blanket claim that
+one backend is faster on every metric. SGLang has a clear concurrency-1
+throughput/E2E advantage and lower per-output-token time in both cells, while
+vLLM has lower TTFT and essentially tied concurrency-8 throughput/E2E under
+this workload.
+
+Several vLLM logs emit `EngineDeadError` only after the client completed all 64
+measured requests and the harness sent `SIGTERM`. The same log sequence records
+`request processing complete` followed by resource teardown and application
+shutdown; all corresponding raw cells passed and memory returned to baseline.
+This is post-measurement shutdown noise, not a request or engine failure during
+the benchmark. SGLang's post-workload termination diagnostics have the same
+evidence boundary. The three-repetition min/max ranges are descriptive spread,
+not confidence intervals, and no statistical equivalence or superiority test
+was predeclared.

@@ -2,31 +2,23 @@
 
 ## Status and authorization boundary
 
-This is a separately scoped study. It does not reopen or modify the accepted
-vLLM W4A16/W4AFP8 results. The read-only audit, four-case compatibility smoke,
-and bounded QuaRot W4A16 BoolQ compatibility smoke are complete. The evidence
-includes the negative unchanged-checkpoint W4AFP8 boundary and an accepted
-exact-checkpoint W4A16 compatibility/score-difference smoke. No SGLang
-performance result has been accepted.
+This separately scoped study is complete for the exact accepted QuaRot-style
+W4A16 checkpoint. It does not reopen or modify the accepted vLLM
+W4A16/W4AFP8 results. The evidence includes the negative unchanged-checkpoint
+W4AFP8 boundary, the accepted exact-checkpoint W4A16 compatibility/score-
+difference smoke, serving-client smoke `5952554`, and formal matrix `5960180`.
 
-Gate 3 implementation is result-gated. Serving-client smoke job `5944823`,
-submitted alone from clean revision `78ed96c` on 2026-08-07, failed closed
-after 4 minutes 12 seconds because of two harness gates. SGLang passed the CUDA
-12.6 Marlin preflight, loaded the exact W4A16 checkpoint, allocated the matched
-8 GiB BF16 KV cache, and reached a healthy server, but the launcher omitted
-`--served-model-name`; the client therefore rejected the checkpoint path
-returned by `/v1/models` before sending measured requests. vLLM completed its
-one validation, four warm-up, and eight measured 256+64 requests, but was
-rejected by an invalid legacy generated-text equality gate. Neither failure is
-backend-performance evidence. No concurrency-8 cell, paired repetition,
-formal benchmark, or Slurm dependency was submitted.
-
-The first repair replacement `5949509` later reached W4A16 load and CUDA-graph
-capture but stalled at Uvicorn application startup. A second bounded repair
-restores the known-good checkpoint-path model ID and captures startup stacks on
-timeout. Result-gated smoke `5952554` was submitted alone from clean revision
-`752a01d`; the 2026-08-08 snapshot is `PENDING (Priority)` with no artifact.
-No formal matrix is authorized or queued.
+Formal job `5960180` completed all 12 concurrency 1/8 x three-paired-repetition
+cells and all 768 measured requests. SGLang's median request throughput was
+20.45% higher at concurrency 1 and 1.07% higher at concurrency 8; p50 TPOT was
+20.03% and 19.23% lower, while p50 TTFT was 25.87% and 64.89% higher. Result
+SHA-256 is
+`fcaf3fef48dfa7d11f45fe20566789e95878938d106fdd539743425fb49d64be`.
+This supports a metric-specific formal serving comparison, not BoolQ
+equivalence, generalization to another checkpoint, or a blanket backend
+winner. The sections below retain the frozen plan and historical execution
+decisions; the accepted measurements are consolidated in
+[`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
 
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
@@ -128,9 +120,10 @@ attention backend attempted to import `flash_ops` from the installed
 `sgl_kernel`, where that symbol is absent. This is an environment/launch
 selection failure, not BF16 model incompatibility. A read-only import check
 finds FlashInfer installed, but this is not GPU runnability evidence. Therefore
-Track A still requires one BF16-only replacement smoke with an explicitly
-available attention backend before any formal comparison decision. Track B
-must not be rerun as part of that correction, and no formal job is submitted.
+Track A remains a separate unexecuted BF16 option that would require a
+BF16-only replacement smoke with an explicitly available attention backend.
+Track B must not be rerun, and no BF16/W4AFP8 formal job resulted from this
+branch of the study.
 
 The reviewed compatibility record and claim boundaries are summarized in
 [`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
@@ -439,8 +432,8 @@ identity with the unretained historical prompts.
 Both servers explicitly use BF16 KV with the matched 8 GiB budget and disable
 prefix caching and chunked prefill. Installed vLLM argument/dataset/client
 sources and SGLang OpenAI completion sources are version-hashed before GPU
-execution. The replacement smoke must be reviewed before the formal matrix
-below is authorized. The bounded repair was committed as `ac82347`, and
+execution. The replacement smoke had to be reviewed before the formal matrix
+below could proceed. The bounded repair was committed as `ac82347`, and
 replacement result-gated smoke `5949509` was submitted alone from that clean
 revision with no formal dependency. It failed after SGLang loaded the exact
 checkpoint and captured decode CUDA graphs but did not complete Uvicorn
@@ -452,10 +445,16 @@ uses a 1,200-second SGLang-only readiness budget and records process, port, GPU,
 and SGLang stack diagnostics before cleanup if readiness still times out. The
 model, environments, corpus, workload, resources, and formal matrix remain
 unchanged. The repair was committed as `752a01d`; replacement smoke `5952554`
-was submitted alone from that clean revision with no formal dependency. It
-must be explicitly reviewed before any formal matrix is authorized. The
-2026-08-08 read-only snapshot remains `PENDING (Priority)` and contains no
-result artifact.
+completed `0:0` from that clean revision with no formal dependency. Both
+backends passed the eight measured concurrency-1 requests, request identity,
+token-count, and memory-recovery gates. The smoke observation favored SGLang
+for request throughput (1.1701x), p50 E2E (0.8231x), and p50 TPOT (0.7937x),
+while p50 TTFT was higher (1.2769x) and ready memory was 569 MiB higher. These
+single-repetition values authorize only progression past the smoke gate; they
+are not formal performance evidence. Formal matrix `5960180` was subsequently
+submitted under the unchanged workload and accepted; its repetition-level
+metrics remain in the result document rather than being inferred from this
+smoke.
 
 The first formal matrix deliberately reuses the accepted project workload:
 

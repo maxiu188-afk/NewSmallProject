@@ -26,10 +26,16 @@ checkouts' ignored `results/` directories, including:
 results/vllm-w4a16-llama2-13b/
 results/spinquant-isambard-llama2-13b/
 results/vllm-w4afp8-llama2-13b/
+results/vllm-spinquant-w4a16-llama2-13b/
+results/vllm-spinquant-w4a16-boolq-llama2-13b/
+results/vllm-spinquant-w4a16-serving-llama2-13b/
+results/sglang-vllm-quarot-w4a16-serving/
 ```
 
 Their reviewed job IDs, result hashes, and claim boundaries are indexed in
 [`docs/EVIDENCE_LEDGER.md`](../docs/EVIDENCE_LEDGER.md). Do not copy large raw
-results or checkpoints into Git merely to complete the index. The remaining
-closeout action is a read-only existence and SHA-256 recheck on the producing
-server; it must not rerun any experiment when an artifact is missing.
+results or checkpoints into Git merely to complete the index. Recent SpinQuant
+W4A16 and SGLang-vLLM formal artifacts were re-read and rehashed during
+acceptance. The remaining historical-row closeout action is a read-only
+existence and SHA-256 recheck on the producing server; it must not rerun any
+experiment when an artifact is missing.
