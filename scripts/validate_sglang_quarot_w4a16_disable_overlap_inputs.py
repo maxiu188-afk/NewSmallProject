@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 from typing import Any
 
 
@@ -38,6 +39,7 @@ EXPECTED_PROTOCOL = {
     "memory_sample_interval_seconds": 0.2,
 }
 MANIFEST_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
+GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
 
 
 def _sha256(path: Path) -> str:
@@ -46,6 +48,41 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _sha256_git_blob(
+    project_root: Path, revision: str, relative_path: Path
+) -> str | None:
+    if GIT_REVISION.fullmatch(revision) is None:
+        raise RuntimeError("reference manifest Git revision is malformed")
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise RuntimeError("reference manifest Git path escapes the project root")
+    completed = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(project_root),
+            "show",
+            f"{revision}:{relative_path.as_posix()}",
+        ],
+        check=False,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        return None
+    return hashlib.sha256(completed.stdout).hexdigest()
+
+
+def _require_git_revision(project_root: Path, revision: str) -> None:
+    if GIT_REVISION.fullmatch(revision) is None:
+        raise RuntimeError("reference manifest Git revision is malformed")
+    completed = subprocess.run(
+        ["git", "-C", str(project_root), "cat-file", "-e", f"{revision}^{{commit}}"],
+        check=False,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError("reference manifest Git revision is unavailable")
 
 
 def _write_json(path: Path, value: dict[str, Any]) -> None:
@@ -166,23 +203,56 @@ def _validate_reference_result(
                 raise RuntimeError("reference output-token count drifted")
 
 
-def _validate_manifest(path: Path) -> dict[str, str]:
+def _validate_manifest(
+    path: Path,
+    *,
+    project_root: Path,
+    expected_revision: str,
+    minimum_entries: int = 40,
+) -> tuple[dict[str, str], int]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    metadata: dict[str, str] = {}
+    for line in lines:
+        key, separator, value = line.partition("=")
+        if separator and key in {"git_revision", "git_status"}:
+            metadata[key] = value
+    if metadata.get("git_revision") != expected_revision:
+        raise RuntimeError("reference manifest Git revision drifted")
+    if metadata.get("git_status") != "clean":
+        raise RuntimeError("reference manifest was not produced from a clean checkout")
+
+    resolved_root = project_root.resolve()
+    _require_git_revision(resolved_root, expected_revision)
     recorded: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    git_blob_entries = 0
+    for line in lines:
         match = MANIFEST_LINE.fullmatch(line)
         if match is None:
             continue
         expected, raw_path = match.groups()
         artifact = Path(raw_path)
-        if not artifact.is_file():
+        try:
+            relative_path = artifact.resolve().relative_to(resolved_root)
+        except ValueError:
+            relative_path = None
+        git_blob_sha256 = None
+        if relative_path is not None:
+            git_blob_sha256 = _sha256_git_blob(
+                resolved_root, expected_revision, relative_path
+            )
+        if git_blob_sha256 is not None:
+            observed = git_blob_sha256
+            git_blob_entries += 1
+        elif artifact.is_file():
+            observed = _sha256(artifact)
+        else:
             raise RuntimeError(f"reference manifest artifact is missing: {artifact}")
-        observed = _sha256(artifact)
         if observed != expected:
             raise RuntimeError(f"reference manifest artifact drifted: {artifact}")
         recorded[str(artifact.resolve())] = observed
-    if len(recorded) < 40:
+    if len(recorded) < minimum_entries:
         raise RuntimeError("reference source manifest is unexpectedly incomplete")
-    return recorded
+    return recorded, git_blob_entries
 
 
 def validate(
@@ -207,7 +277,11 @@ def validate(
         raise RuntimeError("reference source-manifest SHA-256 drifted")
     result = json.loads(reference_result_path.read_text(encoding="utf-8"))
     _validate_reference_result(result, reference)
-    manifest_entries = _validate_manifest(reference_manifest_path)
+    manifest_entries, git_blob_entries = _validate_manifest(
+        reference_manifest_path,
+        project_root=project_root,
+        expected_revision=reference["project_revision"],
+    )
     if reference["result_sha256"] not in manifest_entries.values():
         raise RuntimeError("reference result is not bound by its source manifest")
 
@@ -231,6 +305,10 @@ def validate(
         "reference_result_sha256": _sha256(reference_result_path),
         "reference_source_manifest_sha256": _sha256(reference_manifest_path),
         "reference_manifest_entries_rehashed": len(manifest_entries),
+        "reference_manifest_file_entries_rehashed": (
+            len(manifest_entries) - git_blob_entries
+        ),
+        "reference_manifest_git_blob_entries_rehashed": git_blob_entries,
         "request_corpus_sha256": reference["request_corpus_sha256"],
         "experiment": copy.deepcopy(spec["experiment"]),
         "spec_sha256": _sha256(spec_path),

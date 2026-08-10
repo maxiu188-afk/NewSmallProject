@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 
@@ -210,6 +211,72 @@ class SglangQuarotW4A16DisableOverlapServingTests(unittest.TestCase):
         repetitions[0]["cases"]["sglang:latency_c1"]["metrics"]["failed"] = 1
         with self.assertRaisesRegex(RuntimeError, "request counts drifted"):
             VALIDATOR._validate_reference_result(result, reference)
+
+    def test_historical_sources_are_rehashed_from_recorded_git_revision(self):
+        reference = self.spec["reference_formal_job"]
+        relative_path = Path(
+            "configs/deployment/"
+            "sglang_vllm_quarot_w4a16_serving_formal_isambard.json"
+        )
+        historical_path = PROJECT_ROOT / relative_path
+        self.assertFalse(historical_path.exists())
+        missing_expected = (
+            "35e6d4e3fc9861ccf3782ec60ff7ee019faa9361099a98a4b908dfb4a114e49e"
+        )
+        changed_path = BASE_CONFIG_PATH
+        changed_expected = (
+            "b87d2debd15b320c0a4b2f65096a25dc2f145b6af5bb4b29898178fbca641eee"
+        )
+        self.assertNotEqual(_sha256(changed_path), changed_expected)
+        with tempfile.TemporaryDirectory() as directory:
+            manifest_path = Path(directory) / "source-manifest.txt"
+            manifest_path.write_text(
+                "\n".join(
+                    (
+                        f"git_revision={reference['project_revision']}",
+                        "git_status=clean",
+                        f"{missing_expected}  {historical_path}",
+                        f"{changed_expected}  {changed_path}",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            entries, git_blob_entries = VALIDATOR._validate_manifest(
+                manifest_path,
+                project_root=PROJECT_ROOT,
+                expected_revision=reference["project_revision"],
+                minimum_entries=2,
+            )
+        self.assertEqual(
+            entries[str(historical_path.resolve())], missing_expected
+        )
+        self.assertEqual(entries[str(changed_path.resolve())], changed_expected)
+        self.assertEqual(git_blob_entries, 2)
+
+    def test_missing_external_manifest_artifact_is_not_replaced_by_git(self):
+        reference = self.spec["reference_formal_job"]
+        with tempfile.TemporaryDirectory() as directory:
+            manifest_path = Path(directory) / "source-manifest.txt"
+            missing = Path(directory) / "missing-result.json"
+            manifest_path.write_text(
+                "\n".join(
+                    (
+                        f"git_revision={reference['project_revision']}",
+                        "git_status=clean",
+                        f"{'0' * 64}  {missing}",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(RuntimeError, "artifact is missing"):
+                VALIDATOR._validate_manifest(
+                    manifest_path,
+                    project_root=PROJECT_ROOT,
+                    expected_revision=reference["project_revision"],
+                    minimum_entries=1,
+                )
 
     def test_batch_runs_only_the_new_sglang_configuration(self):
         text = SBATCH_PATH.read_text(encoding="utf-8")
