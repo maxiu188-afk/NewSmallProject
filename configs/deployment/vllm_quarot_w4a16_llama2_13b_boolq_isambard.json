@@ -1,0 +1,90 @@
+{
+  "config_version": 1,
+  "status": "source_gate_accepted_ready_for_boolq_formal",
+  "source_gate": {
+    "status": "accepted",
+    "job_id": "5769503",
+    "source_revision": "18d448554ec096842d87e84828d24eee43949c06",
+    "result": "results/vllm-w4a16-llama2-13b/offline-inference-retry.json",
+    "result_sha256": "3ef3a04e8b6b81728021640e4e17201b631f6dc96f908b5c6be6b080e7da1b10",
+    "expected_model": "rotated_w4a16",
+    "checkpoint_tree_sha256": "2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99",
+    "expected_models": [
+      "bf16",
+      "quarot_w4a16"
+    ]
+  },
+  "protocol": {
+    "task": "boolq",
+    "num_fewshot": 0,
+    "output_type": "multiple_choice",
+    "validation_split": "validation",
+    "prompt_template": "{passage}\nQuestion: {question}?\nAnswer:",
+    "target_delimiter": " ",
+    "choices": [
+      "no",
+      "yes"
+    ],
+    "metric": "accuracy",
+    "lm_eval_commit": "9b0b15b1ccace3534ffbd13298c569869ce8eaf3",
+    "lm_eval_task_path": "lm_eval/tasks/super_glue/boolq/default.yaml",
+    "lm_eval_task_sha256": "6bfa4bd7637b7fc6863d08ceb79735adf41e77feabf6d9327339df8fe0af78cd",
+    "quarot_requirements_sha256": "dec9004eaabcc726980759af682e21f249ab74310ca196bf581e0cf48c2d766e"
+  },
+  "dataset": {
+    "repository": "aps/super_glue",
+    "revision": "3de24cf8022e94f4ee4b9d55a6f539891524d646",
+    "subset": "boolq",
+    "split": "validation",
+    "expected_rows": 3270,
+    "expected_fingerprint": "3465575e190d308f",
+    "expected_examples_sha256": "475e56b71939a8e3db8be48bcc4d344569b36cc660f4086c9ae15858d46a297f",
+    "expected_manifest_config_sha256": "fa44d2c61317022bac346ff4a14824d8da90f192a00c1e6204493ed8d80f818f",
+    "expected_label_counts": {
+      "0": 1237,
+      "1": 2033
+    },
+    "preparation_runtime": {
+      "datasets": "5.0.0"
+    }
+  },
+  "engine": {
+    "dtype": "bfloat16",
+    "max_model_len": 2049,
+    "max_num_seqs": 8,
+    "gpu_memory_utilization": 0.75,
+    "enforce_eager": false,
+    "enable_prefix_caching": false,
+    "disable_log_stats": true,
+    "prompt_logprobs": 1,
+    "max_tokens": 1,
+    "temperature": 0.0,
+    "seed": 0
+  },
+  "formal": {
+    "examples": 3270,
+    "expected_requests": 6540
+  },
+  "execution": {
+    "kind": "formal_only",
+    "reason": "The accepted full-checkpoint export/load and inference gate already exercised BF16 and rotated W4A16 in fresh vLLM processes; this two-model full BoolQ run is the first formal downstream-quality measurement."
+  },
+  "runtime": {
+    "vllm_version": "0.25.1+cu129",
+    "torch_version": "2.11.0+cu129",
+    "transformers_version": "5.14.1",
+    "cuda_runtime": "12.9",
+    "gpu": "NVIDIA GH200 120GB",
+    "compute_capability": [
+      9,
+      0
+    ],
+    "vllm_use_flashinfer_sampler": "0"
+  },
+  "serving_reference": {
+    "job_id": "5960180",
+    "result_sha256": "fcaf3fef48dfa7d11f45fe20566789e95878938d106fdd539743425fb49d64be",
+    "vllm_role": "reuse after BoolQ completion for endpoint-level descriptive accuracy/serving comparison"
+  },
+  "scope": "Zero-shot BoolQ validation accuracy through matched deployed BF16 and QuaRot-style rotated packed W4A16 checkpoints under the frozen W4AFP8/SpinQuant BoolQ protocol; downstream deployment quality only. Serving acceleration is supplied separately by the vLLM arm of job 5960180 and is not measured by this BoolQ job."
+}

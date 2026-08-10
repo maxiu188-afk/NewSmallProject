@@ -87,6 +87,10 @@ The prepared no-overlap third-arm entry points are
 [`configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json`](configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json),
 [`scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py`](scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py), and
 [`scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch`](scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch).
+The full-split QuaRot-style W4A16 BoolQ entry points are
+[`configs/deployment/vllm_quarot_w4a16_llama2_13b_boolq_isambard.json`](configs/deployment/vllm_quarot_w4a16_llama2_13b_boolq_isambard.json),
+[`scripts/run_vllm_quarot_w4a16_llama2_13b_boolq.py`](scripts/run_vllm_quarot_w4a16_llama2_13b_boolq.py), and
+[`scripts/run_isambard_vllm_quarot_w4a16_llama2_13b_boolq.sbatch`](scripts/run_isambard_vllm_quarot_w4a16_llama2_13b_boolq.sbatch).
 
 ## Layout
 
