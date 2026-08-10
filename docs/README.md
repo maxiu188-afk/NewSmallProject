@@ -85,6 +85,10 @@ result-gated smoke into an automatically queued formal job.
   repetition matrix. SGLang led concurrency-1 throughput/E2E and TPOT in both
   cells; vLLM retained lower TTFT, while concurrency-8 throughput/E2E was
   effectively tied under the frozen workload.
+- Prepared but not submitted: a protocol-matched SGLang-only third arm with
+  `--disable-overlap-schedule`. Its config, runner, and Slurm entry are indexed
+  from the repository root README. It has no result yet and is not part of the
+  paired `5960180` evidence.
 
 ## Method, policy, and reusable reference
 

@@ -61,7 +61,9 @@ checks kept separate from real CUDA deployment and performance work.
   12 concurrency 1/8 x three-paired-repetition cells passed. SGLang had 20.45%
   higher median request throughput at concurrency 1 and 1.07% at concurrency
   8, but p50 TTFT was 25.87% and 64.89% higher; no blanket backend winner is
-  claimed.
+  claimed. A separate, local-only third-arm entry is prepared for SGLang
+  `--disable-overlap-schedule`; it reruns neither accepted backend and has not
+  been submitted or measured.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
@@ -80,6 +82,11 @@ the [W4AFP8 result](docs/W4AFP8_RESULTS.md), and the formal cross-backend study
 is in the [serving-backend result](docs/SERVING_BACKEND_COMPARISON_RESULTS.md).
 Completed runbooks and detailed source records remain available under
 [`docs/archive/`](docs/archive/README.md).
+
+The prepared no-overlap third-arm entry points are
+[`configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json`](configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json),
+[`scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py`](scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py), and
+[`scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch`](scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch).
 
 ## Layout
 

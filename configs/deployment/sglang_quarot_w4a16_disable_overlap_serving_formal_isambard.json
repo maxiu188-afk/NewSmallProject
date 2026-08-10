@@ -1,0 +1,53 @@
+{
+  "config_version": 1,
+  "status": "authorized_not_submitted",
+  "base_config": "configs/deployment/sglang_vllm_quarot_w4a16_serving_smoke_isambard.json",
+  "base_config_sha256": "5641bb0dc69f1a62203fbc2980c2cdafe2393a4c1db1e8664eb0f9431bb39264",
+  "reference_formal_job": {
+    "job_id": "5960180",
+    "project_revision": "5a97ab49393236a8edb44552ef4c032acf9e8058",
+    "result": "results/sglang-vllm-quarot-w4a16-serving/serving-formal-5960180.json",
+    "result_sha256": "fcaf3fef48dfa7d11f45fe20566789e95878938d106fdd539743425fb49d64be",
+    "source_manifest": "results/sglang-vllm-quarot-w4a16-serving/serving-formal-5960180-source-manifest.txt",
+    "source_manifest_sha256": "071c51aa46b2e290929ddf227521fa818aeb86dd70aee61f5307a938a45ed829",
+    "effective_config_sha256": "1b5123d3b1bf533a5c470797262238f208d5b098b64e0b4f4624793b22fbfc5b",
+    "request_corpus_sha256": "1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1",
+    "comparison_status": "formal_matrix_complete"
+  },
+  "experiment": {
+    "backend": "sglang",
+    "variant": "disable_overlap_schedule",
+    "server_argument": "--disable-overlap-schedule",
+    "comparison_design": "protocol_matched_historical_third_arm_not_paired_with_reference_job",
+    "only_intended_runtime_change": "disable SGLang overlap scheduling"
+  },
+  "benchmark": {
+    "protocol": "repository_openai_completions_stream_v1",
+    "endpoint": "/v1/completions",
+    "temperature": 0.0,
+    "repetition_penalty": 1.0,
+    "ignore_eos": true,
+    "stream_include_usage": true,
+    "validation_requests": 1,
+    "warmup_requests": 4,
+    "measured_requests": 64,
+    "cases": [
+      {
+        "name": "latency_c1",
+        "max_concurrency": 1
+      },
+      {
+        "name": "throughput_c8",
+        "max_concurrency": 8
+      }
+    ],
+    "repetitions": 3,
+    "metric_percentiles": [
+      50,
+      95,
+      99
+    ],
+    "memory_sample_interval_seconds": 0.2
+  },
+  "scope": "Protocol-matched SGLang third arm for the exact accepted QuaRot-style rotated GPTQ W4A16 checkpoint, changing only --disable-overlap-schedule relative to the SGLang configuration in formal job 5960180; concurrency 1 and 8, three repetitions, 64 measured 256+64 requests per cell; compared descriptively with the historical paired vLLM and default-SGLang reference rather than relabelled as a contemporaneous paired matrix"
+}

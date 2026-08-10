@@ -20,6 +20,26 @@ winner. The sections below retain the frozen plan and historical execution
 decisions; the accepted measurements are consolidated in
 [`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
 
+### Prepared SGLang no-overlap third arm (not submitted)
+
+A local-only extension is prepared to run SGLang with
+`--disable-overlap-schedule` while leaving the checkpoint, frozen request
+corpus, repository client, 8 GiB BF16 KV budget, cache controls, 256+64 token
+shape, concurrency 1/8 cases, and three-repetition protocol unchanged. It runs
+only six new SGLang cells and binds its input gate to the retained result and
+source manifest from formal job `5960180`; it does not rerun vLLM or default
+SGLang.
+
+This extension may be reported beside the two accepted backends as a
+protocol-matched historical third arm. It must not be relabelled as a
+contemporaneous three-way paired matrix. No Slurm job has been submitted and
+no performance result exists yet. Entry points:
+
+- `configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json`;
+- `scripts/validate_sglang_quarot_w4a16_disable_overlap_inputs.py`;
+- `scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py`;
+- `scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch`.
+
 The first implementation step must be a read-only compatibility audit. Any GPU
 smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
 acceptance before a formal comparison is submitted.
