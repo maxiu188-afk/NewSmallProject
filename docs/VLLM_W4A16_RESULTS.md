@@ -25,6 +25,7 @@ recorded below; it does not change the accepted QuaRot-style results.
 | Matched full-model serving | `5780631` | Six model/concurrency groups each completed 64/64 measured requests with zero failures |
 | Real layer-0 hook smoke | `5784966` | The packed W4A16 `LlamaDecoderLayer` executed with valid CUDA-event prefill and decode records |
 | Matched layer-0 diagnostic | `5784967` | BF16 and both W4A16 variants completed all eight prefill/decode cases |
+| QuaRot-style formal BoolQ | `5974744` | BF16 and rotated packed W4A16 each completed all 3,270 frozen examples; W4A16 reached 80.7645% versus 80.5810% BF16 |
 | SpinQuant-derived export/load gate | `5945162` | The learned R1/R2 artifact produced a complete 280-linear packed W4A16 checkpoint and passed fresh-process vLLM inference |
 | SpinQuant-derived formal BoolQ | `5952594` | The packed checkpoint completed all 3,270 frozen examples and reached 79.7554% versus 80.5810% BF16 |
 
@@ -65,6 +66,54 @@ token-manifest SHA-256
 `b6ed5f122ba85a9752b3dda699d73405e5a86b7db19050c1f395cbbea450f1cf`.
 The accepted formal-result SHA-256 is
 `f7698afcca494279cb7d3f2d50d94fd1378e03c6d6edd4506d750869cb09829a`.
+
+## QuaRot-style rotated W4A16 formal BoolQ
+
+Formal job `5974744` completed `0:0` in 5 minutes 4 seconds from clean
+revision `5ac3b26ecb7ca3256e84d00c4780c53207a16817`. It reused the frozen
+3,270-example BoolQ validation artifact and zero-shot choice-scoring protocol
+used by the accepted W4AFP8 and SpinQuant W4A16 evaluations. BF16 and the
+QuaRot-style rotated packed-W4A16 checkpoint ran in fresh vLLM processes and
+each completed all 6,540 choice requests:
+
+| Model | Correct | Accuracy | Delta versus BF16 |
+|---|---:|---:|---:|
+| BF16 | 2,635 / 3,270 | 80.5810% | -- |
+| QuaRot-style rotated packed W4A16 | 2,641 / 3,270 | 80.7645% | +0.1835 pp |
+
+The paired audit found 102 BF16-only correct examples, 108 W4A16-only correct
+examples, and 210 prediction disagreements. Exact two-sided McNemar
+`p=0.730161`; the observed six-answer difference is not statistically
+resolved and must not be presented as either superiority or equivalence.
+
+The accepted result SHA-256 is
+`92b241ee0cce967a39df777fde97a7a9a18a4e4879c10f7bce9cf431ca75f445`;
+the source-manifest SHA-256 is
+`6ebd32662a2fda325673264fb98108bffd635260e6277e0790a32a5e3a3eae79`.
+All ten manifest entries were independently rehashed. The result binds config
+SHA-256
+`944d38b4e23b71015e4db62452c4659cf009a1cf04103f0c0d29e54ff82d730a`,
+dataset-manifest SHA-256
+`66b7a80e9ef1df7d3bd1f07a111824bffcccff56b1ff47c4d9e81afebd1146d5`,
+and examples SHA-256
+`475e56b71939a8e3db8be48bcc4d344569b36cc660f4086c9ae15858d46a297f`.
+The W4A16 worker recorded all 280 packed decoder linears under vLLM
+`0.25.1+cu129` and PyTorch `2.11.0+cu129`.
+
+BoolQ is an accuracy workload and does not itself produce a serving-speedup
+measurement. For a compact endpoint comparison, the vLLM medians from the
+formal SGLang/vLLM job `5960180` can be descriptively normalized against the
+accepted BF16 rows from matched serving job `5780631`: throughput is `1.541x`
+at concurrency 1 and `1.369x` at concurrency 8; p50 E2E falls by 35.2% and
+27.1%; p50 TPOT falls by 36.8% and 32.4%; and ready GPU memory falls by 52.6%
+at both concurrencies. TTFT increases by 8.6% and 3.3%.
+
+This normalization is not a same-run paired speedup: job `5960180` contains no
+BF16 arm and used the repository-owned client and its own frozen request
+corpus. It is supported by the close same-job rotated-W4A16 ratios in
+`5780631` (`1.533x` and `1.373x` throughput), but the `5780631` result remains
+the primary performance evidence. The synthetic 256-input/64-output serving
+measurements must not be described as BoolQ evaluation throughput.
 
 ## Primary full-model serving result
 
@@ -228,23 +277,30 @@ stderr is empty. Optional DeepGEMM import warnings and `EngineDeadError` lines
 occur only during post-measurement server shutdown and do not invalidate the
 complete request records.
 
-## Matched W4A16 and W4AFP8 view
+## BoolQ and serving-acceleration endpoint view
 
-The new BoolQ and serving records make a descriptive comparison possible under
-the same frozen task and serving protocols. They remain separate formal jobs,
-not interleaved paired repetitions, so small differences must not be presented
-as statistically resolved format advantages.
+The accepted BoolQ and serving records make a descriptive endpoint comparison
+possible. Accuracy uses the same frozen task protocol. Acceleration uses the
+matched serving protocol for SpinQuant W4A16 and W4AFP8, while the QuaRot row
+uses the explicitly cross-job normalization described above. These are
+separate formal jobs, not interleaved paired repetitions, so small differences
+must not be presented as statistically resolved method or format advantages.
 
-| SpinQuant endpoint | BoolQ accuracy | Throughput ratio, c1 / c8 | p50 E2E reduction, c1 / c8 | Ready-memory reduction, c1 / c8 |
+| Endpoint | BoolQ accuracy | Throughput ratio, c1 / c8 | p50 E2E reduction, c1 / c8 | Ready-memory reduction, c1 / c8 |
 |---|---:|---:|---:|---:|
+| QuaRot-style packed W4A16 | 80.7645% | 1.541x / 1.369x | 35.2% / 27.1% | 52.6% / 52.6% |
 | Packed W4A16 | 79.7554% | 1.537x / 1.379x | 34.9% / 27.4% | 52.2% / 52.7% |
 | FP8-targeted W4AFP8 | 80.2752% | 1.42x / 1.385x | 29.5% / 27.9% | 50.7% / 50.7% |
 
-W4AFP8 is 17 correct answers and 0.5199 percentage points above W4A16 on
-BoolQ. W4A16 has the larger concurrency-1 throughput gain and slightly lower
-ready memory; concurrency-8 throughput and p50 E2E are very close across the
-two separately executed studies. W4A16's TTFT regression is also different
-from the FP8-targeted result and must remain visible when choosing an endpoint.
+QuaRot-style W4A16 is 33 correct answers and 1.0092 percentage points above
+SpinQuant W4A16, and 16 answers and 0.4893 percentage points above the
+FP8-targeted W4AFP8 endpoint. Those are descriptive differences across
+separate formal jobs, not paired significance results. SpinQuant W4AFP8 is 17
+correct answers and 0.5199 percentage points above SpinQuant W4A16. Both W4A16
+routes have the larger concurrency-1 throughput gain and slightly lower ready
+memory than W4AFP8; concurrency-8 throughput and p50 E2E are close. TTFT
+regressions remain visible in the detailed results and should be considered
+when choosing an endpoint.
 
 ## Conclusions and closed boundary
 
@@ -259,6 +315,7 @@ unrotated W4A16, but the deployed-checkpoint PPL result shows a quality benefit:
 PPL improved from 5.289677 to 5.132755 and recovered 55.67% of the quantization
 gap to BF16. The SpinQuant-derived extension now has both BoolQ and matched
 serving evidence for its separately scoped packed checkpoint. QuaRot-style
-W4A16 downstream accuracy and broader generation quality remain unmeasured.
-Fake-quant PPL from the algorithmic study remains a separate evidence route
-and must not be substituted for either packed vLLM result.
+W4A16 now also has formal BoolQ accuracy evidence; broader downstream tasks and
+generation quality remain unmeasured. Fake-quant PPL from the algorithmic
+study remains a separate evidence route and must not be substituted for either
+packed vLLM result.
