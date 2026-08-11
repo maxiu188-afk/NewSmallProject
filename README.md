@@ -44,10 +44,11 @@ checks kept separate from real CUDA deployment and performance work.
   0.96--1.05x speed and 74.2% fewer parameter bytes. The matched deployed
   WikiText-2 gate measured PPL 5.007820 for BF16, 5.289677 for unrotated W4A16,
   and 5.132755 for rotated W4A16; rotation recovered 55.67% of the unrotated
-  quantization gap. A separately scoped packed SpinQuant W4A16 endpoint reached
-  79.7554% on the frozen 3,270-example BoolQ protocol versus 80.5810% BF16. Its
-  matched serving run improved request throughput by 1.537x/1.379x and reduced
-  ready GPU memory by 52.2%/52.7% at concurrency 1/8, with a small TTFT
+  quantization gap. Rotated W4A16 reached 80.7645% on the frozen 3,270-example
+  BoolQ protocol versus 80.5810% BF16, with paired `p=0.730161`. A separately
+  scoped packed SpinQuant W4A16 endpoint reached 79.7554% on the same protocol.
+  Its matched serving run improved request throughput by 1.537x/1.379x and
+  reduced ready GPU memory by 52.2%/52.7% at concurrency 1/8, with a small TTFT
   trade-off.
 - An accepted Llama-2-13B deployed-checkpoint W4AFP8 PPL study through vLLM on
   Isambard GH200. Over 331,614 targets, PPL was 5.007820 BF16, 5.136105
@@ -61,9 +62,11 @@ checks kept separate from real CUDA deployment and performance work.
   12 concurrency 1/8 x three-paired-repetition cells passed. SGLang had 20.45%
   higher median request throughput at concurrency 1 and 1.07% at concurrency
   8, but p50 TTFT was 25.87% and 64.89% higher; no blanket backend winner is
-  claimed. A separate, local-only third-arm entry is prepared for SGLang
-  `--disable-overlap-schedule`; it reruns neither accepted backend and has not
-  been submitted or measured.
+  claimed. Protocol-matched historical third-arm job `5980786` then measured
+  SGLang with `--disable-overlap-schedule` without rerunning either accepted
+  backend. Relative to default SGLang, throughput fell 10.41%/6.86% and p50
+  E2E increased 11.38%/7.20% at concurrency 1/8, so disabling overlap is not
+  supported for this workload.
 
 The Llama-2 BF16 result is a reproducible full-precision text-evaluation
 control; the RTN F3/F4 results remain floating-point QDQ rather than deployment
@@ -83,7 +86,7 @@ is in the [serving-backend result](docs/SERVING_BACKEND_COMPARISON_RESULTS.md).
 Completed runbooks and detailed source records remain available under
 [`docs/archive/`](docs/archive/README.md).
 
-The prepared no-overlap third-arm entry points are
+The accepted no-overlap third-arm entry points are
 [`configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json`](configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json),
 [`scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py`](scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py), and
 [`scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch`](scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch).

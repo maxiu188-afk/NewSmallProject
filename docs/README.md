@@ -39,9 +39,9 @@ result-gated smoke into an automatically queued formal job.
   official-backend full-model and paper-aligned single-block results.
 - [`VLLM_W4A16_RESULTS.md`](VLLM_W4A16_RESULTS.md): accepted Isambard GH200
   QuaRot-style deployed-checkpoint PPL, full-model serving result, and
-  same-environment layer-0 diagnostic, plus the accepted SpinQuant-derived
-  packed-W4A16 export/load, formal BoolQ, and matched serving result, including
-  the direct protocol-matched W4AFP8 comparison.
+  same-environment layer-0 diagnostic plus formal QuaRot-style BoolQ; also the
+  accepted SpinQuant-derived packed-W4A16 export/load, formal BoolQ, and matched
+  serving result, including the direct protocol-matched W4AFP8 comparison.
 - [`W4AFP8_RESULTS.md`](W4AFP8_RESULTS.md): accepted packed-checkpoint vLLM PPL
   and matched serving for the INT8-trained transfer and FP8-targeted SpinQuant
   endpoints, plus the accepted min/max-versus-MSE and old/new SpinQuant BoolQ
@@ -84,11 +84,10 @@ result-gated smoke into an automatically queued formal job.
   BoolQ smoke, and the accepted `5960180` concurrency 1/8 x three-paired-
   repetition matrix. SGLang led concurrency-1 throughput/E2E and TPOT in both
   cells; vLLM retained lower TTFT, while concurrency-8 throughput/E2E was
-  effectively tied under the frozen workload.
-- Prepared but not submitted: a protocol-matched SGLang-only third arm with
-  `--disable-overlap-schedule`. Its config, runner, and Slurm entry are indexed
-  from the repository root README. It has no result yet and is not part of the
-  paired `5960180` evidence.
+  effectively tied under the frozen workload. Historical third-arm job
+  `5980786` additionally shows that `--disable-overlap-schedule` lowers default
+  SGLang throughput and worsens p50 E2E under this protocol; it remains
+  descriptive rather than part of the paired `5960180` matrix.
 
 ## Method, policy, and reusable reference
 
