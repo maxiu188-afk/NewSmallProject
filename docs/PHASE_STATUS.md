@@ -13,9 +13,9 @@ through 2026-07-22 is preserved in
 | Owned packed W4A8 | Correctness complete on RTX 6000 Ada; selected-linear portability accepted on GH200 | All 280 decoder linears matched the packed oracle on Ada; the Isambard result covers one `q_proj`, not the full decoder; K/V remain BF16 |
 | Official QuaRot full model | Complete on RTX 6000 Ada | Real Llama-2-13B W4A4KV4 reduced model-resident memory from 26.29 GB to 7.18 GB but was slower at batch one; no packed-checkpoint PPL result |
 | Official QuaRot single block | Complete on RTX 6000 Ada | W4 completed 14/14 cases; 2048-token prefill gained 1.53--1.68x; batch-16/context-4096 layer E2E gained 1.28x; this is not full-model latency |
-| vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, and layer-0 protocols | Rotated packed W4A16 reached PPL 5.132755 versus 5.289677 unrotated and 5.007820 BF16; W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; no downstream-task result |
+| vLLM W4A16 serving and quality | Complete on GH200 for matched Llama-2-13B deployed PPL, serving, layer-0, and formal BoolQ protocols | Rotated packed W4A16 reached PPL 5.132755 and BoolQ 80.7645% versus 80.5810% BF16 (`p=0.730161`); W4A16 cut ready GPU memory by 52.7% and improved request throughput by 1.37--1.54x; broader downstream tasks remain unmeasured |
 | SpinQuant-derived vLLM W4A16 | Export/load `5945162`, full BoolQ `5952594`, and formal serving `5961810` accepted | The packed checkpoint reached 79.7554% over 3,270 BoolQ examples versus 80.5810% BF16; serving delivered 1.379--1.537x BF16 request throughput and 52.2--52.7% lower ready GPU memory, with a small TTFT trade-off |
-| SGLang-vLLM W4A16 serving | Exact-checkpoint BoolQ smoke `5941763`, serving smoke `5952554`, and formal matrix `5960180` accepted | All 12 concurrency 1/8 x three-repetition cells passed. SGLang led throughput/E2E at concurrency 1 and TPOT in both cells; vLLM had lower TTFT, and concurrency-8 throughput/E2E was effectively tied |
+| SGLang-vLLM W4A16 serving | Exact-checkpoint BoolQ smoke `5941763`, serving smoke `5952554`, paired matrix `5960180`, and historical no-overlap third arm `5980786` accepted | Default SGLang led throughput/E2E at concurrency 1 and TPOT in both paired cells; disabling overlap reduced SGLang throughput by 10.41%/6.86% and increased p50 E2E by 11.38%/7.20% at concurrency 1/8 |
 | vLLM W4AFP8 deployment | Deployed PPL, matched serving, and BoolQ are accepted on GH200 for both the old INT8-trained SpinQuant transfer and the new FP8-targeted endpoint | FP8-targeted SpinQuant reached PPL 5.219583 and BoolQ 80.2752%; W4AFP8 retained 50.7% lower ready GPU memory plus 1.38--1.42x request throughput versus BF16, while old/new rotation serving differed by less than 1% |
 
 ## Current deployment decision
@@ -272,6 +272,15 @@ blanket backend winner. The source audit also predicted that SGLang `0.5.16`
 could not dispatch the unchanged dense compressed-tensors W4AFP8 checkpoint;
 job `5896201` confirms that separate negative runtime boundary. The historical
 repair and smoke sequence is retained below.
+
+Protocol-matched historical third-arm job `5980786` subsequently ran only
+SGLang with `--disable-overlap-schedule`. All six concurrency 1/8 x
+three-repetition cells passed, but throughput was 10.41%/6.86% lower and p50
+E2E was 11.38%/7.20% higher than historical default SGLang. p50 TTFT improved
+11.01% at concurrency 1 and was nearly unchanged at concurrency 8, while p50
+TPOT worsened 13.67%/12.34%. This result does not support disabling overlap for
+the frozen workload and remains descriptive rather than paired with `5960180`.
+
 Result-gated smoke job `5895081` was submitted from clean revision `3578427`
 without a formal-job dependency. It completed, but its SGLang cases used the
 Cray base interpreter after an erroneous virtual-environment symlink resolution

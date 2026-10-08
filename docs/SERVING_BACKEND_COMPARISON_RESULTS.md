@@ -5,10 +5,13 @@
 This record closes the four-case compatibility smoke for job `5896201`, the
 bounded QuaRot W4A16 BoolQ compatibility sequence through job `5941763`, the
 result-gated serving-client smoke `5952554`, and the formal matched serving
-matrix `5960180`. The formal result supports a cross-backend serving claim for
-the exact accepted QuaRot-style rotated W4A16 checkpoint on one Isambard GH200
-under the frozen 256+64 request workload. It does not establish formal BoolQ
-equivalence, generalize to BF16 or W4AFP8, or compare different checkpoints.
+matrix `5960180`. Protocol-matched historical third-arm job `5980786` adds
+SGLang with `--disable-overlap-schedule` without rerunning either accepted
+backend. The formal result supports a cross-backend serving claim for the exact
+accepted QuaRot-style rotated W4A16 checkpoint on one Isambard GH200 under the
+frozen 256+64 request workload. It does not establish formal BoolQ equivalence,
+generalize to BF16 or W4AFP8, or compare different checkpoints. The third arm
+is descriptive rather than a contemporaneous paired extension of `5960180`.
 
 The first result-gated serving-client smoke, job `5944823`, was submitted alone
 from clean revision `78ed96c` on 2026-08-07 and failed closed `1:0` after
@@ -422,3 +425,67 @@ the benchmark. SGLang's post-workload termination diagnostics have the same
 evidence boundary. The three-repetition min/max ranges are descriptive spread,
 not confidence intervals, and no statistical equivalence or superiority test
 was predeclared.
+
+## Protocol-matched SGLang no-overlap third arm
+
+Job `5980786` completed `0:0` in `00:06:05` on one GH200. It reused the exact
+checkpoint, frozen 64-request corpus, repository client, 8 GiB BF16 KV budget,
+cache controls, 256+64 token shape, concurrency 1/8 cases, and three-repetition
+protocol from `5960180`. The only intended runtime change was adding
+`--disable-overlap-schedule` once to every SGLang server command. It did not
+rerun vLLM or default SGLang.
+
+All six cells passed 64/64 measured requests with zero failures, for 384
+measured requests. Every cell recorded 16,384 input tokens and 4,096 output
+tokens. All 29 final source-manifest entries were independently rehashed with
+no missing or drifted files, stderr was empty, and GPU memory returned to
+3--8 MiB after each server.
+
+### Third-arm provenance
+
+| Item | Reviewed value |
+|---|---|
+| Slurm outcome | `5980786`, `COMPLETED`, exit `0:0`, elapsed `00:06:05`; stderr empty |
+| Project revision | `ac903da528f1eecdae161f18f4829370bcec7f0a`, clean checkout |
+| Result path | `results/sglang-vllm-quarot-w4a16-serving/sglang-disable-overlap-formal-5980786.json` |
+| Result SHA-256 | `b98561310a00e92fd5f7354d281a45766e9e085a9ef44128fdf0f6368d1b1ad0` |
+| Source-manifest SHA-256 | `95184aba33506d85ec82f81d326709f58c099425866b6e8882f12fc458a5ec9a` |
+| Effective-config SHA-256 | `34ccedf8502fa4c0885c68d4d27bc8a00900f00a6758f375e3393e4f50fbedba` |
+| Input-gate SHA-256 | `e6ac2b0f4cc36f0bfe137444ec2ebd3254b89b21cefe1cc4f8f292ae2afe86d7` |
+| Request-corpus SHA-256 | `1a0d120959122836499220a5b65538e7548c86f30f30224530e8f7385d2b65e1` |
+| SGLang preflight SHA-256 | `0b9310c1aa50e406deb7492d2228d2fc804ee0c9d7911a5ad0ab491a0b0cab1a` |
+| Checkpoint tree SHA-256 | `2f22f56a5edb32e037416c78be49e617bcee796abca26822704a6ef825ff8e99` |
+| Runtime | SGLang `0.5.16`; PyTorch `2.11.0+cu129`; compressed-tensors `0.17.2a20260731` |
+
+The input gate revalidated all 45 bindings from reference job `5960180`: 35
+retained files were rehashed directly and ten repository sources were rehashed
+from the clean producing revision. The immutable-model gate again found 280
+packed decoder linears and the same checkpoint-tree hash.
+
+### Third-arm measurements
+
+Values are medians followed by `[minimum, maximum]` over all three repetitions.
+
+| Concurrency | Variant | Request/s | p50 TTFT ms | p50 TPOT ms | p50 E2E ms | Ready MiB |
+|---:|---|---:|---:|---:|---:|---:|
+| 1 | vLLM reference | 2.712 `[2.706, 2.713]` | 22.92 `[22.60, 23.05]` | 5.489 `[5.480, 5.495]` | 368.43 `[368.25, 369.10]` | 16,166 `[16,165, 16,167]` |
+| 1 | SGLang default reference | 3.268 `[3.251, 3.272]` | 28.70 `[28.69, 28.85]` | 4.390 `[4.381, 4.395]` | 305.25 `[304.90, 305.52]` | 16,735 `[16,734, 16,736]` |
+| 1 | SGLang no overlap | 2.928 `[2.9276, 2.9278]` | 25.54 `[25.47, 25.58]` | 4.989 `[4.987, 4.993]` | 339.99 `[339.79, 340.11]` | 16,734 `[16,732, 16,737]` |
+| 8 | vLLM reference | 15.574 `[15.180, 15.658]` | 108.17 `[106.84, 109.83]` | 6.425 `[6.395, 6.452]` | 512.94 `[511.25, 514.83]` | 16,166 `[16,165, 16,168]` |
+| 8 | SGLang default reference | 15.740 `[15.654, 15.755]` | 178.20 `[177.79, 178.37]` | 5.199 `[5.190, 5.206]` | 508.29 `[508.12, 508.38]` | 16,735 `[16,735, 16,736]` |
+| 8 | SGLang no overlap | 14.660 `[14.584, 14.682]` | 177.05 `[176.83, 177.12]` | 5.840 `[5.832, 5.878]` | 544.91 `[544.89, 547.98]` | 16,736 `[16,733, 16,737]` |
+
+Relative to historical default SGLang, disabling overlap reduced request
+throughput by 10.41% at concurrency 1 and 6.86% at concurrency 8. p50 E2E
+increased by 11.38% and 7.20%, while p50 TPOT increased by 13.67% and 12.34%.
+p50 TTFT improved by 11.01% at concurrency 1 and was nearly unchanged
+(`-0.65%`) at concurrency 8; ready memory was unchanged within 1 MiB.
+
+Relative to historical vLLM, no-overlap SGLang remained 7.95% higher in
+throughput and 7.72% lower in p50 E2E at concurrency 1, but it was 5.87% lower
+in throughput and 6.23% higher in p50 E2E at concurrency 8. Its p50 TTFT was
+11.45% and 63.67% higher, while p50 TPOT was about 9.10% lower in both cells.
+The evidence therefore does not support disabling overlap for this workload:
+the modest TTFT benefit relative to default SGLang is outweighed by worse TPOT,
+throughput, and end-to-end latency. These cross-job differences remain
+descriptive because the third arm was not interleaved with job `5960180`.

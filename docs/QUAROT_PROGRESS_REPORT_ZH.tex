@@ -310,7 +310,9 @@ packed W4A16在完整3,270样本BoolQ上达到79.7554\%，BF16为80.5810\%，差
 0.8257个百分点；正式服务同时取得1.379--1.537倍BF16吞吐和52.2--52.7\%
 ready显存下降，但TTFT略高。精确配对McNemar检验$p=0.05431$，因此不能据此
 宣称BoolQ等价。
-QuaRot-style W4A16下游任务和更广泛的生成质量评估仍属于明确未覆盖范围。
+QuaRot-style rotated W4A16在同一完整BoolQ协议上达到80.7645\%，BF16为
+80.5810\%，相差6题；配对McNemar检验$p=0.730161$，既不能宣称优于BF16，也
+不能据此宣称等价。更广泛的下游任务和生成质量评估仍属于明确未覆盖范围。
 W4AFP8的FP8-targeted
 SpinQuant端点达到PPL 5.219583和BoolQ 80.2752\%，同时保留50.7\% ready显存下降和
 1.38--1.42倍吞吐收益。fake quant、官方W4A4KV4、W4A16和W4AFP8仍是四条独立证据
@@ -322,5 +324,10 @@ SpinQuant端点达到PPL 5.219583和BoolQ 80.2752\%，同时保留50.7\% ready�
 仅高1.07\%；p50 TPOT分别低20.03\%和19.23\%，但p50 TTFT分别高25.87\%和
 64.89\%。并发8的吞吐与E2E基本持平。因此结论是metric-specific：SGLang在并发1
 吞吐/E2E和两格TPOT上占优，vLLM的TTFT更低，不能给出“某backend全面更快”的结论。
+协议匹配的历史第三臂作业\texttt{5980786}仅为SGLang加入
+\texttt{--disable-overlap-schedule}。六个单元全部通过，但相对默认SGLang，并发
+1/8吞吐分别下降10.41\%/6.86\%，p50 E2E分别上升11.38\%/7.20\%。因此在该固定
+工作负载下没有证据支持关闭overlap schedule；该结果不是与\texttt{5960180}
+同时运行的三方配对矩阵。
 
 \end{document}

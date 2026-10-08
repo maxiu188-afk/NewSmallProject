@@ -20,9 +20,32 @@ winner. The sections below retain the frozen plan and historical execution
 decisions; the accepted measurements are consolidated in
 [`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
 
-The first implementation step must be a read-only compatibility audit. Any GPU
-smoke is result-gated: submit the smoke only, inspect its artifacts, and obtain
-acceptance before a formal comparison is submitted.
+### Completed SGLang no-overlap historical third arm
+
+The local-only extension ran SGLang with
+`--disable-overlap-schedule` while leaving the checkpoint, frozen request
+corpus, repository client, 8 GiB BF16 KV budget, cache controls, 256+64 token
+shape, concurrency 1/8 cases, and three-repetition protocol unchanged. It ran
+only six new SGLang cells and bound its input gate to the retained result and
+source manifest from formal job `5960180`; it did not rerun vLLM or default
+SGLang.
+
+Job `5980786` completed all six SGLang cells with 64/64 measured requests and
+zero failures. Relative to historical default SGLang, no-overlap throughput
+was 10.41% and 6.86% lower and p50 E2E was 11.38% and 7.20% higher at
+concurrency 1 and 8. The extension may be reported beside the two accepted
+backends as a protocol-matched historical third arm, but it must not be
+relabelled as a contemporaneous three-way paired matrix. Result SHA-256 is
+`b98561310a00e92fd5f7354d281a45766e9e085a9ef44128fdf0f6368d1b1ad0`.
+Entry points:
+
+- `configs/deployment/sglang_quarot_w4a16_disable_overlap_serving_formal_isambard.json`;
+- `scripts/validate_sglang_quarot_w4a16_disable_overlap_inputs.py`;
+- `scripts/run_sglang_quarot_w4a16_disable_overlap_serving.py`;
+- `scripts/run_isambard_sglang_quarot_w4a16_disable_overlap_serving.sbatch`.
+
+The completed measurements and full provenance are recorded in
+[`SERVING_BACKEND_COMPARISON_RESULTS.md`](SERVING_BACKEND_COMPARISON_RESULTS.md).
 
 The frozen smoke runtimes are vLLM `0.25.1+cu129` and SGLang `0.5.16`, each in
 an isolated environment with PyTorch `2.11.0+cu129`. The SGLang execution
